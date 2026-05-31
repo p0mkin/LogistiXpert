@@ -1,0 +1,18 @@
+[gd_scene load_steps=2 format=3 uid="uid://leaderboard_scene"]
+
+[ext_resource type="Script" path="res://scenes/leaderboard/Leaderboard.gd" id="1_lb"]
+
+[node name="Leaderboard" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_lb")
+
+[node name="CanvasLayer" type="CanvasLayer" parent="."]
+
+[node name="HTTPRequest" type="HTTPRequest" parent="."]
+
+[node name="MyRankHTTPRequest" type="HTTPRequest" parent="."]

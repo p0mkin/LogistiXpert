@@ -1,0 +1,223 @@
+[gd_scene load_steps=2 format=3 uid="uid://d1x8w32r8jyl3"]
+
+[ext_resource type="Script" path="res://scenes/main_menu/MainMenu.gd" id="1_script"]
+
+[node name="MainMenu" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_script")
+
+[node name="BG" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.0705882, 0.0784314, 0.0901961, 1)
+
+[node name="Grid" type="ColorRect" parent="BG"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(1, 1, 1, 0.0156863)
+
+[node name="Margin" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 60
+theme_override_constants/margin_top = 40
+theme_override_constants/margin_right = 60
+theme_override_constants/margin_bottom = 40
+
+[node name="HBox" type="HBoxContainer" parent="Margin"]
+layout_mode = 2
+theme_override_constants/separation = 60
+
+[node name="LeftPanel" type="VBoxContainer" parent="Margin/HBox"]
+custom_minimum_size = Vector2(400, 0)
+layout_mode = 2
+theme_override_constants/separation = 24
+alignment = 1
+
+[node name="TitleBox" type="VBoxContainer" parent="Margin/HBox/LeftPanel"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Brand" type="Label" parent="Margin/HBox/LeftPanel/TitleBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.92549, 0.607843, 0.141176, 1)
+theme_override_font_sizes/font_size = 14
+text = "PROJECT NIGHTHAUL v1.0.0"
+letter_spacing = 2.0
+
+[node name="GameTitle" type="Label" parent="Margin/HBox/LeftPanel/TitleBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 32
+text = "TRUCK MANAGER
+UNDERWORLD"
+
+[node name="SubTitle" type="Label" parent="Margin/HBox/LeftPanel/TitleBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.470588, 0.521569, 0.596078, 1)
+theme_override_font_sizes/font_size = 14
+text = "Persistent Cross-Platform Logistics Sandbox"
+
+[node name="Divider" type="ColorRect" parent="Margin/HBox/LeftPanel"]
+custom_minimum_size = Vector2(0, 2)
+layout_mode = 2
+color = Color(0.92549, 0.607843, 0.141176, 0.313726)
+
+[node name="FormContainer" type="VBoxContainer" parent="Margin/HBox/LeftPanel"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="UserBox" type="VBoxContainer" parent="Margin/HBox/LeftPanel/FormContainer"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Label" type="Label" parent="Margin/HBox/LeftPanel/FormContainer/UserBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.709804, 0.768627, 0.843137, 1)
+theme_override_font_sizes/font_size = 12
+text = "USER REGISTRY IDENTIFICATION"
+
+[node name="UserEdit" type="LineEdit" parent="Margin/HBox/LeftPanel/FormContainer/UserBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 14
+placeholder_text = "Enter Username..."
+flat = true
+
+[node name="PassBox" type="VBoxContainer" parent="Margin/HBox/LeftPanel/FormContainer"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Label" type="Label" parent="Margin/HBox/LeftPanel/FormContainer/PassBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.709804, 0.768627, 0.843137, 1)
+theme_override_font_sizes/font_size = 12
+text = "SECURITY ACCESS CREDENTIALS"
+
+[node name="PassEdit" type="LineEdit" parent="Margin/HBox/LeftPanel/FormContainer/PassBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 14
+secret = true
+placeholder_text = "Enter Password..."
+flat = true
+
+[node name="ButtonBox" type="HBoxContainer" parent="Margin/HBox/LeftPanel"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="LoginBtn" type="Button" parent="Margin/HBox/LeftPanel/ButtonBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 46)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.0705882, 0.0784314, 0.0901961, 1)
+theme_override_font_sizes/font_size = 14
+text = "ESTABLISH SESSION"
+
+[node name="RegisterBtn" type="Button" parent="Margin/HBox/LeftPanel/ButtonBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 46)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 14
+text = "REGISTER CODE"
+
+[node name="StatusLabel" type="Label" parent="Margin/HBox/LeftPanel"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 24)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.470588, 0.521569, 0.596078, 1)
+theme_override_font_sizes/font_size = 12
+text = "System: Awaiting identity verification..."
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 3
+
+[node name="RightPanel" type="VBoxContainer" parent="Margin/HBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 24
+alignment = 1
+
+[node name="TerminalPanel" type="ColorRect" parent="Margin/HBox/RightPanel"]
+layout_mode = 2
+size_flags_vertical = 3
+color = Color(0.0470588, 0.0509804, 0.0588235, 1)
+
+[node name="Margin" type="MarginContainer" parent="Margin/HBox/RightPanel/TerminalPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 32
+theme_override_constants/margin_top = 32
+theme_override_constants/margin_right = 32
+theme_override_constants/margin_bottom = 32
+
+[node name="InfoBox" type="VBoxContainer" parent="Margin/HBox/RightPanel/TerminalPanel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="TerminalHeader" type="Label" parent="Margin/HBox/RightPanel/TerminalPanel/Margin/InfoBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.180392, 0.803922, 0.443137, 1)
+theme_override_font_sizes/font_size = 14
+text = "[UNDERWORLD SYSTEM DIAGNOSTIC OK]"
+
+[node name="Desc" type="Label" parent="Margin/HBox/RightPanel/TerminalPanel/Margin/InfoBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.709804, 0.768627, 0.843137, 1)
+theme_override_font_sizes/font_size = 13
+text = "Welcome to Eastern Europe logistics network core. Legitimate cargo lines (Electronics, Machinery, Dairy) run routes within the Schengen limits (Tallinn, Riga, Vilnius, Warsaw, Kaunas)."
+autowrap_mode = 3
+
+[node name="SmugglingLabel" type="Label" parent="Margin/HBox/RightPanel/TerminalPanel/Margin/InfoBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.901961, 0.298039, 0.235294, 1)
+theme_override_font_sizes/font_size = 14
+text = "■ WARNING: SMUGGLING OPERATION DETECTED"
+
+[node name="DescSmuggle" type="Label" parent="Margin/HBox/RightPanel/TerminalPanel/Margin/InfoBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.709804, 0.768627, 0.843137, 1)
+theme_override_font_sizes/font_size = 13
+text = "Back-alley dealers will offer high-yield Class A/B/C contraband contracts crossing non-Schengen custom borders (Minsk, Brest). Ensure vehicles have falso-bottom fuel tanks or scanner lead-shielding to bypass custom X-Ray and K9 patrols, or be prepared to bribe guards or run checkpoints."
+autowrap_mode = 3
+
+[node name="AuctionLabel" type="Label" parent="Margin/HBox/RightPanel/TerminalPanel/Margin/InfoBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.607843, 0.34902, 0.713726, 1)
+theme_override_font_sizes/font_size = 14
+text = "■ USED-VEHICLE AUCTION BOARD SYSTEM"
+
+[node name="DescAuction" type="Label" parent="Margin/HBox/RightPanel/TerminalPanel/Margin/InfoBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.709804, 0.768627, 0.843137, 1)
+theme_override_font_sizes/font_size = 13
+text = "Real-time global used-truck auction blocks are persistent. Flip, bid, and trade rigs with other players. Leverage the \"Buyer Beware\" economy: cover structural damages, hide smuggling hot histories, and clear the listing. Buyers only receive complete mechanical VIN reports after the auction block closes."
+autowrap_mode = 3

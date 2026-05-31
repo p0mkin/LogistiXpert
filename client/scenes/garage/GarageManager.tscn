@@ -1,0 +1,209 @@
+[gd_scene load_steps=2 format=3 uid="uid://garage_manager"]
+
+[ext_resource type="Script" path="res://scenes/garage/GarageManager.gd" id="1_garman"]
+
+[node name="GarageManager" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_garman")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.047, 0.051, 0.059, 1)
+
+[node name="MainLayout" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_top = 16.0
+offset_right = -16.0
+offset_bottom = -16.0
+theme_override_constants/separation = 16
+
+[node name="LeftPanel" type="VBoxContainer" parent="MainLayout"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 1.0
+theme_override_constants/separation = 12
+
+[node name="TopBar" type="HBoxContainer" parent="MainLayout/LeftPanel"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="BackBtn" type="Button" parent="MainLayout/LeftPanel/TopBar"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "← MAP"
+theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0.901, 0.298, 0.235, 1)
+
+[node name="GarageTitle" type="Label" parent="MainLayout/LeftPanel/TopBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "▦ GARAGE OPERATIONS CENTER"
+theme_override_font_sizes/font_size = 18
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+
+[node name="PlayerLabel" type="Label" parent="MainLayout/LeftPanel/TopBar"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "OPERATOR"
+theme_override_font_sizes/font_size = 11
+theme_override_colors/font_color = Color(0.709, 0.768, 0.843, 0.6)
+
+[node name="Divider1" type="HSeparator" parent="MainLayout/LeftPanel"]
+layout_mode = 2
+
+[node name="BalanceBar" type="HBoxContainer" parent="MainLayout/LeftPanel"]
+layout_mode = 2
+theme_override_constants/separation = 24
+
+[node name="BalanceLabel" type="Label" parent="MainLayout/LeftPanel/BalanceBar"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "$0.00 CLEAN"
+theme_override_font_sizes/font_size = 13
+theme_override_colors/font_color = Color(0.18, 0.803, 0.443, 1)
+
+[node name="DirtyLabel" type="Label" parent="MainLayout/LeftPanel/BalanceBar"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "$0.00 DIRTY"
+theme_override_font_sizes/font_size = 13
+theme_override_colors/font_color = Color(0.607, 0.349, 0.713, 1)
+
+[node name="TabsContainer" type="HBoxContainer" parent="MainLayout/LeftPanel"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="FleetTabLabel" type="Label" parent="MainLayout/LeftPanel/TabsContainer"]
+layout_mode = 2
+text = "◈ TRUCK FLEET"
+theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0.18, 0.803, 0.443, 1)
+
+[node name="Sep" type="Label" parent="MainLayout/LeftPanel/TabsContainer"]
+layout_mode = 2
+text = "|"
+theme_override_colors/font_color = Color(0.709, 0.768, 0.843, 0.3)
+
+[node name="DriverTabLabel" type="Label" parent="MainLayout/LeftPanel/TabsContainer"]
+layout_mode = 2
+text = "◈ DRIVER ROSTER"
+theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0.607, 0.349, 0.713, 1)
+
+[node name="HireBtn" type="Button" parent="MainLayout/LeftPanel/TabsContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "+ HIRE ($2500)"
+theme_override_font_sizes/font_size = 11
+theme_override_colors/font_color = Color(0.925, 0.607, 0.141, 1)
+
+[node name="ScrollArea" type="ScrollContainer" parent="MainLayout/LeftPanel"]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 2
+
+[node name="ListsRow" type="HBoxContainer" parent="MainLayout/LeftPanel/ScrollArea"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 16
+
+[node name="FleetList" type="VBoxContainer" parent="MainLayout/LeftPanel/ScrollArea/ListsRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+custom_minimum_size = Vector2(440, 0)
+
+[node name="FleetPlaceholder" type="Label" parent="MainLayout/LeftPanel/ScrollArea/ListsRow/FleetList"]
+layout_mode = 2
+text = "Loading fleet..."
+theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0.709, 0.768, 0.843, 0.4)
+
+[node name="DriverList" type="VBoxContainer" parent="MainLayout/LeftPanel/ScrollArea/ListsRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+custom_minimum_size = Vector2(440, 0)
+
+[node name="DriverPlaceholder" type="Label" parent="MainLayout/LeftPanel/ScrollArea/ListsRow/DriverList"]
+layout_mode = 2
+text = "Loading drivers..."
+theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0.709, 0.768, 0.843, 0.4)
+
+[node name="ConsoleBar" type="PanelContainer" parent="MainLayout/LeftPanel"]
+layout_mode = 2
+
+[node name="ConsoleLabel" type="Label" parent="MainLayout/LeftPanel/ConsoleBar"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Garage management system online."
+theme_override_font_sizes/font_size = 11
+theme_override_colors/font_color = Color(0.18, 0.803, 0.443, 1)
+
+[node name="DetailPanel" type="PanelContainer" parent="MainLayout"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 1
+custom_minimum_size = Vector2(320, 0)
+visible = false
+
+[node name="DetailInner" type="VBoxContainer" parent="MainLayout/DetailPanel"]
+layout_mode = 2
+theme_override_constants/separation = 10
+offset_left = 20
+offset_right = -20
+offset_top = 20
+offset_bottom = -20
+
+[node name="DetailTitle" type="Label" parent="MainLayout/DetailPanel/DetailInner"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Select an asset"
+theme_override_font_sizes/font_size = 16
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+
+[node name="DetailStatus" type="Label" parent="MainLayout/DetailPanel/DetailInner"]
+unique_name_in_owner = true
+layout_mode = 2
+text = ""
+theme_override_font_sizes/font_size = 12
+
+[node name="DetailSep" type="HSeparator" parent="MainLayout/DetailPanel/DetailInner"]
+layout_mode = 2
+
+[node name="DetailBody" type="VBoxContainer" parent="MainLayout/DetailPanel/DetailInner"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 6
+
+[node name="ActionSep" type="HSeparator" parent="MainLayout/DetailPanel/DetailInner"]
+layout_mode = 2
+
+[node name="ActionBtn1" type="Button" parent="MainLayout/DetailPanel/DetailInner"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "ACTION 1"
+theme_override_font_sizes/font_size = 12
+
+[node name="ActionBtn2" type="Button" parent="MainLayout/DetailPanel/DetailInner"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "ACTION 2"
+theme_override_font_sizes/font_size = 12
+

@@ -1,0 +1,200 @@
+[gd_scene load_steps=2 format=3 uid="uid://auction_house"]
+
+[ext_resource type="Script" path="res://scenes/auction/AuctionHouse.gd" id="1_auction"]
+
+[node name="AuctionHouse" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+script = ExtResource("1_auction")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.047, 0.051, 0.059, 1)
+
+[node name="MainLayout" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_top = 12.0
+offset_right = -16.0
+offset_bottom = -16.0
+theme_override_constants/separation = 10
+
+[node name="TopBar" type="HBoxContainer" parent="MainLayout"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="BackBtn" type="Button" parent="MainLayout/TopBar"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "← MAP"
+theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0.901, 0.298, 0.235, 1)
+
+[node name="TitleLbl" type="Label" parent="MainLayout/TopBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "🏷 BLACK MARKET AUCTION BLOCK"
+theme_override_font_sizes/font_size = 18
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+
+[node name="PlayerLabel" type="Label" parent="MainLayout/TopBar"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "BIDDER"
+theme_override_font_sizes/font_size = 11
+theme_override_colors/font_color = Color(0.709, 0.768, 0.843, 0.5)
+
+[node name="Divider" type="HSeparator" parent="MainLayout"]
+layout_mode = 2
+
+[node name="BalanceBar" type="HBoxContainer" parent="MainLayout"]
+layout_mode = 2
+theme_override_constants/separation = 24
+
+[node name="BalanceLabel" type="Label" parent="MainLayout/BalanceBar"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "$0.00 CLEAN"
+theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0.18, 0.803, 0.443, 1)
+
+[node name="DirtyLabel" type="Label" parent="MainLayout/BalanceBar"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "$0.00 DIRTY"
+theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0.607, 0.349, 0.713, 1)
+
+[node name="FilterBar" type="HBoxContainer" parent="MainLayout"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="FilterAllBtn" type="Button" parent="MainLayout/FilterBar"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "◈ ALL LISTINGS"
+theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0.18, 0.803, 0.443, 1)
+
+[node name="FilterMineBtn" type="Button" parent="MainLayout/FilterBar"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "◈ MY LISTINGS"
+theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0.709, 0.768, 0.843, 0.4)
+
+[node name="ContentRow" type="HBoxContainer" parent="MainLayout"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 14
+
+[node name="ListScroll" type="ScrollContainer" parent="MainLayout/ContentRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 1.5
+size_flags_vertical = 3
+horizontal_scroll_mode = 2
+
+[node name="ListingList" type="VBoxContainer" parent="MainLayout/ContentRow/ListScroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+custom_minimum_size = Vector2(500, 0)
+
+[node name="BidPanel" type="PanelContainer" parent="MainLayout/ContentRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 0.8
+visible = false
+
+[node name="BidInner" type="VBoxContainer" parent="MainLayout/ContentRow/BidPanel"]
+layout_mode = 2
+theme_override_constants/separation = 10
+offset_left = 18
+offset_top = 18
+offset_right = -18
+offset_bottom = -18
+
+[node name="BidTitleLbl" type="Label" parent="MainLayout/ContentRow/BidPanel/BidInner"]
+layout_mode = 2
+text = "⚡ PLACE BID"
+theme_override_font_sizes/font_size = 15
+theme_override_colors/font_color = Color(0.925, 0.607, 0.141, 1)
+
+[node name="BidTruckLabel" type="Label" parent="MainLayout/ContentRow/BidPanel/BidInner"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "—"
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+
+[node name="BidCurrentLabel" type="Label" parent="MainLayout/ContentRow/BidPanel/BidInner"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Current: $0"
+theme_override_font_sizes/font_size = 13
+
+[node name="BidTimerLabel" type="Label" parent="MainLayout/ContentRow/BidPanel/BidInner"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "⏱ 00:00"
+theme_override_font_sizes/font_size = 13
+theme_override_colors/font_color = Color(0.925, 0.607, 0.141, 1)
+
+[node name="BidSep" type="HSeparator" parent="MainLayout/ContentRow/BidPanel/BidInner"]
+layout_mode = 2
+
+[node name="BidInput" type="LineEdit" parent="MainLayout/ContentRow/BidPanel/BidInner"]
+unique_name_in_owner = true
+layout_mode = 2
+placeholder_text = "Enter bid amount..."
+theme_override_font_sizes/font_size = 13
+
+[node name="PlaceBidBtn" type="Button" parent="MainLayout/ContentRow/BidPanel/BidInner"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "⚡ CONFIRM BID"
+theme_override_font_sizes/font_size = 13
+theme_override_colors/font_color = Color(0.925, 0.607, 0.141, 1)
+
+[node name="HistorySep" type="HSeparator" parent="MainLayout/ContentRow/BidPanel/BidInner"]
+layout_mode = 2
+
+[node name="HistoryTitle" type="Label" parent="MainLayout/ContentRow/BidPanel/BidInner"]
+layout_mode = 2
+text = "BID HISTORY"
+theme_override_font_sizes/font_size = 11
+theme_override_colors/font_color = Color(0.709, 0.768, 0.843, 0.5)
+
+[node name="HistoryScroll" type="ScrollContainer" parent="MainLayout/ContentRow/BidPanel/BidInner"]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 2
+
+[node name="BidHistory" type="VBoxContainer" parent="MainLayout/ContentRow/BidPanel/BidInner/HistoryScroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
+[node name="BottomBar" type="PanelContainer" parent="MainLayout"]
+layout_mode = 2
+
+[node name="ConsoleLabel" type="Label" parent="MainLayout/BottomBar"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Auction house online. Live bidding active."
+theme_override_font_sizes/font_size = 11
+theme_override_colors/font_color = Color(0.18, 0.803, 0.443, 1)
+offset_left = 12
+offset_right = -12

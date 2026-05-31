@@ -1,0 +1,88 @@
+{
+  "cities": {
+    "tallinn": {
+      "name": "Tallinn",
+      "country": "Estonia",
+      "is_schengen": true,
+      "coords": { "x": 59.437, "y": 24.7535 },
+      "connections": {
+        "riga": { "distance_km": 312, "is_border_crossing": false }
+      }
+    },
+    "riga": {
+      "name": "Riga",
+      "country": "Latvia",
+      "is_schengen": true,
+      "coords": { "x": 56.9496, "y": 24.1052 },
+      "connections": {
+        "tallinn": { "distance_km": 312, "is_border_crossing": false },
+        "vilnius": { "distance_km": 295, "is_border_crossing": false },
+        "kaunas": { "distance_km": 260, "is_border_crossing": false }
+      }
+    },
+    "vilnius": {
+      "name": "Vilnius",
+      "country": "Lithuania",
+      "is_schengen": true,
+      "coords": { "x": 54.6872, "y": 25.2797 },
+      "connections": {
+        "riga": { "distance_km": 295, "is_border_crossing": false },
+        "kaunas": { "distance_km": 102, "is_border_crossing": false },
+        "minsk": { "distance_km": 185, "is_border_crossing": true }
+      }
+    },
+    "kaunas": {
+      "name": "Kaunas",
+      "country": "Lithuania",
+      "is_schengen": true,
+      "coords": { "x": 54.8985, "y": 23.9036 },
+      "connections": {
+        "riga": { "distance_km": 260, "is_border_crossing": false },
+        "vilnius": { "distance_km": 102, "is_border_crossing": false },
+        "bialystok": { "distance_km": 240, "is_border_crossing": false }
+      }
+    },
+    "bialystok": {
+      "name": "Bialystok",
+      "country": "Poland",
+      "is_schengen": true,
+      "coords": { "x": 53.1325, "y": 23.1688 },
+      "connections": {
+        "kaunas": { "distance_km": 240, "is_border_crossing": false },
+        "warsaw": { "distance_km": 198, "is_border_crossing": false },
+        "brest": { "distance_km": 130, "is_border_crossing": true }
+      }
+    },
+    "warsaw": {
+      "name": "Warsaw",
+      "country": "Poland",
+      "is_schengen": true,
+      "coords": { "x": 52.2297, "y": 21.0122 },
+      "connections": {
+        "bialystok": { "distance_km": 198, "is_border_crossing": false },
+        "brest": { "distance_km": 200, "is_border_crossing": true }
+      }
+    },
+    "minsk": {
+      "name": "Minsk",
+      "country": "Belarus",
+      "is_schengen": false,
+      "coords": { "x": 53.9006, "y": 27.559 },
+      "connections": {
+        "vilnius": { "distance_km": 185, "is_border_crossing": true },
+        "brest": { "distance_km": 350, "is_border_crossing": false }
+      }
+    },
+    "brest": {
+      "name": "Brest",
+      "country": "Belarus",
+      "is_schengen": false,
+      "coords": { "x": 52.0977, "y": 23.7341 },
+      "connections": {
+        "minsk": { "distance_km": 350, "is_border_crossing": false },
+        "bialystok": { "distance_km": 130, "is_border_crossing": true },
+        "warsaw": { "distance_km": 200, "is_border_crossing": true }
+      }
+    }
+  }
+}

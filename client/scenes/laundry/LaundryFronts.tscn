@@ -1,0 +1,200 @@
+[gd_scene load_steps=2 format=3 uid="uid://laundry_fronts"]
+
+[ext_resource type="Script" path="res://scenes/laundry/LaundryFronts.gd" id="1_laundry"]
+
+[node name="LaundryFronts" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+script = ExtResource("1_laundry")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.047, 0.051, 0.059, 1)
+
+[node name="MainLayout" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_top = 12.0
+offset_right = -16.0
+offset_bottom = -16.0
+theme_override_constants/separation = 10
+
+[node name="TopBar" type="HBoxContainer" parent="MainLayout"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="BackBtn" type="Button" parent="MainLayout/TopBar"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "← MAP"
+theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0.901, 0.298, 0.235, 1)
+
+[node name="TitleLbl" type="Label" parent="MainLayout/TopBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "⚗ MONEY LAUNDERING OPERATIONS"
+theme_override_font_sizes/font_size = 18
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+
+[node name="PlayerLabel" type="Label" parent="MainLayout/TopBar"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "OPERATOR"
+theme_override_font_sizes/font_size = 11
+theme_override_colors/font_color = Color(0.709, 0.768, 0.843, 0.5)
+
+[node name="Divider" type="HSeparator" parent="MainLayout"]
+layout_mode = 2
+
+[node name="StatusBar" type="HBoxContainer" parent="MainLayout"]
+layout_mode = 2
+theme_override_constants/separation = 24
+
+[node name="BalanceLabel" type="Label" parent="MainLayout/StatusBar"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "$0 CLEAN"
+theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0.18, 0.803, 0.443, 1)
+
+[node name="DirtyLabel" type="Label" parent="MainLayout/StatusBar"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "$0 DIRTY"
+theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0.607, 0.349, 0.713, 1)
+
+[node name="HeatLabel" type="Label" parent="MainLayout/StatusBar"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "HEAT: 0%"
+theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0.18, 0.803, 0.443, 1)
+
+[node name="ContentRow" type="HBoxContainer" parent="MainLayout"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 14
+
+[node name="FrontsScroll" type="ScrollContainer" parent="MainLayout/ContentRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 1.4
+size_flags_vertical = 3
+horizontal_scroll_mode = 2
+
+[node name="FrontsList" type="VBoxContainer" parent="MainLayout/ContentRow/FrontsScroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+custom_minimum_size = Vector2(480, 0)
+
+[node name="RightCol" type="VBoxContainer" parent="MainLayout/ContentRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 0.9
+theme_override_constants/separation = 10
+
+[node name="BuyPanel" type="PanelContainer" parent="MainLayout/ContentRow/RightCol"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+visible = false
+
+[node name="LaunderPanel" type="PanelContainer" parent="MainLayout/ContentRow/RightCol"]
+unique_name_in_owner = true
+layout_mode = 2
+visible = false
+
+[node name="LaunderInner" type="VBoxContainer" parent="MainLayout/ContentRow/RightCol/LaunderPanel"]
+layout_mode = 2
+theme_override_constants/separation = 10
+offset_left = 16
+offset_top = 16
+offset_right = -16
+offset_bottom = -16
+
+[node name="LaunderTitle" type="Label" parent="MainLayout/ContentRow/RightCol/LaunderPanel/LaunderInner"]
+layout_mode = 2
+text = "⚗ LAUNDER CYCLE"
+theme_override_font_sizes/font_size = 15
+theme_override_colors/font_color = Color(0.607, 0.349, 0.713, 1)
+
+[node name="LaunderFrontLabel" type="Label" parent="MainLayout/ContentRow/RightCol/LaunderPanel/LaunderInner"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "—"
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+
+[node name="LaunderRateLabel" type="Label" parent="MainLayout/ContentRow/RightCol/LaunderPanel/LaunderInner"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Cycle cap: — | Yield: —"
+theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0.709, 0.768, 0.843, 0.8)
+
+[node name="LaunderRiskLabel" type="Label" parent="MainLayout/ContentRow/RightCol/LaunderPanel/LaunderInner"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Risk: —"
+theme_override_font_sizes/font_size = 12
+autowrap_mode = 3
+
+[node name="LaunderSep" type="HSeparator" parent="MainLayout/ContentRow/RightCol/LaunderPanel/LaunderInner"]
+layout_mode = 2
+
+[node name="LaunderInput" type="LineEdit" parent="MainLayout/ContentRow/RightCol/LaunderPanel/LaunderInner"]
+unique_name_in_owner = true
+layout_mode = 2
+placeholder_text = "Amount to launder..."
+theme_override_font_sizes/font_size = 13
+
+[node name="LaunderBtn" type="Button" parent="MainLayout/ContentRow/RightCol/LaunderPanel/LaunderInner"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "⚗ EXECUTE LAUNDRY CYCLE"
+theme_override_font_sizes/font_size = 13
+theme_override_colors/font_color = Color(0.607, 0.349, 0.713, 1)
+
+[node name="ResultPanel" type="PanelContainer" parent="MainLayout/ContentRow/RightCol"]
+unique_name_in_owner = true
+layout_mode = 2
+visible = false
+
+[node name="ResultInner" type="VBoxContainer" parent="MainLayout/ContentRow/RightCol/ResultPanel"]
+layout_mode = 2
+theme_override_constants/separation = 10
+offset_left = 16
+offset_top = 16
+offset_right = -16
+offset_bottom = -16
+
+[node name="ResultLabel" type="Label" parent="MainLayout/ContentRow/RightCol/ResultPanel/ResultInner"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "—"
+theme_override_font_sizes/font_size = 13
+autowrap_mode = 3
+
+[node name="BottomBar" type="PanelContainer" parent="MainLayout"]
+layout_mode = 2
+
+[node name="ConsoleLabel" type="Label" parent="MainLayout/BottomBar"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Laundering operations dashboard online."
+theme_override_font_sizes/font_size = 11
+theme_override_colors/font_color = Color(0.607, 0.349, 0.713, 1)
+offset_left = 12
+offset_right = -12

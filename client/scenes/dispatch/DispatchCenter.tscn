@@ -1,0 +1,207 @@
+[gd_scene load_steps=2 format=3 uid="uid://dispatch_center"]
+
+[ext_resource type="Script" path="res://scenes/dispatch/DispatchCenter.gd" id="1_dispatch"]
+
+[node name="DispatchCenter" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_dispatch")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.047, 0.051, 0.059, 1)
+
+[node name="MainLayout" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_top = 12.0
+offset_right = -16.0
+offset_bottom = -16.0
+theme_override_constants/separation = 10
+
+[node name="TopBar" type="HBoxContainer" parent="MainLayout"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="BackBtn" type="Button" parent="MainLayout/TopBar"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "← MAP"
+theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0.901, 0.298, 0.235, 1)
+
+[node name="TitleLbl" type="Label" parent="MainLayout/TopBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "⚡ DISPATCH COMMAND CENTER"
+theme_override_font_sizes/font_size = 18
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+
+[node name="PlayerLabel" type="Label" parent="MainLayout/TopBar"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "OPERATOR"
+theme_override_font_sizes/font_size = 11
+theme_override_colors/font_color = Color(0.709, 0.768, 0.843, 0.5)
+
+[node name="HeatLabel" type="Label" parent="MainLayout/TopBar"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "HEAT: 0%"
+theme_override_font_sizes/font_size = 11
+theme_override_colors/font_color = Color(0.18, 0.803, 0.443, 1)
+
+[node name="Divider" type="HSeparator" parent="MainLayout"]
+layout_mode = 2
+
+[node name="BalanceBar" type="HBoxContainer" parent="MainLayout"]
+layout_mode = 2
+theme_override_constants/separation = 20
+
+[node name="BalanceLabel" type="Label" parent="MainLayout/BalanceBar"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "$0.00 CLEAN"
+theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0.18, 0.803, 0.443, 1)
+
+[node name="DirtyLabel" type="Label" parent="MainLayout/BalanceBar"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "$0.00 DIRTY"
+theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0.607, 0.349, 0.713, 1)
+
+[node name="ContentRow" type="HBoxContainer" parent="MainLayout"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 14
+
+[node name="LeftCol" type="VBoxContainer" parent="MainLayout/ContentRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 1.4
+theme_override_constants/separation = 8
+
+[node name="TabBar" type="HBoxContainer" parent="MainLayout/ContentRow/LeftCol"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="BoardTitle" type="Label" parent="MainLayout/ContentRow/LeftCol/TabBar"]
+layout_mode = 2
+text = "CONTRACT BOARD"
+theme_override_font_sizes/font_size = 13
+theme_override_colors/font_color = Color(0.709, 0.768, 0.843, 0.7)
+
+[node name="TabSpacer" type="Control" parent="MainLayout/ContentRow/LeftCol/TabBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="TabLegalBtn" type="Button" parent="MainLayout/ContentRow/LeftCol/TabBar"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "◈ LEGAL"
+theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0.18, 0.803, 0.443, 1)
+
+[node name="TabContraBtn" type="Button" parent="MainLayout/ContentRow/LeftCol/TabBar"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "⚠ UNDERWORLD"
+theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0.709, 0.768, 0.843, 0.4)
+
+[node name="ContractScroll" type="ScrollContainer" parent="MainLayout/ContentRow/LeftCol"]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 2
+
+[node name="ContractList" type="VBoxContainer" parent="MainLayout/ContentRow/LeftCol/ContractScroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+custom_minimum_size = Vector2(400, 0)
+
+[node name="RightCol" type="VBoxContainer" parent="MainLayout/ContentRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 0.9
+theme_override_constants/separation = 8
+
+[node name="ActiveTitle" type="Label" parent="MainLayout/ContentRow/RightCol"]
+layout_mode = 2
+text = "ACTIVE ROUTES"
+theme_override_font_sizes/font_size = 13
+theme_override_colors/font_color = Color(0.709, 0.768, 0.843, 0.7)
+
+[node name="ActiveScroll" type="ScrollContainer" parent="MainLayout/ContentRow/RightCol"]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 2
+
+[node name="ActiveRoutesList" type="VBoxContainer" parent="MainLayout/ContentRow/RightCol/ActiveScroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+custom_minimum_size = Vector2(360, 0)
+
+[node name="DispatchPanel" type="PanelContainer" parent="MainLayout/ContentRow/RightCol"]
+unique_name_in_owner = true
+layout_mode = 2
+visible = false
+
+[node name="DispatchInner" type="VBoxContainer" parent="MainLayout/ContentRow/RightCol/DispatchPanel"]
+layout_mode = 2
+theme_override_constants/separation = 8
+offset_left = 16
+offset_top = 16
+offset_right = -16
+offset_bottom = -16
+
+[node name="DispatchTitle" type="Label" parent="MainLayout/ContentRow/RightCol/DispatchPanel/DispatchInner"]
+layout_mode = 2
+text = "▶ LAUNCH DISPATCH"
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.925, 0.607, 0.141, 1)
+
+[node name="SelectedContractLbl" type="Label" parent="MainLayout/ContentRow/RightCol/DispatchPanel/DispatchInner"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "No contract selected."
+theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0.709, 0.768, 0.843, 0.8)
+autowrap_mode = 3
+
+[node name="TruckSelectBox" type="OptionButton" parent="MainLayout/ContentRow/RightCol/DispatchPanel/DispatchInner"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="LaunchBtn" type="Button" parent="MainLayout/ContentRow/RightCol/DispatchPanel/DispatchInner"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "⚡ LAUNCH ROUTE"
+theme_override_font_sizes/font_size = 13
+theme_override_colors/font_color = Color(0.925, 0.607, 0.141, 1)
+
+[node name="BottomBar" type="HBoxContainer" parent="MainLayout"]
+layout_mode = 2
+
+[node name="ConsoleLabel" type="Label" parent="MainLayout/BottomBar"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Dispatch system ready."
+theme_override_font_sizes/font_size = 11
+theme_override_colors/font_color = Color(0.18, 0.803, 0.443, 1)
