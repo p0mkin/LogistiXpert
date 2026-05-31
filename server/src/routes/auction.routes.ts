@@ -26,16 +26,25 @@ router.get('/', async (req: AuthRequest, res: Response) => {
             isImpounded: true,
           },
         },
-        seller: {
+        sellerCompany: {
           select: {
-            username: true,
+            name: true,
           },
         },
+        _count: {
+          select: { bidLogs: true }
+        }
       },
       orderBy: { expiresAt: 'asc' },
     });
 
-    res.json(listings);
+    const formattedListings = listings.map(listing => ({
+      ...listing,
+      bidCount: listing._count.bidLogs,
+      _count: undefined
+    }));
+
+    res.json(formattedListings);
   } catch (error) {
     res.status(500).json({ error: 'SERVER_ERROR', message: 'Failed to retrieve active auctions.' });
   }
@@ -43,7 +52,7 @@ router.get('/', async (req: AuthRequest, res: Response) => {
 
 // 2. CREATE A NEW AUCTION LISTING (Authenticated)
 router.post('/', authenticateJWT, async (req: AuthRequest, res: Response) => {
-  const userId = req.user!.id;
+  const companyId = req.user!.companyId;
   const { truckId, startingPrice, reservePrice, durationMinutes } = req.body;
 
   if (!truckId || !startingPrice || startingPrice <= 0) {
@@ -59,7 +68,7 @@ router.post('/', authenticateJWT, async (req: AuthRequest, res: Response) => {
       include: { activeRoute: true },
     });
 
-    if (!truck || truck.ownerId !== userId) {
+    if (!truck || truck.companyId !== companyId) {
       return res.status(404).json({ error: 'TRUCK_NOT_FOUND', message: 'Vehicle does not exist in your fleet.' });
     }
 
@@ -87,7 +96,7 @@ router.post('/', authenticateJWT, async (req: AuthRequest, res: Response) => {
       const newListing = await tx.auctionListing.create({
         data: {
           truckId,
-          sellerId: userId,
+          sellerCompanyId: companyId,
           startingPrice,
           currentBid: startingPrice,
           reservePrice: reservePrice || null,
@@ -130,13 +139,13 @@ router.post('/', authenticateJWT, async (req: AuthRequest, res: Response) => {
 
 // 3. GET PLAYER'S OWN LISTINGS (Authenticated)
 router.get('/my-listings', authenticateJWT, async (req: AuthRequest, res: Response) => {
-  const userId = req.user!.id;
+  const companyId = req.user!.companyId;
   try {
     const listings = await prisma.auctionListing.findMany({
-      where: { sellerId: userId },
+      where: { sellerCompanyId: companyId },
       include: {
         truck: true,
-        highestBidder: { select: { username: true } },
+        highestBidderCompany: { select: { name: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -148,18 +157,18 @@ router.get('/my-listings', authenticateJWT, async (req: AuthRequest, res: Respon
 
 // 4. GET AUCTIONS WHERE USER HAS PLACED BIDS (Authenticated)
 router.get('/my-bids', authenticateJWT, async (req: AuthRequest, res: Response) => {
-  const userId = req.user!.id;
+  const companyId = req.user!.companyId;
   try {
     const listings = await prisma.auctionListing.findMany({
       where: {
         bidLogs: {
-          some: { bidderId: userId },
+          some: { bidderCompanyId: companyId },
         },
       },
       include: {
         truck: true,
-        seller: { select: { username: true } },
-        highestBidder: { select: { username: true } },
+        sellerCompany: { select: { name: true } },
+        highestBidderCompany: { select: { name: true } },
       },
       orderBy: { expiresAt: 'asc' },
     });
@@ -176,8 +185,8 @@ router.get('/:auctionId/bids', async (req: AuthRequest, res: Response) => {
     const bids = await prisma.auctionBidLog.findMany({
       where: { auctionId },
       include: {
-        bidder: {
-          select: { username: true },
+        bidderCompany: {
+          select: { name: true },
         },
       },
       orderBy: { amount: 'desc' },

@@ -23,6 +23,7 @@ extends Control
 # Camera Pan & Zoom controls
 @onready var camera: Camera2D = %Camera
 @onready var map_drawer: Node2D = %VectorMapDrawer
+@onready var map_container: Control = %MapContainer
 
 var is_dragging: bool = false
 var drag_start: Vector2 = Vector2.ZERO
@@ -73,7 +74,30 @@ func _ready() -> void:
 	# Instruct map drawer to implement our custom vector _draw call
 	map_drawer.draw.connect(_draw_vector_map)
 	
+	# AAA Polish: Inject the Retro CRT Holo-Scanner Shader overlay over the map
+	_inject_shader_overlay()
+	
 	set_process_input(true)
+
+func _inject_shader_overlay() -> void:
+	# Add a BackBufferCopy to grab the current screen texture behind the UI
+	var back_buffer = BackBufferCopy.new()
+	back_buffer.copy_mode = BackBufferCopy.COPY_MODE_VIEWPORT
+	map_container.add_child(back_buffer)
+	
+	var overlay = ColorRect.new()
+	overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	
+	var mat = ShaderMaterial.new()
+	var shader = load("res://scenes/game_map/HoloScanner.gdshader")
+	if shader:
+		mat.shader = shader
+		overlay.material = mat
+	else:
+		_log_console("Shader load failed", Color(1,0,0))
+		
+	map_container.add_child(overlay)
 
 # ==========================================
 # MAP PROJECTION ENGINE

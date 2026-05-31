@@ -188,4 +188,18 @@ export class GameWebSocketServer {
       });
     }
   }
+
+  /**
+   * Send target message to all active sockets belonging to a company (supports Co-op)
+   */
+  public static sendToCompany(companyId: string, type: string, payload: any) {
+    const message = JSON.stringify({ type, payload });
+    this.clientsRegistry.forEach((sockets) => {
+      sockets.forEach((ws) => {
+        if (ws.user?.companyId === companyId && ws.readyState === WebSocket.OPEN) {
+          ws.send(message);
+        }
+      });
+    });
+  }
 }

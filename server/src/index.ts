@@ -13,10 +13,13 @@ import laundryRoutes from './routes/laundry.routes';
 import shopRoutes from './routes/shop.routes';
 import breakdownRoutes from './routes/breakdown.routes';
 import leaderboardRoutes from './routes/leaderboard.routes';
+import commodityRoutes from './routes/commodity.routes';
 import { errorHandler } from './middleware/error';
 import { GameWebSocketServer } from './websocket';
 import { redis, AuctionService } from './services/auction.service';
 import { DispatchSimulationService } from './services/dispatch.service';
+import { ContractService } from './services/contract.service';
+import { CommodityMarketService } from './services/commodity.service';
 
 const app = express();
 const server = http.createServer(app);
@@ -39,6 +42,7 @@ app.use('/api/laundry', laundryRoutes);
 app.use('/api/shop', shopRoutes);
 app.use('/api/breakdown', breakdownRoutes);
 app.use('/api/leaderboard', leaderboardRoutes);
+app.use('/api/commodity', commodityRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -106,7 +110,7 @@ async function startBidsStreamWorker() {
               await tx.auctionBidLog.create({
                 data: {
                   auctionId,
-                  bidderId,
+                  bidderCompanyId: bidderId,
                   amount: parseFloat(amount),
                 },
               });
@@ -116,7 +120,7 @@ async function startBidsStreamWorker() {
                 where: { id: auctionId },
                 data: {
                   currentBid: parseFloat(amount),
-                  highestBidderId: bidderId,
+                  highestBidderCompanyId: bidderId,
                 },
               });
             }
@@ -143,6 +147,10 @@ async function main() {
     // 1. Establish database connection check
     await prisma.$connect();
     console.log('[System] Connected securely to PostgreSQL Database.');
+
+    // 1.5. Seed and start global commodity market
+    await CommodityMarketService.seedMarketPrices();
+    CommodityMarketService.startPricingEngine();
 
     // 2. Clear stale cache in Redis and re-populate from active DB listings
     const activeAuctions = await prisma.auctionListing.findMany({
@@ -173,6 +181,9 @@ async function main() {
 
     // 4. Start active fleet dispatch simulation ticker
     DispatchSimulationService.startTicker();
+
+    // 4.5. Start contract job board regenerator
+    ContractService.startGenerator();
 
     // 5. Start live auction house expiry watchdog sweep
     AuctionService.startWatchdog();

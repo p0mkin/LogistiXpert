@@ -11,6 +11,7 @@ config/features=PackedStringArray("4.3", "Forward Plus")
 
 GameState="*res://autoload/GameState.gd"
 NetworkManager="*res://autoload/NetworkManager.gd"
+UIEffects="*res://autoload/UIEffects.gd"
 
 [display]
 

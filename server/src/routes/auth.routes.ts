@@ -32,25 +32,41 @@ router.post('/register', async (req: Request, res: Response) => {
         data: {
           username,
           passwordHash,
-          legalBalance: 50000.00, // Starter cash
-          blackMarketBalance: 0.00,
         },
       });
 
-      // 1. Starter Garage
+      // 1. Create Starter Company
+      const company = await tx.company.create({
+        data: {
+          name: `${username} Logistics`,
+          legalBalance: 50000.00,
+          blackMarketBalance: 0.00,
+        }
+      });
+
+      // 2. Link User to Company as Owner
+      await tx.companyMember.create({
+        data: {
+          userId: newUser.id,
+          companyId: company.id,
+          role: 'OWNER'
+        }
+      });
+
+      // 3. Starter Garage
       const garage = await tx.garage.create({
         data: {
-          ownerId: newUser.id,
+          companyId: company.id,
           city: 'Kaunas',
           capacity: 3,
         },
       });
 
-      // 2. Generate initial VIN and Starter Truck
+      // 4. Generate initial VIN and Starter Truck
       const starterVin = `TRK-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
       await tx.truck.create({
         data: {
-          ownerId: newUser.id,
+          companyId: company.id,
           garageId: garage.id,
           model: 'Scania R450 Basic',
           vin: starterVin,
@@ -66,7 +82,7 @@ router.post('/register', async (req: Request, res: Response) => {
     });
 
     res.status(201).json({
-      message: 'Player registered successfully. Starter assets (Kaunas Garage + Scania truck) allocated!',
+      message: 'Player registered successfully. Starter company (Kaunas Garage + Scania truck) allocated!',
       userId: user.id,
     });
   } catch (error) {
@@ -83,7 +99,16 @@ router.post('/login', async (req: Request, res: Response) => {
   }
 
   try {
-    const user = await prisma.user.findUnique({ where: { username } });
+    const user = await prisma.user.findUnique({ 
+      where: { username },
+      include: {
+        companyMemberships: {
+          include: { company: true },
+          take: 1
+        }
+      }
+    });
+
     if (!user) {
       return res.status(401).json({ error: 'AUTH_FAILED', message: 'Invalid username or password.' });
     }
@@ -93,9 +118,14 @@ router.post('/login', async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'AUTH_FAILED', message: 'Invalid username or password.' });
     }
 
-    // Sign the JWT payload
+    const primaryCompany = user.companyMemberships[0]?.company;
+    if (!primaryCompany) {
+      return res.status(500).json({ error: 'SERVER_ERROR', message: 'User has no associated company.' });
+    }
+
+    // Sign the JWT payload with companyId
     const token = jwt.sign(
-      { id: user.id, username: user.username },
+      { id: user.id, username: user.username, companyId: primaryCompany.id },
       CONFIG.JWT_SECRET,
       { expiresIn: CONFIG.JWT_EXPIRY as any }
     );
@@ -105,14 +135,17 @@ router.post('/login', async (req: Request, res: Response) => {
       user: {
         id: user.id,
         username: user.username,
-        legalBalance: user.legalBalance,
-        blackMarketBalance: user.blackMarketBalance,
-        reputation: user.reputationScore,
-        heat: user.policeHeat,
+        companyId: primaryCompany.id,
+        companyName: primaryCompany.name,
+        legalBalance: primaryCompany.legalBalance,
+        blackMarketBalance: primaryCompany.blackMarketBalance,
+        reputation: primaryCompany.reputationScore,
+        heat: primaryCompany.policeHeat,
       },
     });
+
   } catch (error) {
-    res.status(500).json({ error: 'SERVER_ERROR', message: 'Authentication process encountered an error.' });
+    res.status(500).json({ error: 'SERVER_ERROR', message: 'Failed to authenticate.' });
   }
 });
 

@@ -31,7 +31,7 @@ export class BorderService {
     // 1. Load the truck and active route state
     const truck = await prisma.truck.findUnique({
       where: { id: truckId },
-      include: { owner: true, activeRoute: { include: { contrabandJob: true } } },
+      include: { company: true, activeRoute: { include: { contrabandJob: true } } },
     });
 
     if (!truck) {
@@ -144,14 +144,14 @@ export class BorderService {
 
       if (!truck || !truck.activeRoute) return;
 
-      const userId = truck.ownerId;
+      const companyId = truck.companyId;
       const releaseDate = new Date();
       releaseDate.setDate(releaseDate.getDate() + penalties.impoundDays);
 
       // 1. Charge fine (deduct legal balance, can go negative = bankrupt threat)
       // and update stats
-      await tx.user.update({
-        where: { id: userId },
+      await tx.company.update({
+        where: { id: companyId },
         data: {
           legalBalance: { decrement: penalties.fineAmount },
           reputationScore: { decrement: penalties.reputationLoss },
@@ -205,8 +205,8 @@ export class BorderService {
       if (route.contrabandJob) {
         // Smuggling Payout (goes to black market balance)
         payout = route.contrabandJob.payoutBlack.toNumber();
-        await tx.user.update({
-          where: { id: truck.ownerId },
+        await tx.company.update({
+          where: { id: truck.companyId },
           data: {
             blackMarketBalance: { increment: payout },
             reputationScore: { increment: Math.floor(route.contrabandJob.riskMultiplier * 10) },
@@ -216,8 +216,8 @@ export class BorderService {
       } else if (route.legalContract) {
         // Legal Payout (goes to legal balance)
         payout = route.legalContract.payoutLegal.toNumber();
-        await tx.user.update({
-          where: { id: truck.ownerId },
+        await tx.company.update({
+          where: { id: truck.companyId },
           data: {
             legalBalance: { increment: payout },
           },
@@ -281,7 +281,7 @@ export class BorderService {
     return await prisma.$transaction(async (tx) => {
       const truck = await tx.truck.findUnique({
         where: { id: truckId },
-        include: { owner: true, activeRoute: { include: { driver: true, contrabandJob: true } } },
+        include: { company: true, activeRoute: { include: { driver: true, contrabandJob: true } } },
       });
 
       if (!truck || !truck.activeRoute || !truck.activeRoute.contrabandJob) {
@@ -291,10 +291,10 @@ export class BorderService {
       const route = truck.activeRoute;
       const job = route.contrabandJob!;  // guarded above: !truck.activeRoute.contrabandJob
       const driver = route.driver!;      // driver is always present on an active route
-      const user = truck.owner;
+      const company = truck.company;
 
-      // Ensure user has enough clean cash to pay the bribe
-      if (user.legalBalance.toNumber() < bribeAmount) {
+      // Ensure company has enough clean cash to pay the bribe
+      if (company.legalBalance.toNumber() < bribeAmount) {
         throw new Error('INSUFFICIENT_LEGAL_FUNDS');
       }
 
@@ -306,7 +306,7 @@ export class BorderService {
       const maxBribeScale = Math.max(1000, job.payoutBlack.toNumber() * 0.25);
       const bribeWeight = Math.min((bribeAmount / maxBribeScale) * 50, 50);
       const charismaWeight = driver.charisma * 1.5;
-      const heatWeight = user.policeHeat * 0.3;
+      const heatWeight = company.policeHeat * 0.3;
 
       let chance = 20 + bribeWeight + charismaWeight - heatWeight;
       if (driver.loyalty < 40) {
@@ -318,8 +318,8 @@ export class BorderService {
       const success = roll <= chance;
 
       // Charge the bribe immediately
-      await tx.user.update({
-        where: { id: user.id },
+      await tx.company.update({
+        where: { id: company.id },
         data: {
           legalBalance: { decrement: bribeAmount },
         },
@@ -327,8 +327,8 @@ export class BorderService {
 
       if (success) {
         const payout = job.payoutBlack.toNumber();
-        await tx.user.update({
-          where: { id: user.id },
+        await tx.company.update({
+          where: { id: company.id },
           data: {
             blackMarketBalance: { increment: payout },
             reputationScore: { increment: Math.floor(job.riskMultiplier * 12) },
@@ -381,8 +381,8 @@ export class BorderService {
         releaseDate.setDate(releaseDate.getDate() + penalties.impoundDays);
 
         // Deduct balance and update stats
-        await tx.user.update({
-          where: { id: user.id },
+        await tx.company.update({
+          where: { id: company.id },
           data: {
             legalBalance: { decrement: penalties.fineAmount },
             reputationScore: { decrement: penalties.reputationLoss },
@@ -434,7 +434,7 @@ export class BorderService {
     return await prisma.$transaction(async (tx) => {
       const truck = await tx.truck.findUnique({
         where: { id: truckId },
-        include: { owner: true, activeRoute: { include: { driver: true, contrabandJob: true } } },
+        include: { company: true, activeRoute: { include: { driver: true, contrabandJob: true } } },
       });
 
       if (!truck || !truck.activeRoute || !truck.activeRoute.contrabandJob) {
@@ -444,7 +444,7 @@ export class BorderService {
       const route = truck.activeRoute;
       const job = route.contrabandJob!;  // guarded above: !truck.activeRoute.contrabandJob
       const driver = route.driver!;      // driver is always present on an active route
-      const user = truck.owner;
+      const company = truck.company;
 
       // Calculate success chance:
       // Base: 15%
@@ -456,7 +456,7 @@ export class BorderService {
         traitBonus += 25;
       }
       const engineBonus = (truck.engineHealth / 100) * 30;
-      const heatPenalty = user.policeHeat * 0.4;
+      const heatPenalty = company.policeHeat * 0.4;
 
       let chance = 15 + engineBonus + traitBonus - heatPenalty;
       chance = Math.min(Math.max(chance, 5), 85);
@@ -466,8 +466,8 @@ export class BorderService {
 
       if (success) {
         const payout = job.payoutBlack.toNumber();
-        await tx.user.update({
-          where: { id: user.id },
+        await tx.company.update({
+          where: { id: company.id },
           data: {
             blackMarketBalance: { increment: payout },
             reputationScore: { increment: Math.floor(job.riskMultiplier * 15) },
@@ -531,8 +531,8 @@ export class BorderService {
         };
 
         // Deduct balance and update stats
-        await tx.user.update({
-          where: { id: user.id },
+        await tx.company.update({
+          where: { id: company.id },
           data: {
             legalBalance: { decrement: penalties.fineAmount },
             reputationScore: { decrement: penalties.reputationLoss },

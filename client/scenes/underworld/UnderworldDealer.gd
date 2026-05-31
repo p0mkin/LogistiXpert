@@ -273,10 +273,27 @@ func _build_detail_placeholder(parent: Control) -> void:
 # DATA FETCHING
 # ====================================================
 func _fetch_garage_data() -> void:
-	# For demo purposes we generate synthetic job listings locally
-	# In production these would come from /api/dispatch/contraband-jobs or similar
-	_generate_synthetic_jobs()
+	# Fetch real contraband jobs from server
+	var http_req = HTTPRequest.new()
+	add_child(http_req)
+	http_req.request_completed.connect(_on_jobs_response.bind(http_req))
+	http_req.request(
+		BASE_URL + "/api/dispatch/contracts/contraband",
+		["Authorization: Bearer " + NetworkManager.jwt_token],
+		HTTPClient.METHOD_GET
+	)
 	_populate_truck_selector()
+
+func _on_jobs_response(result: int, code: int, headers: PackedStringArray, body: PackedByteArray, http_req: HTTPRequest) -> void:
+	http_req.queue_free()
+	if code == 200:
+		var data = JSON.parse_string(body.get_string_from_utf8())
+		if data and data is Array and not data.is_empty():
+			available_jobs = data
+			_render_job_list(available_jobs)
+			return
+	# Fallback to synthetic if server empty or unreachable
+	_generate_synthetic_jobs()
 
 func _generate_synthetic_jobs() -> void:
 	var rng = RandomNumberGenerator.new()
@@ -298,7 +315,7 @@ func _generate_synthetic_jobs() -> void:
 			"CLASS_C": payout = rng.randf_range(100000.0, 350000.0)
 
 		available_jobs.append({
-			"id": "job_%d" % i,
+			"id": "synthetic_%d" % i,
 			"cargoClass": cargo_class,
 			"riskMultiplier": snappedf(risk_mult, 0.1),
 			"payoutBlack": snappedf(payout, 100.0),
@@ -339,23 +356,31 @@ func _gen_cargo_description(cargo_class: String, rng: RandomNumberGenerator) -> 
 	return "Unknown cargo"
 
 func _populate_truck_selector() -> void:
-	# Would fetch from GameState.fleet in production
-	var truck_select = get_node_or_null("CanvasLayer/DetailPanel/..//TruckSelect")
-	# Traverse hierarchy to find TruckSelect in dealer card
-	var dealer_card = scene_root.get_node_or_null("ColorRect2")
-	# Use a direct path built during _build_ui - find by name recursively
 	var ts = _find_node_recursive(scene_root, "TruckSelect")
-	if ts and ts is OptionButton:
-		ts.clear()
-		if GameState.fleet.size() == 0:
-			ts.add_item("No trucks in garage")
-		else:
-			for truck in GameState.fleet:
-				ts.add_item("%s  [Eng: %d%%  Tire: %d%%]" % [
-					truck.get("model", "Unknown"), 
-					truck.get("engineHealth", 0),
-					truck.get("tireWear", 0)
-				])
+	if not ts or not ts is OptionButton:
+		return
+	ts.clear()
+	# Use GameState.fleet (populated by NetworkManager on garage fetch)
+	var fleet = GameState.get("fleet") if GameState.has_method("get") else []
+	if fleet == null or fleet.size() == 0:
+		ts.add_item("No trucks — visit Garage first")
+		return
+	# Only show standby, non-impounded trucks with assigned drivers
+	var dispatch_ready = fleet.filter(func(t): 
+		return not t.get("isImpounded", false) \
+			and t.get("activeRoute", null) == null \
+			and t.get("driver", null) != null
+	)
+	if dispatch_ready.is_empty():
+		ts.add_item("No dispatch-ready trucks")
+		return
+	for truck in dispatch_ready:
+		ts.add_item("%s  [Eng:%d%% Tire:%d%%]" % [
+			truck.get("model", "Unknown"),
+			int(truck.get("engineHealth", 0)),
+			int(truck.get("tireWear", 0))
+		])
+	player_trucks = dispatch_ready
 
 func _find_node_recursive(node: Node, target_name: String) -> Node:
 	if node.name == target_name:
@@ -583,19 +608,24 @@ func _accept_job() -> void:
 		"riskMultiplier": selected_job.riskMultiplier,
 	})
 
-	hire_http.request(BASE_URL + "/api/dispatch/launch-contraband", headers, HTTPClient.METHOD_POST, body)
+	hire_http.request(
+		BASE_URL + "/api/dispatch/launch",
+		["Content-Type: application/json", "Authorization: Bearer " + NetworkManager.jwt_token],
+		HTTPClient.METHOD_POST,
+		body
+	)
 	hire_http.request_completed.connect(_on_accept_response, CONNECT_ONE_SHOT)
 	_show_toast("📨 Sending contract papers...")
 
-func _on_accept_response(_result, response_code, _headers, body) -> void:
+func _on_accept_response(_result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
 	if response_code == 200 or response_code == 201:
 		_show_toast("✔ CONTRACT ACCEPTED — Truck dispatched!", Color(0.2, 1.0, 0.4, 1.0))
 		selected_job = {}
-		_generate_synthetic_jobs() # Refresh listings
+		_fetch_garage_data() # Refresh from real API
 	else:
 		var parsed = JSON.parse_string(body.get_string_from_utf8())
-		var err = parsed.get("error", "UNKNOWN") if parsed else "PARSE_ERROR"
-		_show_toast("✕ Failed: " + err, Color(1.0, 0.3, 0.3, 1.0))
+		var err_msg = parsed.get("message", parsed.get("error", "UNKNOWN")) if parsed else "PARSE_ERROR"
+		_show_toast("✕ Failed: " + err_msg, Color(1.0, 0.3, 0.3, 1.0))
 
 # ====================================================
 # FILTERING
@@ -611,8 +641,8 @@ func _filter_jobs(cargo_class: String) -> void:
 # EVENT HANDLERS
 # ====================================================
 func _on_truck_selected(idx: int) -> void:
-	if idx < GameState.fleet.size():
-		player_truck_id = GameState.fleet[idx].get("id", "")
+	if idx >= 0 and idx < player_trucks.size():
+		player_truck_id = player_trucks[idx].get("id", "")
 
 func _go_back() -> void:
 	get_tree().change_scene_to_file("res://scenes/game_map/GameMap.tscn")

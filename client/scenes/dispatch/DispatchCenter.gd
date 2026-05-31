@@ -42,6 +42,10 @@ func _ready() -> void:
 	GameState.balance_updated.connect(_on_balances_updated)
 	GameState.reputation_updated.connect(_on_reputation_updated)
 	NetworkManager.ws_message_received.connect(_on_ws_message)
+	NetworkManager.border_inspection_started.connect(_on_border_inspection)
+	NetworkManager.border_event_resolved.connect(_on_border_resolved)
+	NetworkManager.route_progress_updated.connect(_on_route_progress)
+	NetworkManager.route_completed.connect(_on_route_completed)
 	
 	back_btn.pressed.connect(_on_back)
 	launch_btn.pressed.connect(_on_launch_dispatch)
@@ -342,71 +346,142 @@ func _build_contract_card(contract: Dictionary) -> PanelContainer:
 	return panel
 
 func _build_route_card(route: Dictionary) -> PanelContainer:
+	var truck_id = route.get("truckId", "?")
+	var is_smuggle = route.get("isSmuggling", false)
+	var pct = int(float(route.get("progressPct", 0)))
+	var driver_name = route.get("driverName", "Unknown Driver")
+	var fatigue = int(route.get("driverFatigue", 0))
+	var tacho = float(route.get("driverTachoHours", 0.0))
+	var stimulated = bool(route.get("driverIsStimulated", false))
+	var engine_hp = int(route.get("engineHealth", 100))
+	var tire_hp = int(route.get("tireWear", 100))
+	var current_city = route.get("currentCity", "En Route")
+	var origin = route.get("originCity", route.get("currentCity", "?"))
+	var dest = route.get("destinationCity", "?")
+
 	var panel = PanelContainer.new()
+	panel.name = "route_" + truck_id
 	var style = StyleBoxFlat.new()
 	style.bg_color = Color(0.055, 0.063, 0.090, 1.0)
-	style.border_color = Color(0.925, 0.607, 0.141, 0.4)
-	style.border_width_left = 3
-	style.border_width_right = 0
+	style.border_color = Color(0.607, 0.349, 0.713, 0.6) if is_smuggle else Color(0.925, 0.607, 0.141, 0.4)
+	style.border_width_left = 4
 	style.set_corner_radius_all(6)
 	style.content_margin_left = 14
 	style.content_margin_right = 14
 	style.content_margin_top = 10
 	style.content_margin_bottom = 10
 	panel.add_theme_stylebox_override("panel", style)
-	
+
 	var vbox = VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 4)
+	vbox.add_theme_constant_override("separation", 5)
 	panel.add_child(vbox)
-	
-	var truck_id = route.get("truckId", "?")
-	var origin = route.get("originCity", "?")
-	var dest = route.get("destinationCity", "?")
-	var pct = int(float(route.get("progressPct", 0)))
-	var is_smuggle = route.get("isSmuggling", false)
-	
+
+	# Header row
+	var header_row = HBoxContainer.new()
+	header_row.add_theme_constant_override("separation", 8)
+	var route_icon = Label.new()
+	route_icon.text = "⚠ SMUGGLE" if is_smuggle else "🚛 LEGAL"
+	route_icon.add_theme_color_override("font_color", Color(0.607, 0.349, 0.713) if is_smuggle else Color(0.18, 0.803, 0.443))
+	route_icon.add_theme_font_size_override("font_size", 12)
+	header_row.add_child(route_icon)
 	var route_lbl = Label.new()
-	route_lbl.text = ("⚠ SMUGGLE" if is_smuggle else "🚛 LEGAL") + "  %s → %s" % [origin, dest]
-	route_lbl.add_theme_color_override("font_color", Color(0.925, 0.607, 0.141) if is_smuggle else Color(1, 1, 1))
+	route_lbl.text = "%s → %s" % [origin, dest]
+	route_lbl.add_theme_color_override("font_color", Color(1, 1, 1))
 	route_lbl.add_theme_font_size_override("font_size", 13)
-	vbox.add_child(route_lbl)
-	
-	var truck_lbl = Label.new()
-	truck_lbl.text = "Truck ID: ...%s" % truck_id.right(8)
-	truck_lbl.add_theme_color_override("font_color", Color(0.709, 0.768, 0.843, 0.6))
-	truck_lbl.add_theme_font_size_override("font_size", 10)
-	vbox.add_child(truck_lbl)
-	
-	# Progress bar
-	var prog_row = HBoxContainer.new()
-	prog_row.add_theme_constant_override("separation", 8)
-	
-	var prog_bg = PanelContainer.new()
-	prog_bg.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	prog_bg.custom_minimum_size.y = 6
-	var style_bg = StyleBoxFlat.new()
-	style_bg.bg_color = Color(0.1, 0.1, 0.1)
-	style_bg.set_corner_radius_all(3)
-	prog_bg.add_theme_stylebox_override("panel", style_bg)
-	
-	var prog_fill = PanelContainer.new()
-	prog_fill.anchor_right = float(pct) / 100.0
-	var style_fill = StyleBoxFlat.new()
-	style_fill.bg_color = Color(0.925, 0.607, 0.141)
-	style_fill.set_corner_radius_all(3)
-	prog_fill.add_theme_stylebox_override("panel", style_fill)
-	prog_bg.add_child(prog_fill)
-	
-	prog_row.add_child(prog_bg)
-	
-	var pct_lbl = Label.new()
-	pct_lbl.text = "%d%%" % pct
-	pct_lbl.add_theme_font_size_override("font_size", 10)
-	pct_lbl.add_theme_color_override("font_color", Color(0.925, 0.607, 0.141))
-	prog_row.add_child(pct_lbl)
-	vbox.add_child(prog_row)
-	
+	route_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header_row.add_child(route_lbl)
+	var city_lbl = Label.new()
+	city_lbl.text = "📍 " + current_city
+	city_lbl.add_theme_color_override("font_color", Color(0.709, 0.768, 0.843, 0.6))
+	city_lbl.add_theme_font_size_override("font_size", 10)
+	header_row.add_child(city_lbl)
+	vbox.add_child(header_row)
+
+	# Route progress bar
+	_add_stat_bar(vbox, "ROUTE", pct, 100, Color(0.925, 0.607, 0.141))
+
+	# Driver row
+	var driver_row = HBoxContainer.new()
+	driver_row.add_theme_constant_override("separation", 8)
+	var driver_icon = Label.new()
+	driver_icon.text = "💊" if stimulated else "👤"
+	driver_icon.add_theme_font_size_override("font_size", 12)
+	driver_row.add_child(driver_icon)
+	var d_name_lbl = Label.new()
+	d_name_lbl.text = driver_name
+	d_name_lbl.add_theme_color_override("font_color", Color(0.607, 0.349, 0.713) if stimulated else Color(0.709, 0.768, 0.843))
+	d_name_lbl.add_theme_font_size_override("font_size", 11)
+	d_name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	driver_row.add_child(d_name_lbl)
+	var tacho_lbl = Label.new()
+	tacho_lbl.text = "TACHO: %.1fh" % tacho
+	var tacho_color = Color(0.901, 0.298, 0.235) if tacho > 10.0 else (Color(0.925, 0.607, 0.141) if tacho > 7.0 else Color(0.18, 0.803, 0.443))
+	tacho_lbl.add_theme_color_override("font_color", tacho_color)
+	tacho_lbl.add_theme_font_size_override("font_size", 11)
+	driver_row.add_child(tacho_lbl)
+	vbox.add_child(driver_row)
+
+	# Fatigue bar
+	var fatigue_color = Color(0.901, 0.298, 0.235) if fatigue > 80 else (Color(0.925, 0.607, 0.141) if fatigue > 50 else Color(0.18, 0.803, 0.443))
+	_add_stat_bar(vbox, "FATIGUE", fatigue, 100, fatigue_color)
+
+	# Truck health row
+	var health_row = HBoxContainer.new()
+	health_row.add_theme_constant_override("separation", 10)
+	var engine_lbl = Label.new()
+	engine_lbl.text = "ENGINE"
+	engine_lbl.add_theme_color_override("font_color", Color(0.709, 0.768, 0.843, 0.5))
+	engine_lbl.add_theme_font_size_override("font_size", 10)
+	health_row.add_child(engine_lbl)
+	var e_bar_bg = _make_bar_bg(Color(0.901, 0.298, 0.235) if engine_hp < 30 else Color(0.18, 0.803, 0.443), engine_hp, 100)
+	e_bar_bg.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	health_row.add_child(e_bar_bg)
+	var tire_lbl = Label.new()
+	tire_lbl.text = "TIRES"
+	tire_lbl.add_theme_color_override("font_color", Color(0.709, 0.768, 0.843, 0.5))
+	tire_lbl.add_theme_font_size_override("font_size", 10)
+	health_row.add_child(tire_lbl)
+	var t_bar_bg = _make_bar_bg(Color(0.901, 0.298, 0.235) if tire_hp < 30 else Color(0.925, 0.607, 0.141), tire_hp, 100)
+	t_bar_bg.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	health_row.add_child(t_bar_bg)
+	vbox.add_child(health_row)
+
 	return panel
+
+func _add_stat_bar(parent: Control, label_text: String, val: int, max_val: int, fill_color: Color) -> void:
+	var row = HBoxContainer.new()
+	row.add_theme_constant_override("separation", 6)
+	var lbl = Label.new()
+	lbl.text = label_text
+	lbl.custom_minimum_size.x = 65
+	lbl.add_theme_color_override("font_color", Color(0.709, 0.768, 0.843, 0.5))
+	lbl.add_theme_font_size_override("font_size", 10)
+	row.add_child(lbl)
+	var bar = _make_bar_bg(fill_color, val, max_val)
+	bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(bar)
+	var val_lbl = Label.new()
+	val_lbl.text = "%d%%" % val
+	val_lbl.custom_minimum_size.x = 30
+	val_lbl.add_theme_color_override("font_color", fill_color)
+	val_lbl.add_theme_font_size_override("font_size", 10)
+	row.add_child(val_lbl)
+	parent.add_child(row)
+
+func _make_bar_bg(fill_color: Color, val: int, max_val: int) -> Control:
+	var bg = Control.new()
+	bg.custom_minimum_size = Vector2(0, 6)
+	var bg_rect = ColorRect.new()
+	bg_rect.color = Color(0.1, 0.1, 0.12)
+	bg_rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	bg.add_child(bg_rect)
+	var fill = ColorRect.new()
+	var pct = clampf(float(val) / float(max_val), 0.0, 1.0)
+	fill.color = fill_color
+	fill.set_anchors_preset(Control.PRESET_LEFT_WIDE)
+	fill.anchor_right = pct
+	bg.add_child(fill)
+	return bg
 
 # ==========================================
 # SELECTION & DISPATCH PANEL
@@ -440,24 +515,56 @@ func _on_launch_dispatch() -> void:
 # ==========================================
 # WEBSOCKET LIVE UPDATES
 # ==========================================
+func _on_route_progress(payload: Dictionary) -> void:
+	# Smoothly update the live tachograph arc
+	var truck_id = payload.get("truckId", "")
+	live_progress = float(payload.get("progressPct", 0.0)) / 100.0
+	
+	# Find the existing route card and rebuild it in-place with fresh telemetry
+	for card in active_routes_list.get_children():
+		if card.name == "route_" + truck_id:
+			var idx = card.get_index()
+			card.queue_free()
+			# Merge cached API data with live telemetry payload
+			var merged_route = {}
+			for route in active_routes:
+				if route.get("truckId", "") == truck_id:
+					merged_route = route.duplicate()
+					break
+			merged_route.merge(payload, true)
+			var new_card = _build_route_card(merged_route)
+			active_routes_list.add_child(new_card)
+			active_routes_list.move_child(new_card, idx)
+			return
+	
+	# Card not found — full re-render on first progress tick for a new route
+	_fetch_active_routes()
+
+func _on_route_completed(payload: Dictionary) -> void:
+	live_progress = 0.0
+	var truck_id = payload.get("truckId", "")
+	GameState.active_routes.erase(truck_id)
+	_log("✓ DELIVERY CONFIRMED: %s payout credited." % ["$" + str(int(payload.get("payout", 0)))], Color(0.18, 0.803, 0.443))
+	_fetch_active_routes()
+	_fetch_trucks()
+
 func _on_ws_message(packet: Dictionary) -> void:
 	match packet.get("type", ""):
-		"DISPATCH_TICK":
+		"alert:weigh_station_fine":
 			var payload = packet.get("payload", {})
-			live_progress = float(payload.get("progressPct", 0)) / 100.0
-			_fetch_active_routes()
-		"BORDER_CHECK":
-			var payload = packet.get("payload", {})
-			_log("⚠ CUSTOMS INSPECTION: " + payload.get("outcome", ""), Color(0.925, 0.607, 0.141))
-		"ROUTE_COMPLETE":
-			_log("✓ Route completed! Payout credited.", Color(0.18, 0.803, 0.443))
-			live_progress = 0.0
+			_log("🏛 TACHO FINE: $%d — Driver exceeded Schengen limits!" % int(payload.get("fine", 0)), Color(0.925, 0.607, 0.141))
+		"alert:engine_breakdown":
+			_log("⚙ ENGINE FAILURE! Emergency roadside repair required.", Color(1.0, 0.55, 0.1))
 			_fetch_active_routes()
 			_fetch_trucks()
-		"MICROSLEEP_CRASH":
-			_log("💥 FATIGUE CRASH! Driver microsleep incident.", Color(0.901, 0.298, 0.235))
-		"SEIZURE":
-			_log("⛔ CARGO SEIZED at border!", Color(0.901, 0.298, 0.235))
+		"alert:driver_wreck":
+			_log("💥 MICROSLEEP CRASH! Driver fell asleep. Route aborted.", Color(0.901, 0.298, 0.235))
+			_fetch_active_routes()
+			_fetch_trucks()
+		"alert:driver_snitched":
+			_log("🐀 BETRAYAL! Driver snitched. Truck impounded.", Color(0.901, 0.298, 0.235))
+			_fetch_active_routes()
+			_fetch_trucks()
 
 # ==========================================
 # HELPERS
@@ -494,3 +601,89 @@ func _on_back() -> void:
 
 func _apply_theme() -> void:
 	pass
+
+# ==========================================
+# BORDER INSPECTION MINI-GAME UI
+# ==========================================
+var active_border_panel: Control = null
+
+func _on_border_inspection(payload: Dictionary) -> void:
+	if active_border_panel and is_instance_valid(active_border_panel):
+		active_border_panel.queue_free()
+		
+	var route_id = payload.get("routeId", "")
+	var truck_id = payload.get("truckId", "")
+	var contraband_class = payload.get("contrabandClass", "UNKNOWN")
+	var origin = payload.get("origin", "Border Crossing")
+	
+	var overlay = CanvasLayer.new()
+	overlay.layer = 100
+	add_child(overlay)
+	active_border_panel = overlay
+	
+	var dim = ColorRect.new()
+	dim.color = Color(0, 0, 0, 0.8)
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	overlay.add_child(dim)
+	
+	var box = PanelContainer.new()
+	box.position = Vector2(300, 200)
+	box.size = Vector2(600, 350)
+	var style = StyleBoxFlat.new()
+	style.bg_color = Color(0.08, 0.05, 0.05, 0.95)
+	style.border_color = Color(0.9, 0.2, 0.2, 1.0)
+	style.border_width_all = 3
+	style.set_corner_radius_all(10)
+	box.add_theme_stylebox_override("panel", style)
+	overlay.add_child(box)
+	
+	var vbox = VBoxContainer.new()
+	vbox.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	vbox.add_theme_constant_override("separation", 20)
+	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	box.add_child(vbox)
+	
+	var title = Label.new()
+	title.text = "⚠ CUSTOMS INSPECTION ⚠"
+	title.add_theme_color_override("font_color", Color(0.9, 0.2, 0.2, 1.0))
+	title.add_theme_font_size_override("font_size", 24)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(title)
+	
+	var desc = Label.new()
+	desc.text = "Truck at %s has been stopped for random inspection.\nCargo detected: Class %s Contraband." % [origin, contraband_class]
+	desc.add_theme_color_override("font_color", Color(0.8, 0.7, 0.7, 1.0))
+	desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(desc)
+	
+	var hbox = HBoxContainer.new()
+	hbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	hbox.add_theme_constant_override("separation", 30)
+	vbox.add_child(hbox)
+	
+	var btn_clear = Button.new()
+	btn_clear.text = "SUBMIT TO SCAN\n(Rely on Shielding)"
+	btn_clear.custom_minimum_size = Vector2(160, 60)
+	btn_clear.pressed.connect(func(): NetworkManager.trigger_border_action(truck_id, "CLEARANCE"))
+	hbox.add_child(btn_clear)
+	
+	var btn_bribe = Button.new()
+	btn_bribe.text = "BRIBE OFFICER\n($5000 Clean Cash)"
+	btn_bribe.custom_minimum_size = Vector2(160, 60)
+	btn_bribe.pressed.connect(func(): NetworkManager.trigger_border_action(truck_id, "BRIBE", 5000.0))
+	hbox.add_child(btn_bribe)
+	
+	var btn_run = Button.new()
+	btn_run.text = "RUN BARRICADE\n(High Risk)"
+	btn_run.custom_minimum_size = Vector2(160, 60)
+	btn_run.add_theme_color_override("font_color", Color(1.0, 0.3, 0.3))
+	btn_run.pressed.connect(func(): NetworkManager.trigger_border_action(truck_id, "RUN"))
+	hbox.add_child(btn_run)
+
+func _on_border_resolved(type: String, payload: Dictionary) -> void:
+	if active_border_panel and is_instance_valid(active_border_panel):
+		active_border_panel.queue_free()
+		active_border_panel = null
+		
+	# Re-fetch routes to update state
+	_fetch_active_routes()

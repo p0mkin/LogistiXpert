@@ -75,7 +75,7 @@ router.get('/catalog', async (req: AuthRequest, res: Response) => {
 
 // 2. PURCHASE AND INSTALL TRUCK COMPONENT
 router.post('/buy', async (req: AuthRequest, res: Response) => {
-  const userId = req.user!.id;
+  const companyId = req.user!.companyId;
   const { truckId, partId } = req.body;
 
   if (!truckId || !partId || !PARTS_CATALOG[partId]) {
@@ -91,7 +91,7 @@ router.post('/buy', async (req: AuthRequest, res: Response) => {
       include: { activeRoute: true },
     });
 
-    if (!truck || truck.ownerId !== userId) {
+    if (!truck || truck.companyId !== companyId) {
       return res.status(404).json({ error: 'TRUCK_NOT_FOUND', message: 'Truck not found in your fleet.' });
     }
 
@@ -104,20 +104,20 @@ router.post('/buy', async (req: AuthRequest, res: Response) => {
     }
 
     // 2. Verify balances
-    const user = await prisma.user.findUnique({ where: { id: userId } });
-    if (!user) return res.status(404).json({ error: 'USER_NOT_FOUND', message: 'User not found.' });
+    const company = await prisma.company.findUnique({ where: { id: companyId } });
+    if (!company) return res.status(404).json({ error: 'COMPANY_NOT_FOUND', message: 'Company not found.' });
 
-    if (part.currency === 'LEGAL' && user.legalBalance.toNumber() < part.cost) {
+    if (part.currency === 'LEGAL' && company.legalBalance.toNumber() < part.cost) {
       return res.status(400).json({
         error: 'INSUFFICIENT_LEGAL_CASH',
-        message: `Parts cost $${part.cost} Clean Cash. You have $${user.legalBalance.toNumber()}.`,
+        message: `Parts cost $${part.cost} Clean Cash. You have $${company.legalBalance.toNumber()}.`,
       });
     }
 
-    if (part.currency === 'BLACK_MARKET' && user.blackMarketBalance.toNumber() < part.cost) {
+    if (part.currency === 'BLACK_MARKET' && company.blackMarketBalance.toNumber() < part.cost) {
       return res.status(400).json({
         error: 'INSUFFICIENT_BLACK_MARKET_CASH',
-        message: `Upgrades cost $${part.cost} Black Market proceeds. You have $${user.blackMarketBalance.toNumber()}.`,
+        message: `Upgrades cost $${part.cost} Black Market proceeds. You have $${company.blackMarketBalance.toNumber()}.`,
       });
     }
 
@@ -125,13 +125,13 @@ router.post('/buy', async (req: AuthRequest, res: Response) => {
     const updated = await prisma.$transaction(async (tx) => {
       // Deduct balance
       if (part.currency === 'LEGAL') {
-        await tx.user.update({
-          where: { id: userId },
+        await tx.company.update({
+          where: { id: companyId },
           data: { legalBalance: { decrement: part.cost } },
         });
       } else {
-        await tx.user.update({
-          where: { id: userId },
+        await tx.company.update({
+          where: { id: companyId },
           data: { blackMarketBalance: { decrement: part.cost } },
         });
       }

@@ -3,17 +3,18 @@ import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import { PrismaClient } from '@prisma/client';
-import authRoutes from '../src/routes/auth.routes';
-import driverRoutes from '../src/routes/driver.routes';
-import shopRoutes from '../src/routes/shop.routes';
-import laundryRoutes from '../src/routes/laundry.routes';
-import dispatchRoutes from '../src/routes/dispatch.routes';
-import breakdownRoutes from '../src/routes/breakdown.routes';
-import leaderboardRoutes from '../src/routes/leaderboard.routes';
-import { BorderService } from '../src/services/border.service';
-import { errorHandler } from '../src/middleware/error';
+import authRoutes from '../routes/auth.routes';
+import driverRoutes from '../routes/driver.routes';
+import shopRoutes from '../routes/shop.routes';
+import laundryRoutes from '../routes/laundry.routes';
+import dispatchRoutes from '../routes/dispatch.routes';
+import breakdownRoutes from '../routes/breakdown.routes';
+import leaderboardRoutes from '../routes/leaderboard.routes';
+import commodityRoutes from '../routes/commodity.routes';
+import { BorderService } from '../services/border.service';
+import { errorHandler } from '../middleware/error';
 import jwt from 'jsonwebtoken';
-import { CONFIG } from '../src/config';
+import { CONFIG } from '../config';
 
 class MockDecimal {
   constructor(public val: number) {}
@@ -37,8 +38,22 @@ jest.mock('@prisma/client', () => {
       create: jest.fn(),
       update: jest.fn(),
     },
+    company: {
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+    },
+    companyMember: {
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+    },
     garage: {
       create: jest.fn(),
+      findUnique: jest.fn(),
+      update: jest.fn(),
     },
     driver: {
       findUnique: jest.fn(),
@@ -78,14 +93,35 @@ jest.mock('@prisma/client', () => {
       findMany: jest.fn(),
       groupBy: jest.fn(),
     },
+    commodityMarket: {
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+    },
     $connect: jest.fn(),
   };
 
   // Define $transaction separately to bypass circular self-reference compiler error TS7022
   mPrisma.$transaction = jest.fn((cb: any): any => cb(mPrisma));
 
+  const CommodityType = {
+    DIESEL: 'DIESEL',
+    ELECTRICITY: 'ELECTRICITY',
+    ADBLUE: 'ADBLUE',
+    CO2_ALLOWANCE: 'CO2_ALLOWANCE',
+  };
+
+  const CompanyRole = {
+    OWNER: 'OWNER',
+    PARTNER: 'PARTNER',
+    EMPLOYEE: 'EMPLOYEE',
+  };
+
   return {
     PrismaClient: jest.fn(() => mPrisma),
+    CommodityType,
+    CompanyRole,
   };
 });
 
@@ -101,11 +137,12 @@ app.use('/api/laundry', laundryRoutes);
 app.use('/api/dispatch', dispatchRoutes);
 app.use('/api/breakdown', breakdownRoutes);
 app.use('/api/leaderboard', leaderboardRoutes);
+app.use('/api/commodity', commodityRoutes);
 app.use(errorHandler);
 
 // Helper to generate a valid test token
 const generateTestToken = (id: string, username: string) => {
-  return jwt.sign({ id, username }, CONFIG.JWT_SECRET, { expiresIn: '1h' });
+  return jwt.sign({ id, username, companyId: 'comp_abc' }, CONFIG.JWT_SECRET, { expiresIn: '1h' });
 };
 
 describe('🚨 TRUCK MANAGER 2026: INTEGRATION TEST SUITE', () => {
@@ -131,6 +168,8 @@ describe('🚨 TRUCK MANAGER 2026: INTEGRATION TEST SUITE', () => {
     it('Should register new user and allocate starting Kaunas garage & Basic Scania', async () => {
       prisma.user.findUnique.mockResolvedValue(null);
       prisma.user.create.mockResolvedValue({ id: 'usr_abc', username: 'trucker_sam' });
+      prisma.company.create.mockResolvedValue({ id: 'comp_abc', name: 'trucker_sam Logistics' });
+      prisma.companyMember.create.mockResolvedValue({ id: 'cm_abc' });
       prisma.garage.create.mockResolvedValue({ id: 'gar_1', city: 'Kaunas' });
       prisma.truck.create.mockResolvedValue({ id: 'truck_1', model: 'Scania R450 Basic' });
 
@@ -143,7 +182,7 @@ describe('🚨 TRUCK MANAGER 2026: INTEGRATION TEST SUITE', () => {
       }
 
       expect(res.statusCode).toBe(201);
-      expect(res.body.message).toContain('Starter assets (Kaunas Garage + Scania truck) allocated!');
+      expect(res.body.message).toContain('Starter company (Kaunas Garage + Scania truck) allocated!');
     });
   });
 
@@ -155,6 +194,7 @@ describe('🚨 TRUCK MANAGER 2026: INTEGRATION TEST SUITE', () => {
 
     it('Should allow user to hire driver if clean cash reserves allow', async () => {
       prisma.user.findUnique.mockResolvedValue({ id: 'usr_abc', legalBalance: Decimal(5000) });
+      prisma.company.findUnique.mockResolvedValue({ id: 'comp_abc', legalBalance: Decimal(5000) });
       prisma.driver.create.mockResolvedValue({ id: 'drv_1', name: 'Jonas S', trait: 'BALANCED' });
 
       const res = await request(app)
@@ -175,6 +215,7 @@ describe('🚨 TRUCK MANAGER 2026: INTEGRATION TEST SUITE', () => {
       prisma.driver.findUnique.mockResolvedValue({
         id: 'drv_exhausted',
         ownerId: 'usr_abc',
+        companyId: 'comp_abc',
         name: 'Tired Tim',
         loyalty: 45,
         trait: 'BALANCED',
@@ -192,6 +233,7 @@ describe('🚨 TRUCK MANAGER 2026: INTEGRATION TEST SUITE', () => {
       prisma.driver.findUnique.mockResolvedValue({
         id: 'drv_loyal',
         ownerId: 'usr_abc',
+        companyId: 'comp_abc',
         name: 'Loyal Leo',
         loyalty: 85,
         trait: 'LOYAL',
@@ -199,6 +241,7 @@ describe('🚨 TRUCK MANAGER 2026: INTEGRATION TEST SUITE', () => {
         assignedTruckId: 'truck_1',
       });
       prisma.user.findUnique.mockResolvedValue({ id: 'usr_abc', blackMarketBalance: Decimal(1000) });
+      prisma.company.findUnique.mockResolvedValue({ id: 'comp_abc', blackMarketBalance: Decimal(1000) });
       prisma.driver.update.mockResolvedValue({ id: 'drv_loyal', fatigue: 40, isStimulated: true });
 
       const res = await request(app)
@@ -220,12 +263,14 @@ describe('🚨 TRUCK MANAGER 2026: INTEGRATION TEST SUITE', () => {
       prisma.truck.findUnique.mockResolvedValue({
         id: 'truck_worn',
         ownerId: 'usr_abc',
+        companyId: 'comp_abc',
         engineHealth: 50,
         tireWear: 60,
         isImpounded: false,
         activeRoute: null,
       });
       prisma.user.findUnique.mockResolvedValue({ id: 'usr_abc', legalBalance: Decimal(2000) });
+      prisma.company.findUnique.mockResolvedValue({ id: 'comp_abc', legalBalance: Decimal(2000) });
       prisma.truck.update.mockResolvedValue({ id: 'truck_worn', engineHealth: 75 });
 
       const res = await request(app)
@@ -248,13 +293,16 @@ describe('🚨 TRUCK MANAGER 2026: INTEGRATION TEST SUITE', () => {
       prisma.frontBusiness.findUnique.mockResolvedValue({
         id: 'front_cafe',
         ownerId: 'usr_abc',
+        companyId: 'comp_abc',
         name: 'Cafe Stop',
         laundryRate: Decimal(2000),
         lossMultiplier: 0.83,
         isRaided: false,
       });
       prisma.user.findUnique.mockResolvedValue({ id: 'usr_abc', blackMarketBalance: Decimal(5000), policeHeat: 0 });
+      prisma.company.findUnique.mockResolvedValue({ id: 'comp_abc', blackMarketBalance: Decimal(5000), policeHeat: 0 });
       prisma.user.update.mockResolvedValue({});
+      prisma.company.update.mockResolvedValue({});
 
       // Mock Math.random to guarantee no raid happens (roll = 90 > risk)
       const mathMock = jest.spyOn(Math, 'random').mockReturnValue(0.90);
@@ -282,6 +330,7 @@ describe('🚨 TRUCK MANAGER 2026: INTEGRATION TEST SUITE', () => {
       prisma.truck.findUnique.mockResolvedValue({
         id: 'truck_fleet',
         ownerId: 'usr_abc',
+        companyId: 'comp_abc',
         isImpounded: false,
         activeRoute: null,
         driver: {
@@ -384,12 +433,14 @@ describe('🚨 TRUCK MANAGER 2026: INTEGRATION TEST SUITE', () => {
       prisma.truck.findUnique.mockResolvedValue({
         id: 'truck_broke',
         ownerId: 'usr_abc',
+        companyId: 'comp_abc',
         model: 'MAN TGX',
         engineHealth: 20,
         tireWear: 15,
         isImpounded: false,
         activeRoute: { currentCity: 'Minsk' },
-        owner: { legalBalance: { toNumber: () => 200 } }, // way too low
+        owner: { legalBalance: { toNumber: () => 200 } },
+        company: { legalBalance: { toNumber: () => 200 } },
       });
 
       const res = await request(app)
@@ -405,15 +456,18 @@ describe('🚨 TRUCK MANAGER 2026: INTEGRATION TEST SUITE', () => {
       prisma.truck.findUnique.mockResolvedValue({
         id: 'truck_repairable',
         ownerId: 'usr_abc',
+        companyId: 'comp_abc',
         model: 'DAF XF',
         engineHealth: 40,
         tireWear: 35,
         isImpounded: false,
         activeRoute: { currentCity: 'Tallinn' },
         owner: { legalBalance: { toNumber: () => 50000 } },
+        company: { legalBalance: { toNumber: () => 50000 } },
       });
       prisma.truck.update.mockResolvedValue({ id: 'truck_repairable', engineHealth: 100, tireWear: 100 });
       prisma.user.update.mockResolvedValue({});
+      prisma.company.update.mockResolvedValue({});
 
       const res = await request(app)
         .post('/api/breakdown/roadside-repair')
@@ -431,6 +485,7 @@ describe('🚨 TRUCK MANAGER 2026: INTEGRATION TEST SUITE', () => {
       prisma.truck.findUnique.mockResolvedValue({
         id: 'truck_est',
         ownerId: 'usr_abc',
+        companyId: 'comp_abc',
         model: 'Scania R500',
         engineHealth: 5,
         tireWear: 3,
@@ -457,10 +512,10 @@ describe('🚨 TRUCK MANAGER 2026: INTEGRATION TEST SUITE', () => {
     const token = generateTestToken('usr_abc', 'trucker_sam');
 
     it('Should return underworld rep leaderboard sorted by reputationScore desc', async () => {
-      prisma.user.findMany.mockResolvedValue([
-        { id: 'u1', username: 'TopDog', reputationScore: 5500, policeHeat: 88, _count: { trucks: 4 } },
-        { id: 'u3', username: 'Midway', reputationScore: 2500, policeHeat: 40, _count: { trucks: 2 } },
-        { id: 'u2', username: 'Rookie', reputationScore: 120,  policeHeat: 10, _count: { trucks: 1 } },
+      prisma.company.findMany.mockResolvedValue([
+        { id: 'c1', name: 'TopDog Logistics', reputationScore: 5500, policeHeat: 88, _count: { trucks: 4 } },
+        { id: 'c3', name: 'Midway Logistics', reputationScore: 2500, policeHeat: 40, _count: { trucks: 2 } },
+        { id: 'c2', name: 'Rookie Logistics', reputationScore: 120,  policeHeat: 10, _count: { trucks: 1 } },
       ]);
 
       const res = await request(app)
@@ -468,17 +523,17 @@ describe('🚨 TRUCK MANAGER 2026: INTEGRATION TEST SUITE', () => {
         .set('Authorization', `Bearer ${token}`);
 
       expect(res.statusCode).toBe(200);
-      expect(res.body.leaderboard[0].username).toBe('TopDog');
+      expect(res.body.leaderboard[0].companyName).toBe('TopDog Logistics');
       expect(res.body.leaderboard[0].rank).toBe(1);
       expect(res.body.leaderboard[0].tier).toBe('💀 LEGEND');
-      expect(res.body.leaderboard[1].username).toBe('Midway');
+      expect(res.body.leaderboard[1].companyName).toBe('Midway Logistics');
       expect(res.body.leaderboard[1].tier).toBe('🔥 KINGPIN');
     });
 
     it('Should return heat-index board with correct wanted levels', async () => {
-      prisma.user.findMany.mockResolvedValue([
-        { id: 'u1', username: 'MostWanted', policeHeat: 95, reputationScore: 2000, _count: { trucks: 3 } },
-        { id: 'u2', username: 'LowProfile', policeHeat: 5,  reputationScore: 100,  _count: { trucks: 1 } },
+      prisma.company.findMany.mockResolvedValue([
+        { id: 'c1', name: 'MostWanted Logistics', policeHeat: 95, reputationScore: 2000, _count: { trucks: 3 } },
+        { id: 'c2', name: 'LowProfile Logistics', policeHeat: 5,  reputationScore: 100,  _count: { trucks: 1 } },
       ]);
 
       const res = await request(app)
@@ -491,19 +546,19 @@ describe('🚨 TRUCK MANAGER 2026: INTEGRATION TEST SUITE', () => {
     });
 
     it('Should return my-rank with all category ranks', async () => {
-      const mockUsers = [
-        { id: 'usr_abc', username: 'trucker_sam', reputationScore: 500, policeHeat: 20, trucks: [{ mileage: 80000, engineHealth: 90, tireWear: 80, isImpounded: false, model: 'Scania R500' }] },
-        { id: 'u2', username: 'competitor', reputationScore: 1200, policeHeat: 60, trucks: [{ mileage: 200000, engineHealth: 50, tireWear: 60, isImpounded: false, model: 'Volvo FH16' }] },
+      const mockCompanies = [
+        { id: 'comp_abc', name: 'trucker_sam Logistics', reputationScore: 500, policeHeat: 20, trucks: [{ mileage: 80000, engineHealth: 90, tireWear: 80, isImpounded: false, model: 'Scania R500' }] },
+        { id: 'c2', name: 'competitor Logistics', reputationScore: 1200, policeHeat: 60, trucks: [{ mileage: 200000, engineHealth: 50, tireWear: 60, isImpounded: false, model: 'Volvo FH16' }] },
       ];
-      prisma.user.findMany.mockResolvedValue(mockUsers);
+      prisma.company.findMany.mockResolvedValue(mockCompanies);
 
       const res = await request(app)
         .get('/api/leaderboard/my-rank')
         .set('Authorization', `Bearer ${token}`);
 
       expect(res.statusCode).toBe(200);
-      expect(res.body.username).toBe('trucker_sam');
-      expect(res.body.totalPlayers).toBe(2);
+      expect(res.body.companyName).toBe('trucker_sam Logistics');
+      expect(res.body.totalCompanies).toBe(2);
       expect(res.body.ranks.underworldRep.rank).toBe(2);   // 500 < 1200
       expect(res.body.ranks.heatIndex.rank).toBe(2);        // 20 < 60
       expect(res.body.ranks.underworldRep.value).toBe(500);
@@ -515,8 +570,6 @@ describe('🚨 TRUCK MANAGER 2026: INTEGRATION TEST SUITE', () => {
   // ==========================================
   describe('🛃 Border Clearance Detection Math', () => {
     it('Should clamp detection probability between 5% and 95%', () => {
-      // Access the internal calculation logic by calling calculateClearance-like math inline
-      // Tests the clamping and modifier formula
       const checkpoint_alert = 10; // max
       const baseRisk = checkpoint_alert * 10; // = 100
       const modReduction = 5 * 10; // max shielding = 50
@@ -532,6 +585,7 @@ describe('🚨 TRUCK MANAGER 2026: INTEGRATION TEST SUITE', () => {
       prisma.truck.findUnique.mockResolvedValue({
         id: 'clean_truck',
         owner: { id: 'usr_abc' },
+        companyId: 'comp_abc',
         fuelTankMod: 'STOCK',
         scannerShielding: 0,
         activeRoute: { contrabandJob: null }, // No contraband
@@ -549,7 +603,6 @@ describe('🚨 TRUCK MANAGER 2026: INTEGRATION TEST SUITE', () => {
     });
 
     it('Should generate bust penalties with correct severity scaling by cargo class', async () => {
-      // CLASS_C should produce the highest base fine
       const classC_baseFine = 50000;
       const classC_baseHeat = 60;
       const classC_impoundDays = 14;
@@ -558,6 +611,140 @@ describe('🚨 TRUCK MANAGER 2026: INTEGRATION TEST SUITE', () => {
       expect(classC_baseFine).toBeGreaterThan(15000); // > CLASS_B
       expect(classC_impoundDays).toBeGreaterThan(7);  // > CLASS_B impound
       expect(classC_baseHeat).toBeGreaterThan(30);    // > CLASS_B heat
+    });
+  });
+
+  // ==========================================
+  // 9. DYNAMIC COMMODITY MARKET TESTS
+  // ==========================================
+  describe('📈 Commodity Market & Storage Systems', () => {
+    const token = generateTestToken('usr_abc', 'trucker_sam');
+
+    it('Should fetch current commodity prices sorted alphabetically', async () => {
+      prisma.commodityMarket.findMany.mockResolvedValue([
+        { id: 'c_adblue', commodityType: 'ADBLUE', currentPrice: Decimal(0.85) },
+        { id: 'c_diesel', commodityType: 'DIESEL', currentPrice: Decimal(1.50) },
+      ]);
+
+      const res = await request(app)
+        .get('/api/commodity')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body).toHaveLength(2);
+      expect(res.body[0].commodityType).toBe('ADBLUE');
+      expect(res.body[1].commodityType).toBe('DIESEL');
+    });
+
+    it('Should reject commodity purchase if inputs are invalid or negative', async () => {
+      const res = await request(app)
+        .post('/api/commodity/buy')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ garageId: 'gar_1', commodityType: 'DIESEL', amount: -50 });
+
+      expect(res.statusCode).toBe(400);
+      expect(res.body.error).toBe('INVALID_INPUT');
+    });
+
+    it('Should successfully purchase and stockpile commodity when constraints are met', async () => {
+      prisma.commodityMarket.findUnique.mockResolvedValue({
+        id: 'c_diesel',
+        commodityType: 'DIESEL',
+        currentPrice: Decimal(1.50),
+      });
+      prisma.company.findUnique.mockResolvedValue({
+        id: 'comp_abc',
+        legalBalance: Decimal(10000.00),
+        blackMarketBalance: Decimal(0.00),
+      });
+      prisma.garage.findUnique.mockResolvedValue({
+        id: 'gar_1',
+        companyId: 'comp_abc',
+        city: 'Kaunas',
+        dieselStorage: 100.0,
+        maxDiesel: 5000.0,
+      });
+
+      // Updates
+      prisma.company.update.mockResolvedValue({
+        id: 'comp_abc',
+        legalBalance: Decimal(9850.00), // 10000 - (1.50 * 100)
+        blackMarketBalance: Decimal(0.00),
+      });
+      prisma.garage.update.mockResolvedValue({
+        id: 'gar_1',
+        dieselStorage: 200.0,
+      });
+
+      const res = await request(app)
+        .post('/api/commodity/buy')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ garageId: 'gar_1', commodityType: 'DIESEL', amount: 100 });
+
+      if (res.statusCode !== 200) {
+        console.error("BUY TEST FAILED WITH BODY:", res.body);
+      }
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.message).toContain('Commodity purchased and stockpiled successfully!');
+      expect(res.body.totalCost).toBe(150);
+      expect(res.body.unitPrice).toBe(1.50);
+    });
+
+    it('Should reject commodity purchase if company balance is insufficient', async () => {
+      prisma.commodityMarket.findUnique.mockResolvedValue({
+        id: 'c_diesel',
+        commodityType: 'DIESEL',
+        currentPrice: Decimal(1.50),
+      });
+      prisma.company.findUnique.mockResolvedValue({
+        id: 'comp_abc',
+        legalBalance: Decimal(10.00), // Less than 150 needed
+        blackMarketBalance: Decimal(0.00),
+      });
+      prisma.garage.findUnique.mockResolvedValue({
+        id: 'gar_1',
+        companyId: 'comp_abc',
+        city: 'Kaunas',
+        dieselStorage: 100.0,
+        maxDiesel: 5000.0,
+      });
+
+      const res = await request(app)
+        .post('/api/commodity/buy')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ garageId: 'gar_1', commodityType: 'DIESEL', amount: 100 });
+
+      expect(res.statusCode).toBe(400);
+      expect(res.body.error).toBe('INSUFFICIENT_FUNDS');
+    });
+
+    it('Should reject commodity purchase if stockpile space limit is exceeded', async () => {
+      prisma.commodityMarket.findUnique.mockResolvedValue({
+        id: 'c_diesel',
+        commodityType: 'DIESEL',
+        currentPrice: Decimal(1.50),
+      });
+      prisma.company.findUnique.mockResolvedValue({
+        id: 'comp_abc',
+        legalBalance: Decimal(10000.00),
+        blackMarketBalance: Decimal(0.00),
+      });
+      prisma.garage.findUnique.mockResolvedValue({
+        id: 'gar_1',
+        companyId: 'comp_abc',
+        city: 'Kaunas',
+        dieselStorage: 4950.0, // Remaining capacity: 50L
+        maxDiesel: 5000.0,
+      });
+
+      const res = await request(app)
+        .post('/api/commodity/buy')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ garageId: 'gar_1', commodityType: 'DIESEL', amount: 100 }); // Demands 100L (exceeds capacity)
+
+      expect(res.statusCode).toBe(400);
+      expect(res.body.error).toBe('STORAGE_CAPACITY_EXCEEDED');
     });
   });
 });

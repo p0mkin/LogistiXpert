@@ -113,6 +113,30 @@ func _run_launder(front_id: String, amount: float) -> void:
 		JSON.stringify({"amount": amount})
 	)
 
+func _upgrade_front(front_id: String) -> void:
+	_log("Upgrading front business...", Color(0.607, 0.349, 0.713))
+	var http = HTTPRequest.new()
+	add_child(http)
+	http.request_completed.connect(_on_upgrade_response.bind(http))
+	http.request(
+		api_base + "/laundry/" + front_id + "/upgrade",
+		["Authorization: Bearer " + NetworkManager.jwt_token, "Content-Type: application/json"],
+		HTTPClient.METHOD_POST,
+		"{}"
+	)
+
+func _bribe_auditors(front_id: String) -> void:
+	_log("Attempting to bribe auditors ($15,000)...", Color(0.925, 0.607, 0.141))
+	var http = HTTPRequest.new()
+	add_child(http)
+	http.request_completed.connect(_on_bribe_response.bind(http))
+	http.request(
+		api_base + "/laundry/" + front_id + "/bribe-auditors",
+		["Authorization: Bearer " + NetworkManager.jwt_token, "Content-Type: application/json"],
+		HTTPClient.METHOD_POST,
+		"{}"
+	)
+
 # ==========================================
 # RESPONSE HANDLERS
 # ==========================================
@@ -142,7 +166,6 @@ func _on_launder_response(result: int, code: int, headers: PackedStringArray, bo
 	var data = JSON.parse_string(body.get_string_from_utf8())
 	if code == 200:
 		if data.get("raided", false):
-			# RAID scenario
 			result_panel.show()
 			result_lbl.text = "🚨 POLICE RAID!\n\nOfficers stormed \"%s\".\nDirty batch SEIZED.\nBusiness locked 24h.\n\nHeat +20 ⬆" % selected_front.get("name", "?")
 			result_lbl.add_theme_color_override("font_color", Color(0.901, 0.298, 0.235))
@@ -164,6 +187,36 @@ func _on_launder_response(result: int, code: int, headers: PackedStringArray, bo
 		_fetch_fronts()
 	else:
 		_log("Launder failed: " + data.get("message", "Error"), Color(0.901, 0.298, 0.235))
+
+func _on_upgrade_response(result: int, code: int, headers: PackedStringArray, body: PackedByteArray, http: HTTPRequest) -> void:
+	http.queue_free()
+	var data = JSON.parse_string(body.get_string_from_utf8())
+	if code == 200:
+		var front = data.get("front", {})
+		GameState.update_balances(-_get_upgrade_cost(int(front.get("upgradeLevel", 1)) - 1), 0.0)
+		_log("Upgraded to Level %d! Rate: $%s/cycle" % [int(front.get("upgradeLevel", 1)), _format_cash(float(front.get("laundryRate", 0)))], Color(0.607, 0.349, 0.713))
+		_fetch_fronts()
+	else:
+		_log("Upgrade failed: " + data.get("message", "Error"), Color(0.901, 0.298, 0.235))
+
+func _on_bribe_response(result: int, code: int, headers: PackedStringArray, body: PackedByteArray, http: HTTPRequest) -> void:
+	http.queue_free()
+	var data = JSON.parse_string(body.get_string_from_utf8())
+	if code == 200:
+		if data.get("success", false):
+			GameState.update_balances(-15000.0, 0.0)
+			_log("✓ Bribe accepted! Front back in business.", Color(0.18, 0.803, 0.443))
+		else:
+			GameState.update_balances(-15000.0, 0.0)
+			GameState.police_heat = min(GameState.police_heat + 10, 100)
+			_log("💸 Bribe rejected! Cash taken, audit extended.", Color(0.901, 0.298, 0.235))
+		_fetch_fronts()
+	else:
+		_log("Bribe failed: " + data.get("message", "Error"), Color(0.901, 0.298, 0.235))
+
+func _get_upgrade_cost(current_level: int) -> float:
+	var costs = {1: 25000.0, 2: 55000.0, 3: 110000.0, 4: 220000.0}
+	return costs.get(current_level, 0.0)
 
 # ==========================================
 # RENDERING
@@ -304,21 +357,66 @@ func _build_front_card(front: Dictionary) -> PanelContainer:
 		cd_lbl.add_theme_font_size_override("font_size", 11)
 		vbox.add_child(cd_lbl)
 
-	# Action button
-	if not is_raided:
-		var btn = Button.new()
-		btn.text = "⚗ RUN LAUNDRY CYCLE"
-		btn.add_theme_font_size_override("font_size", 12)
-		btn.add_theme_color_override("font_color", Color(0.607, 0.349, 0.713))
-		var style_btn = StyleBoxFlat.new()
-		style_btn.bg_color = Color(0.607, 0.349, 0.713, 0.08)
-		style_btn.border_color = Color(0.607, 0.349, 0.713, 0.35)
-		style_btn.border_width_bottom = 1
-		style_btn.set_corner_radius_all(4)
-		btn.add_theme_stylebox_override("normal", style_btn)
-		btn.pressed.connect(_open_launder_panel.bind(front))
-		vbox.add_child(btn)
+	# Action buttons row
+	var btn_row = HBoxContainer.new()
+	btn_row.add_theme_constant_override("separation", 8)
 
+	if not is_raided:
+		var launder_btn = Button.new()
+		launder_btn.text = "⚗ LAUNDER"
+		launder_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		launder_btn.add_theme_font_size_override("font_size", 11)
+		launder_btn.add_theme_color_override("font_color", Color(0.607, 0.349, 0.713))
+		var style_launder = StyleBoxFlat.new()
+		style_launder.bg_color = Color(0.607, 0.349, 0.713, 0.08)
+		style_launder.border_color = Color(0.607, 0.349, 0.713, 0.35)
+		style_launder.border_width_bottom = 1
+		style_launder.set_corner_radius_all(4)
+		launder_btn.add_theme_stylebox_override("normal", style_launder)
+		launder_btn.pressed.connect(_open_launder_panel.bind(front))
+		btn_row.add_child(launder_btn)
+
+		# Only show upgrade if not max level
+		if int(front.get("upgradeLevel", 1)) < 5:
+			var upg_btn = Button.new()
+			var upg_cost_table = {1: 25000, 2: 55000, 3: 110000, 4: 220000}
+			var upg_cost = upg_cost_table.get(int(front.get("upgradeLevel", 1)), 0)
+			upg_btn.text = "⬆ UPGRADE\n$%sk" % (upg_cost / 1000)
+			upg_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			upg_btn.add_theme_font_size_override("font_size", 10)
+			upg_btn.add_theme_color_override("font_color", Color(0.925, 0.607, 0.141))
+			var style_upg = StyleBoxFlat.new()
+			style_upg.bg_color = Color(0.925, 0.607, 0.141, 0.06)
+			style_upg.border_color = Color(0.925, 0.607, 0.141, 0.3)
+			style_upg.border_width_bottom = 1
+			style_upg.set_corner_radius_all(4)
+			upg_btn.add_theme_stylebox_override("normal", style_upg)
+			upg_btn.pressed.connect(_upgrade_front.bind(front.get("id", "")))
+			btn_row.add_child(upg_btn)
+		else:
+			var maxed_lbl = Label.new()
+			maxed_lbl.text = "★ MAX TIER"
+			maxed_lbl.add_theme_color_override("font_color", Color(0.925, 0.607, 0.141, 0.6))
+			maxed_lbl.add_theme_font_size_override("font_size", 10)
+			maxed_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			btn_row.add_child(maxed_lbl)
+	else:
+		# Raided — show bribe button
+		var bribe_btn = Button.new()
+		bribe_btn.text = "💰 BRIBE AUDITORS ($15k)"
+		bribe_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		bribe_btn.add_theme_font_size_override("font_size", 11)
+		bribe_btn.add_theme_color_override("font_color", Color(0.925, 0.607, 0.141))
+		var style_bribe = StyleBoxFlat.new()
+		style_bribe.bg_color = Color(0.925, 0.607, 0.141, 0.07)
+		style_bribe.border_color = Color(0.925, 0.607, 0.141, 0.3)
+		style_bribe.border_width_bottom = 1
+		style_bribe.set_corner_radius_all(4)
+		bribe_btn.add_theme_stylebox_override("normal", style_bribe)
+		bribe_btn.pressed.connect(_bribe_auditors.bind(front.get("id", "")))
+		btn_row.add_child(bribe_btn)
+
+	vbox.add_child(btn_row)
 	return panel
 
 # ==========================================

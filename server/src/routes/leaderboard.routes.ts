@@ -7,16 +7,16 @@ const prisma = new PrismaClient();
 
 // ================================================================
 // GET /api/leaderboard/fleet-value
-// Top 20 players by combined truck fleet estimated value
+// Top 20 companies by combined truck fleet estimated value
 // Fleet value = mileage-adjusted model base price * condition multiplier
 // ================================================================
 router.get('/fleet-value', authenticateJWT, async (_req: AuthRequest, res: Response) => {
   try {
-    // Fetch all users with their trucks
-    const users = await prisma.user.findMany({
+    // Fetch all companies with their trucks
+    const companies = await prisma.company.findMany({
       select: {
         id: true,
-        username: true,
+        name: true,
         reputationScore: true,
         trucks: {
           select: {
@@ -40,9 +40,9 @@ router.get('/fleet-value', authenticateJWT, async (_req: AuthRequest, res: Respo
       'Iveco Stralis': 140000,
     };
 
-    const ranked = users.map((user) => {
+    const ranked = companies.map((company) => {
       let fleetValue = 0;
-      for (const truck of user.trucks) {
+      for (const truck of company.trucks) {
         const base = MODEL_BASE_VALUES[truck.model] ?? 150000;
         // Depreciation: lose 1% per 10,000km (max 60% depreciation)
         const mileageDepreciation = Math.min(truck.mileage / 10000 * 0.01, 0.60);
@@ -56,11 +56,11 @@ router.get('/fleet-value', authenticateJWT, async (_req: AuthRequest, res: Respo
       }
 
       return {
-        userId: user.id,
-        username: user.username,
-        truckCount: user.trucks.length,
+        companyId: company.id,
+        companyName: company.name,
+        truckCount: company.trucks.length,
         fleetValue,
-        reputationScore: user.reputationScore,
+        reputationScore: company.reputationScore,
       };
     });
 
@@ -80,10 +80,10 @@ router.get('/fleet-value', authenticateJWT, async (_req: AuthRequest, res: Respo
 // ================================================================
 router.get('/underworld-rep', authenticateJWT, async (_req: AuthRequest, res: Response) => {
   try {
-    const users = await prisma.user.findMany({
+    const companies = await prisma.company.findMany({
       select: {
         id: true,
-        username: true,
+        name: true,
         reputationScore: true,
         policeHeat: true,
         _count: { select: { trucks: true } },
@@ -102,14 +102,14 @@ router.get('/underworld-rep', authenticateJWT, async (_req: AuthRequest, res: Re
       return '🐣 ROOKIE';
     }
 
-    const leaderboard = users.map((u, i) => ({
+    const leaderboard = companies.map((c, i) => ({
       rank: i + 1,
-      userId: u.id,
-      username: u.username,
-      reputationScore: u.reputationScore,
-      policeHeat: u.policeHeat,
-      fleetSize: u._count.trucks,
-      tier: getTier(u.reputationScore),
+      companyId: c.id,
+      companyName: c.name,
+      reputationScore: c.reputationScore,
+      policeHeat: c.policeHeat,
+      fleetSize: c._count.trucks,
+      tier: getTier(c.reputationScore),
     }));
 
     return res.json({ leaderboard, updatedAt: new Date() });
@@ -125,21 +125,21 @@ router.get('/underworld-rep', authenticateJWT, async (_req: AuthRequest, res: Re
 // ================================================================
 router.get('/mileage', authenticateJWT, async (_req: AuthRequest, res: Response) => {
   try {
-    const users = await prisma.user.findMany({
+    const companies = await prisma.company.findMany({
       select: {
         id: true,
-        username: true,
+        name: true,
         reputationScore: true,
         trucks: { select: { mileage: true } },
       },
     });
 
-    const ranked = users.map((u) => ({
-      userId: u.id,
-      username: u.username,
-      totalMileageKm: u.trucks.reduce((sum, t) => sum + t.mileage, 0),
-      truckCount: u.trucks.length,
-      reputationScore: u.reputationScore,
+    const ranked = companies.map((c) => ({
+      companyId: c.id,
+      companyName: c.name,
+      totalMileageKm: c.trucks.reduce((sum, t) => sum + t.mileage, 0),
+      truckCount: c.trucks.length,
+      reputationScore: c.reputationScore,
     }));
 
     ranked.sort((a, b) => b.totalMileageKm - a.totalMileageKm);
@@ -155,14 +155,14 @@ router.get('/mileage', authenticateJWT, async (_req: AuthRequest, res: Response)
 // ================================================================
 // GET /api/leaderboard/heat-index
 // Top 20 most wanted — sorted by police heat
-// High heat = high visibility = high risk. "Hall of Fame" for reckless players
+// High heat = high visibility = high risk
 // ================================================================
 router.get('/heat-index', authenticateJWT, async (_req: AuthRequest, res: Response) => {
   try {
-    const users = await prisma.user.findMany({
+    const companies = await prisma.company.findMany({
       select: {
         id: true,
-        username: true,
+        name: true,
         policeHeat: true,
         reputationScore: true,
         _count: { select: { trucks: true } },
@@ -180,14 +180,14 @@ router.get('/heat-index', authenticateJWT, async (_req: AuthRequest, res: Respon
       return '⚪ CLEAN RECORD';
     }
 
-    const leaderboard = users.map((u, i) => ({
+    const leaderboard = companies.map((c, i) => ({
       rank: i + 1,
-      userId: u.id,
-      username: u.username,
-      policeHeat: u.policeHeat,
-      reputationScore: u.reputationScore,
-      fleetSize: u._count.trucks,
-      wantedLevel: getWantedLevel(u.policeHeat),
+      companyId: c.id,
+      companyName: c.name,
+      policeHeat: c.policeHeat,
+      reputationScore: c.reputationScore,
+      fleetSize: c._count.trucks,
+      wantedLevel: getWantedLevel(c.policeHeat),
     }));
 
     return res.json({ leaderboard, updatedAt: new Date() });
@@ -204,30 +204,30 @@ router.get('/heat-index', authenticateJWT, async (_req: AuthRequest, res: Respon
 router.get('/auction-wins', authenticateJWT, async (_req: AuthRequest, res: Response) => {
   try {
     const winners = await prisma.auctionListing.groupBy({
-      by: ['highestBidderId'],
+      by: ['highestBidderCompanyId'],
       where: {
         status: 'CLOSED_SOLD',
-        highestBidderId: { not: null },
+        highestBidderCompanyId: { not: null },
       },
-      _count: { highestBidderId: true },
+      _count: { highestBidderCompanyId: true },
       _sum: { currentBid: true },
-      orderBy: { _count: { highestBidderId: 'desc' } },
+      orderBy: { _count: { highestBidderCompanyId: 'desc' } },
       take: 20,
     });
 
     // Fetch usernames for the grouped bidder IDs
-    const userIds = winners.map((w) => w.highestBidderId!).filter(Boolean);
-    const users = await prisma.user.findMany({
-      where: { id: { in: userIds } },
-      select: { id: true, username: true },
+    const companyIds = winners.map((w) => w.highestBidderCompanyId!).filter(Boolean);
+    const companies = await prisma.company.findMany({
+      where: { id: { in: companyIds } },
+      select: { id: true, name: true },
     });
-    const userMap = Object.fromEntries(users.map((u) => [u.id, u.username]));
+    const companyMap = Object.fromEntries(companies.map((c) => [c.id, c.name]));
 
     const leaderboard = winners.map((w, i) => ({
       rank: i + 1,
-      userId: w.highestBidderId,
-      username: userMap[w.highestBidderId!] ?? 'Unknown',
-      auctionWins: w._count.highestBidderId,
+      companyId: w.highestBidderCompanyId,
+      companyName: companyMap[w.highestBidderCompanyId!] ?? 'Unknown',
+      auctionWins: w._count.highestBidderCompanyId,
       totalSpentLegal: w._sum.currentBid?.toNumber() ?? 0,
     }));
 
@@ -244,28 +244,28 @@ router.get('/auction-wins', authenticateJWT, async (_req: AuthRequest, res: Resp
 // ================================================================
 router.get('/my-rank', authenticateJWT, async (req: AuthRequest, res: Response) => {
   try {
-    const userId = req.user!.id;
+    const companyId = req.user!.companyId;
 
-    const allUsers = await prisma.user.findMany({
+    const allCompanies = await prisma.company.findMany({
       select: {
         id: true,
-        username: true,
+        name: true,
         reputationScore: true,
         policeHeat: true,
         trucks: { select: { mileage: true, engineHealth: true, tireWear: true, isImpounded: true, model: true } },
       },
     });
 
-    const me = allUsers.find((u) => u.id === userId);
-    if (!me) return res.status(404).json({ error: 'USER_NOT_FOUND' });
+    const me = allCompanies.find((c) => c.id === companyId);
+    if (!me) return res.status(404).json({ error: 'COMPANY_NOT_FOUND' });
 
     const MODEL_BASE_VALUES: Record<string, number> = {
       'Scania R500': 180000, 'Volvo FH16': 200000, 'MAN TGX': 160000,
       'DAF XF': 155000, 'Mercedes Actros': 175000, 'Iveco Stralis': 140000,
     };
 
-    function computeFleetValue(user: typeof allUsers[0]) {
-      return user.trucks.reduce((sum, t) => {
+    function computeFleetValue(company: typeof allCompanies[0]) {
+      return company.trucks.reduce((sum, t) => {
         const base = MODEL_BASE_VALUES[t.model] ?? 150000;
         const mileageDep = Math.min(t.mileage / 10000 * 0.01, 0.60);
         const condMod = 0.5 + ((t.engineHealth + t.tireWear) / 200) * 0.5;
@@ -274,22 +274,22 @@ router.get('/my-rank', authenticateJWT, async (req: AuthRequest, res: Response) 
       }, 0);
     }
 
-    const fleetValues = allUsers.map((u) => ({ id: u.id, val: computeFleetValue(u) }));
-    const totalMiles = allUsers.map((u) => ({ id: u.id, km: u.trucks.reduce((s, t) => s + t.mileage, 0) }));
+    const fleetValues = allCompanies.map((c) => ({ id: c.id, val: computeFleetValue(c) }));
+    const totalMiles = allCompanies.map((c) => ({ id: c.id, km: c.trucks.reduce((s, t) => s + t.mileage, 0) }));
 
     fleetValues.sort((a, b) => b.val - a.val);
-    const repSorted = [...allUsers].sort((a, b) => b.reputationScore - a.reputationScore);
-    const heatSorted = [...allUsers].sort((a, b) => b.policeHeat - a.policeHeat);
+    const repSorted = [...allCompanies].sort((a, b) => b.reputationScore - a.reputationScore);
+    const heatSorted = [...allCompanies].sort((a, b) => b.policeHeat - a.policeHeat);
     totalMiles.sort((a, b) => b.km - a.km);
 
-    const myFleetRank = fleetValues.findIndex((u) => u.id === userId) + 1;
-    const myRepRank = repSorted.findIndex((u) => u.id === userId) + 1;
-    const myHeatRank = heatSorted.findIndex((u) => u.id === userId) + 1;
-    const myMileageRank = totalMiles.findIndex((u) => u.id === userId) + 1;
+    const myFleetRank = fleetValues.findIndex((c) => c.id === companyId) + 1;
+    const myRepRank = repSorted.findIndex((c) => c.id === companyId) + 1;
+    const myHeatRank = heatSorted.findIndex((c) => c.id === companyId) + 1;
+    const myMileageRank = totalMiles.findIndex((c) => c.id === companyId) + 1;
 
     return res.json({
-      username: me.username,
-      totalPlayers: allUsers.length,
+      companyName: me.name,
+      totalCompanies: allCompanies.length,
       ranks: {
         fleetValue: { rank: myFleetRank, value: computeFleetValue(me) },
         underworldRep: { rank: myRepRank, value: me.reputationScore },

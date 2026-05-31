@@ -6,12 +6,14 @@ export interface AuthRequest extends Request {
   user?: {
     id: string;
     username: string;
+    companyId: string;
   };
 }
 
 export interface JWTPayload {
   id: string;
   username: string;
+  companyId: string;
 }
 
 // 1. REST Express Middleware

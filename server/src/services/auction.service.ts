@@ -81,18 +81,18 @@ export class AuctionService {
     await redis.hset(key, {
       id: auction.id,
       truckId: auction.truckId,
-      sellerId: auction.sellerId,
+      sellerId: auction.sellerCompanyId,
       startingPrice: auction.startingPrice.toString(),
       currentBid: auction.currentBid.toString(),
-      highestBidderId: auction.highestBidderId || '',
+      highestBidderId: auction.highestBidderCompanyId || '',
       expiresAt: auction.expiresAt.getTime().toString(),
       status: 'ACTIVE',
     });
 
     // If there is an existing bid, seed the sorted set
-    if (auction.highestBidderId) {
-      const bidder = await prisma.user.findUnique({ where: { id: auction.highestBidderId } });
-      const member = `${auction.highestBidderId}:${bidder?.username || 'unknown'}`;
+    if (auction.highestBidderCompanyId) {
+      const bidder = await prisma.company.findUnique({ where: { id: auction.highestBidderCompanyId } });
+      const member = `${auction.highestBidderCompanyId}:${bidder?.name || 'unknown'}`;
       await redis.zadd(`auction:${auction.id}:bids`, auction.currentBid.toString(), member);
     }
   }
@@ -102,16 +102,25 @@ export class AuctionService {
    */
   static async placeBid(
     auctionId: string,
-    bidderId: string,
-    username: string,
+    companyId: string,
     amount: number
-  ): Promise<{ status: 'SUCCESS' | 'SUCCESS_EXTENDED'; expiresAt: Date; newPrice: number }> {
+  ): Promise<{ status: 'SUCCESS' | 'SUCCESS_EXTENDED'; expiresAt: Date; newPrice: number; companyName: string }> {
+    // 1. Fetch company to verify existence and check legal balance
+    const company = await prisma.company.findUnique({ where: { id: companyId } });
+    if (!company) {
+      throw new Error('COMPANY_NOT_FOUND');
+    }
+
+    if (company.legalBalance.toNumber() < amount) {
+      throw new Error('INSUFFICIENT_FUNDS');
+    }
+
     const key = `auction:${auctionId}`;
     const bidKey = `auction:${auctionId}:bids`;
     const now = Date.now();
 
     // Call the custom Lua script
-    const result = await (redis as any).placeBidAtomic(key, bidKey, amount.toString(), bidderId, username, now.toString());
+    const result = await (redis as any).placeBidAtomic(key, bidKey, amount.toString(), companyId, company.name, now.toString());
     const responseType = result[0];
     const newExpiresAt = new Date(parseInt(result[1], 10));
 
@@ -119,7 +128,7 @@ export class AuctionService {
     // This decouples the real-time bid from the PostgreSQL database bottlenecks!
     await redis.xadd('stream:auction_bids', '*', 
       'auctionId', auctionId, 
-      'bidderId', bidderId, 
+      'bidderId', companyId, 
       'amount', amount.toString(), 
       'expiresAt', result[1]
     );
@@ -128,6 +137,7 @@ export class AuctionService {
       status: responseType === 'OK_EXTENDED' ? 'SUCCESS_EXTENDED' : 'SUCCESS',
       expiresAt: newExpiresAt,
       newPrice: amount,
+      companyName: company.name,
     };
   }
 
@@ -140,7 +150,7 @@ export class AuctionService {
     
     if (!data.id) return;
 
-    const highestBidderId = data.highestBidderId || null;
+    const highestBidderCompanyId = data.highestBidderId || null;
     const finalBid = parseFloat(data.currentBid);
     const expiresAt = new Date(parseInt(data.expiresAt, 10));
 
@@ -152,7 +162,7 @@ export class AuctionService {
 
       if (!listing || listing.status !== 'ACTIVE') return;
 
-      if (!highestBidderId) {
+      if (!highestBidderCompanyId) {
         // Closed unsold
         await tx.auctionListing.update({
           where: { id: auctionId },
@@ -166,9 +176,24 @@ export class AuctionService {
             description: `Auction expired with no bids. Returned to garage.`,
           },
         });
+
+        // Broadcast expired unsold event
+        try {
+          const { GameWebSocketServer } = await import('../websocket');
+          GameWebSocketServer.broadcast('auction:settled', {
+            auctionId,
+            status: 'CLOSED_UNSOLD',
+            winnerCompanyId: null,
+            winnerCompanyName: null,
+            winnerUsername: null,
+            currentBid: finalBid,
+          });
+        } catch (wsErr) {
+          console.error('[Auction] Failed to broadcast unsold settlement:', wsErr);
+        }
       } else {
         // Double check balance of the winner inside ACID transaction
-        const winner = await tx.user.findUnique({ where: { id: highestBidderId } });
+        const winner = await tx.company.findUnique({ where: { id: highestBidderCompanyId } });
         if (!winner || winner.legalBalance.toNumber() < finalBid) {
           // Default: Closed unsold due to bidder default (NSF)
           await tx.auctionListing.update({
@@ -179,23 +204,23 @@ export class AuctionService {
         }
 
         // Deduct from buyer
-        await tx.user.update({
-          where: { id: highestBidderId },
+        await tx.company.update({
+          where: { id: highestBidderCompanyId },
           data: { legalBalance: { decrement: finalBid } },
         });
 
         // Credit to seller (minus 5% brokerage fee)
         const commission = finalBid * 0.05;
         const payout = finalBid - commission;
-        await tx.user.update({
-          where: { id: listing.sellerId },
+        await tx.company.update({
+          where: { id: listing.sellerCompanyId },
           data: { legalBalance: { increment: payout } },
         });
 
         // Transfer truck ownership
         await tx.truck.update({
           where: { id: listing.truckId },
-          data: { ownerId: highestBidderId },
+          data: { companyId: highestBidderCompanyId },
         });
 
         // Finalize listing
@@ -203,7 +228,7 @@ export class AuctionService {
           where: { id: auctionId },
           data: {
             status: 'CLOSED_SOLD',
-            highestBidderId,
+            highestBidderCompanyId,
             currentBid: finalBid,
             settledAt: new Date(),
           },
@@ -214,9 +239,24 @@ export class AuctionService {
           data: {
             truckId: listing.truckId,
             eventType: 'AUCTION_SALE',
-            description: `Sold in live auction by User ${listing.sellerId} to User ${highestBidderId} for $${finalBid}. Broker fee: $${commission}.`,
+            description: `Sold in live auction by Company ${listing.sellerCompanyId} to Company ${highestBidderCompanyId} for $${finalBid}. Broker fee: $${commission}.`,
           },
         });
+
+        // Broadcast successful sold event
+        try {
+          const { GameWebSocketServer } = await import('../websocket');
+          GameWebSocketServer.broadcast('auction:settled', {
+            auctionId,
+            status: 'CLOSED_SOLD',
+            winnerCompanyId: highestBidderCompanyId,
+            winnerCompanyName: winner.name,
+            winnerUsername: winner.name, // Support legacy client usernames
+            currentBid: finalBid,
+          });
+        } catch (wsErr) {
+          console.error('[Auction] Failed to broadcast sold settlement:', wsErr);
+        }
       }
     });
 

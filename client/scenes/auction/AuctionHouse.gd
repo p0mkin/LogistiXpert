@@ -126,7 +126,9 @@ func _render_listings() -> void:
 
 	var display = all_listings
 	if filter_mode == "mine":
-		display = all_listings.filter(func(l): return l.get("sellerId", "") == GameState.player_id)
+		display = all_listings.filter(func(l): 
+			return l.get("sellerCompanyId", "") == GameState.company_id or l.get("sellerId", "") == GameState.player_id
+		)
 
 	if display.is_empty():
 		var empty_lbl = Label.new()
@@ -142,7 +144,7 @@ func _render_listings() -> void:
 
 func _build_listing_card(listing: Dictionary) -> PanelContainer:
 	var panel = PanelContainer.new()
-	var is_my_listing = listing.get("sellerId", "") == GameState.player_id
+	var is_my_listing = listing.get("sellerCompanyId", "") == GameState.company_id or listing.get("sellerId", "") == GameState.player_id
 	var style = StyleBoxFlat.new()
 	style.bg_color = Color(0.055, 0.063, 0.078, 1.0)
 	style.border_color = Color(0.925, 0.607, 0.141, 0.4) if is_my_listing else Color(0.18, 0.803, 0.443, 0.2)
@@ -284,7 +286,10 @@ func _load_bid_history(auction_id: String) -> void:
 		http.queue_free()
 		if code == 200:
 			var data = JSON.parse_string(body.get_string_from_utf8())
-			if data and data.has("bids"):
+			if data is Array:
+				for bid in data:
+					_append_bid_history_entry(bid)
+			elif data is Dictionary and data.has("bids"):
 				for bid in data.bids:
 					_append_bid_history_entry(bid)
 	)
@@ -299,10 +304,20 @@ func _append_bid_history_entry(bid: Dictionary) -> void:
 	row.add_theme_constant_override("separation", 10)
 
 	var bidder_lbl = Label.new()
-	bidder_lbl.text = bid.get("bidderUsername", "???")
+	var bidder_name = bid.get("bidderUsername", "")
+	if bidder_name.is_empty():
+		bidder_name = bid.get("bidderCompanyName", "")
+	if bidder_name.is_empty():
+		var bc = bid.get("bidderCompany", {})
+		if bc is Dictionary and bc.has("name"):
+			bidder_name = bc.get("name", "")
+	if bidder_name.is_empty():
+		bidder_name = "???"
+
+	bidder_lbl.text = bidder_name
 	bidder_lbl.add_theme_font_size_override("font_size", 11)
 	bidder_lbl.add_theme_color_override("font_color",
-		Color(0.925, 0.607, 0.141) if bid.get("bidderUsername", "") == GameState.username else Color(0.709, 0.768, 0.843, 0.7)
+		Color(0.925, 0.607, 0.141) if (bidder_name == GameState.company_name or bidder_name == GameState.username) else Color(0.709, 0.768, 0.843, 0.7)
 	)
 	row.add_child(bidder_lbl)
 
@@ -328,6 +343,10 @@ func _on_bid_update(payload: Dictionary) -> void:
 		if listing.get("id", "") == auction_id:
 			listing["currentBid"] = payload.get("currentBid", listing["currentBid"])
 			listing["bidCount"] = payload.get("totalBids", listing.get("bidCount", 0))
+			if payload.has("highestBidderCompanyId"):
+				listing["highestBidderCompanyId"] = payload.highestBidderCompanyId
+			if payload.has("highestBidderCompanyName"):
+				listing["highestBidderCompanyName"] = payload.highestBidderCompanyName
 			break
 
 	_render_listings()
@@ -338,14 +357,17 @@ func _on_bid_update(payload: Dictionary) -> void:
 		bid_current_lbl.text = ("Current: $%.0f CLEAN" if currency == "LEGAL" else "Current: $%.0f DIRTY") % current_bid
 
 		# Outbid alert
-		if payload.get("previousBidderUsername", "") == GameState.username:
-			_log("⚡ YOU HAVE BEEN OUTBID on %s!" % selected_listing.get("truck", {}).get("model", "?"), Color(0.901, 0.298, 0.235))
+		var bidder_company_id = payload.get("highestBidderCompanyId", "")
+		var bidder_name = payload.get("highestBidderCompanyName", payload.get("bidderUsername", "?"))
+
+		if bidder_company_id != GameState.company_id:
+			_log("New bid placed: $%.0f by %s" % [current_bid, bidder_name], Color(0.925, 0.607, 0.141))
 		else:
-			_log("New bid placed: $%.0f by %s" % [current_bid, payload.get("bidderUsername", "?")], Color(0.925, 0.607, 0.141))
+			_log("✓ You placed a bid of $%.0f!" % current_bid, Color(0.18, 0.803, 0.443))
 
 		_append_bid_history_entry({
-			"bidderUsername": payload.get("bidderUsername", "?"),
-			"amount": payload.get("currentBid", 0)
+			"bidderUsername": bidder_name,
+			"amount": current_bid
 		})
 
 func _on_bid_resolved(success: bool, data: Dictionary) -> void:
@@ -358,11 +380,13 @@ func _on_ws_packet(packet: Dictionary) -> void:
 	match packet.get("type", ""):
 		"auction:settled":
 			var payload = packet.get("payload", {})
-			var winner = payload.get("winnerUsername", "")
-			if winner == GameState.username:
-				_log("🏆 YOU WON the auction! Truck added to your fleet.", Color(0.18, 0.803, 0.443))
+			var winner_company_id = payload.get("winnerCompanyId", "")
+			var winner_name = payload.get("winnerCompanyName", payload.get("winnerUsername", ""))
+			
+			if winner_company_id == GameState.company_id or winner_name == GameState.username:
+				_log("🏆 YOUR COMPANY WON the auction! Truck added to your fleet.", Color(0.18, 0.803, 0.443))
 			else:
-				_log("Auction settled. Winner: %s" % winner, Color(0.709, 0.768, 0.843))
+				_log("Auction settled. Winner: %s" % (winner_name if not winner_name.is_empty() else "Unsold"), Color(0.709, 0.768, 0.843))
 			_fetch_listings()
 
 # ==========================================

@@ -33,11 +33,19 @@ signal auction_bid_received(update)
 signal border_event_resolved(type, data)    # 'cleared', 'bust', 'bribe_success', 'bribe_fail', 'run_success', 'run_fail'
 signal ws_message_received(packet)          # broadcast all WS packets to any scene
 signal route_completed(data)                # truck delivered, payout ready
+signal route_progress_updated(data)         # live telemetry per tick: progress%, fatigue, tacho, health
 signal driver_snitched(data)               # betrayal bust event
 signal engine_breakdown(data)              # mid-route engine failure
 signal driver_wreck(data)                  # microsleep crash
 signal weigh_station_fine(data)            # tacho violation fine
 signal border_inspection_started(data)     # truck paused at customs
+
+# Dynamic Commodity & Co-Op Signals
+signal dispatch_no_fuel_alert(data)
+signal garage_stock_updated(data)
+signal market_prices_updated(data)
+signal company_balance_updated(data)
+
 
 func _ready() -> void:
 	# Build reconnection timer
@@ -267,6 +275,13 @@ func _parse_and_route_message(json_str: String) -> void:
 		"route:completed":
 			route_completed.emit(payload)
 			GameState.update_balances(0.0, float(payload.get("payout", 0)))
+			
+		"route:progress":
+			# Update local GameState active routes cache
+			var truck_id = payload.get("truckId", "")
+			if truck_id != "":
+				GameState.active_routes[truck_id] = payload
+			route_progress_updated.emit(payload)
 		
 		"alert:driver_snitched":
 			driver_snitched.emit(payload)
@@ -305,6 +320,35 @@ func _parse_and_route_message(json_str: String) -> void:
 		
 		"border:inspection_event":
 			border_inspection_started.emit(payload)
+			
+		"dispatch:no_fuel_alert":
+			dispatch_no_fuel_alert.emit(payload)
+			_show_emergency_alert(
+				"⚠️ OUT OF FUEL - ROUTE PAUSED",
+				payload.get("message", "Garage stockpile empty. Active route paused!"),
+				Color(1.0, 0.45, 0.1, 1.0)
+			)
+			
+		"garage:stock_update":
+			var garage_id = payload.get("garageId", "")
+			for g in GameState.garages:
+				if g.get("id", "") == garage_id:
+					g["dieselStorage"] = float(payload.get("dieselStorage", g.get("dieselStorage", 0.0)))
+					g["electricityStorage"] = float(payload.get("electricityStorage", g.get("electricityStorage", 0.0)))
+					g["adblueStorage"] = float(payload.get("adblueStorage", g.get("adblueStorage", 0.0)))
+					g["co2Allowances"] = float(payload.get("co2Allowances", g.get("co2Allowances", 0.0)))
+					break
+			garage_stock_updated.emit(payload)
+			GameState.fleet_updated.emit()
+			
+		"market:price_update":
+			market_prices_updated.emit(payload)
+			
+		"company:balance_update":
+			GameState.legal_balance = float(payload.get("legalBalance", GameState.legal_balance))
+			GameState.black_market_balance = float(payload.get("blackMarketBalance", GameState.black_market_balance))
+			GameState.balance_updated.emit(GameState.legal_balance, GameState.black_market_balance)
+			company_balance_updated.emit(payload)
 			
 		"DISPATCH_TICK", "BORDER_CHECK", "ROUTE_COMPLETE", "MICROSLEEP_CRASH", "SEIZURE":
 			# Legacy keys — routed via ws_message_received broadcast to DispatchCenter

@@ -10,11 +10,11 @@ router.use(authenticateJWT);
 
 // 1. GET ALL USER GARAGES & TRUCKS
 router.get('/', async (req: AuthRequest, res: Response) => {
-  const userId = req.user!.id;
+  const companyId = req.user!.companyId;
 
   try {
     const garages = await prisma.garage.findMany({
-      where: { ownerId: userId },
+      where: { companyId },
       include: {
         trucks: {
           include: {
@@ -33,14 +33,14 @@ router.get('/', async (req: AuthRequest, res: Response) => {
 
 // 2. APPLY UNDERWORLD TRUCK RIGGING MODIFICATIONS
 router.patch('/trucks/:truckId/mod', async (req: AuthRequest, res: Response) => {
-  const userId = req.user!.id;
+  const companyId = req.user!.companyId;
   const { truckId } = req.params;
   const { fuelTankMod, scannerShielding } = req.body; // FuelTankMod enum, scannerShielding (0-5)
 
   try {
     // 1. Verify ownership
     const truck = await prisma.truck.findUnique({ where: { id: truckId } });
-    if (!truck || truck.ownerId !== userId) {
+    if (!truck || truck.companyId !== companyId) {
       return res.status(404).json({ error: 'TRUCK_NOT_FOUND', message: 'Vehicle does not exist in your fleet.' });
     }
 
@@ -56,8 +56,8 @@ router.patch('/trucks/:truckId/mod', async (req: AuthRequest, res: Response) => 
       cost += (scannerShielding - truck.scannerShielding) * 3500; // $3500 per shielding level
     }
 
-    const user = await prisma.user.findUnique({ where: { id: userId } });
-    if (!user || user.blackMarketBalance.toNumber() < cost) {
+    const company = await prisma.company.findUnique({ where: { id: companyId } });
+    if (!company || company.blackMarketBalance.toNumber() < cost) {
       return res.status(400).json({
         error: 'INSUFFICIENT_BLACK_MARKET_FUNDS',
         message: `Upgrades cost $${cost} Black Market Cash. You need more illegal proceeds.`,
@@ -66,8 +66,8 @@ router.patch('/trucks/:truckId/mod', async (req: AuthRequest, res: Response) => 
 
     // 3. Apply modification inside a transaction
     const updatedTruck = await prisma.$transaction(async (tx) => {
-      await tx.user.update({
-        where: { id: userId },
+      await tx.company.update({
+        where: { id: companyId },
         data: { blackMarketBalance: { decrement: cost } },
       });
 

@@ -74,7 +74,7 @@ router.get('/estimate/:truckId', authenticateJWT, async (req: AuthRequest, res: 
       include: { activeRoute: true },
     });
 
-    if (!truck || truck.ownerId !== req.user!.id) {
+    if (!truck || truck.companyId !== req.user!.companyId) {
       return res.status(404).json({ error: 'TRUCK_NOT_FOUND' });
     }
 
@@ -120,10 +120,10 @@ router.post('/roadside-repair', authenticateJWT, async (req: AuthRequest, res: R
     const result = await prisma.$transaction(async (tx) => {
       const truck = await tx.truck.findUnique({
         where: { id: truckId },
-        include: { owner: true, activeRoute: true },
+        include: { company: true, activeRoute: true },
       });
 
-      if (!truck || truck.ownerId !== req.user!.id) {
+      if (!truck || truck.companyId !== req.user!.companyId) {
         throw new Error('TRUCK_NOT_FOUND');
       }
 
@@ -141,7 +141,7 @@ router.post('/roadside-repair', authenticateJWT, async (req: AuthRequest, res: R
       if (repairEngine) totalCharge += estimate.engineCost * roadsidePremium;
       if (repairTires) totalCharge += estimate.tireCost * roadsidePremium;
 
-      if (truck.owner.legalBalance.toNumber() < totalCharge) {
+      if (truck.company.legalBalance.toNumber() < totalCharge) {
         throw new Error('INSUFFICIENT_FUNDS');
       }
 
@@ -157,9 +157,9 @@ router.post('/roadside-repair', authenticateJWT, async (req: AuthRequest, res: R
         },
       });
 
-      // Deduct charge from legal balance
-      await tx.user.update({
-        where: { id: req.user!.id },
+      // Deduct charge from Company legal balance
+      await tx.company.update({
+        where: { id: req.user!.companyId },
         data: {
           legalBalance: { decrement: totalCharge },
         },
@@ -215,10 +215,10 @@ router.post('/garage-repair', authenticateJWT, async (req: AuthRequest, res: Res
     const result = await prisma.$transaction(async (tx) => {
       const truck = await tx.truck.findUnique({
         where: { id: truckId },
-        include: { owner: true, activeRoute: { include: { contrabandJob: true } } },
+        include: { company: true, activeRoute: { include: { contrabandJob: true } } },
       });
 
-      if (!truck || truck.ownerId !== req.user!.id) {
+      if (!truck || truck.companyId !== req.user!.companyId) {
         throw new Error('TRUCK_NOT_FOUND');
       }
 
@@ -235,7 +235,7 @@ router.post('/garage-repair', authenticateJWT, async (req: AuthRequest, res: Res
       if (repairEngine) totalCharge += estimate.engineCost;
       if (repairTires) totalCharge += estimate.tireCost;
 
-      if (truck.owner.legalBalance.toNumber() < totalCharge) {
+      if (truck.company.legalBalance.toNumber() < totalCharge) {
         throw new Error('INSUFFICIENT_FUNDS');
       }
 
@@ -250,8 +250,8 @@ router.post('/garage-repair', authenticateJWT, async (req: AuthRequest, res: Res
         },
       });
 
-      await tx.user.update({
-        where: { id: req.user!.id },
+      await tx.company.update({
+        where: { id: req.user!.companyId },
         data: {
           legalBalance: { decrement: totalCharge },
         },
@@ -314,7 +314,7 @@ router.post('/garage-repair', authenticateJWT, async (req: AuthRequest, res: Res
 router.get('/fleet-status', authenticateJWT, async (req: AuthRequest, res: Response) => {
   try {
     const trucks = await prisma.truck.findMany({
-      where: { ownerId: req.user!.id },
+      where: { companyId: req.user!.companyId },
       include: {
         activeRoute: { select: { currentCity: true, progressPct: true, eta: true } },
       },
@@ -363,10 +363,10 @@ router.post('/release-impound/:truckId', authenticateJWT, async (req: AuthReques
     const result = await prisma.$transaction(async (tx) => {
       const truck = await tx.truck.findUnique({
         where: { id: truckId },
-        include: { owner: true },
+        include: { company: true },
       });
 
-      if (!truck || truck.ownerId !== req.user!.id) {
+      if (!truck || truck.companyId !== req.user!.companyId) {
         throw new Error('TRUCK_NOT_FOUND');
       }
 
@@ -390,12 +390,12 @@ router.post('/release-impound/:truckId', authenticateJWT, async (req: AuthReques
       // 2x daily impound rate ($3500/day) for early release
       const earlyReleaseFee = daysRemaining * 3500 * 2;
 
-      if (truck.owner.legalBalance.toNumber() < earlyReleaseFee) {
+      if (truck.company.legalBalance.toNumber() < earlyReleaseFee) {
         throw new Error(`INSUFFICIENT_FUNDS:${earlyReleaseFee}`);
       }
 
-      await tx.user.update({
-        where: { id: req.user!.id },
+      await tx.company.update({
+        where: { id: req.user!.companyId },
         data: { legalBalance: { decrement: earlyReleaseFee } },
       });
 

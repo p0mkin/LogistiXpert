@@ -53,6 +53,125 @@ export class DispatchSimulationService {
         const isSmuggling = route.contrabandJobId !== null;
 
         // ==========================================
+        // 0. FUEL & CO2 CONSUMPTION CHECK
+        // ==========================================
+        const isEV = truck.model.toLowerCase().includes('ev') || truck.model.toLowerCase().includes('electric');
+        
+        let initialStep = 10.0;
+        if (driver.trait === 'LEAD_FOOT') initialStep += 2.0;
+        if (driver.isStimulated) initialStep += 3.5;
+
+        const totalDistance = route.legalContract ? route.legalContract.distanceKm : 350.0;
+        const distanceThisTick = (initialStep / 100.0) * totalDistance;
+
+        let weightFactor = 1.0;
+        if (route.legalContract) {
+          switch (route.legalContract.cargoType) {
+            case 'STEEL_COILS': weightFactor = 1.5; break;
+            case 'TIMBER': weightFactor = 1.3; break;
+            case 'AGRICULTURAL_MACHINERY': weightFactor = 1.2; break;
+            case 'DAIRY_PRODUCTS': weightFactor = 1.1; break;
+            case 'PHARMACEUTICALS': weightFactor = 1.0; break;
+            case 'ELECTRONICS': weightFactor = 0.9; break;
+          }
+        } else if (route.contrabandJob) {
+          switch (route.contrabandJob.cargoClass) {
+            case 'CLASS_C': weightFactor = 1.4; break;
+            case 'CLASS_B': weightFactor = 1.1; break;
+            case 'CLASS_A': weightFactor = 0.9; break;
+          }
+        }
+
+        const driverFactor = driver.trait === 'LEAD_FOOT' ? 1.1 : 1.0;
+        const truckFactor = truck.fuelTankMod === 'CHASSIS_CAVITY' ? 1.1 : 1.0;
+        const totalModifier = weightFactor * driverFactor * truckFactor;
+
+        let electricityNeeded = 0;
+        let dieselNeeded = 0;
+        let adblueNeeded = 0;
+        let co2Needed = 0;
+
+        if (isEV) {
+          electricityNeeded = distanceThisTick * 1.5 * totalModifier;
+        } else {
+          dieselNeeded = distanceThisTick * 0.35 * totalModifier;
+          adblueNeeded = distanceThisTick * 0.03 * totalModifier;
+          co2Needed = dieselNeeded * 0.00268; // Tons
+        }
+
+        const garage = await prisma.garage.findUnique({
+          where: { id: truck.garageId },
+        });
+
+        const hasEnoughFuel = garage ? (
+          isEV ? (garage.electricityStorage >= electricityNeeded)
+               : (garage.dieselStorage >= dieselNeeded && garage.adblueStorage >= adblueNeeded && garage.co2Allowances >= co2Needed)
+        ) : false;
+
+        if (!hasEnoughFuel) {
+          if (!route.isPaused) {
+            await prisma.activeRoute.update({
+              where: { id: route.id },
+              data: { isPaused: true },
+            });
+          }
+
+          GameWebSocketServer.sendToCompany(route.companyId, 'dispatch:no_fuel_alert', {
+            routeId: route.id,
+            truckId: truck.id,
+            truckModel: truck.model,
+            driverName: driver.name,
+            isEV,
+            requiredDiesel: parseFloat(dieselNeeded.toFixed(2)),
+            requiredAdblue: parseFloat(adblueNeeded.toFixed(2)),
+            requiredCo2: parseFloat(co2Needed.toFixed(4)),
+            requiredElectricity: parseFloat(electricityNeeded.toFixed(2)),
+            currentDiesel: garage ? parseFloat(garage.dieselStorage.toFixed(2)) : 0,
+            currentAdblue: garage ? parseFloat(garage.adblueStorage.toFixed(2)) : 0,
+            currentCo2: garage ? parseFloat(garage.co2Allowances.toFixed(4)) : 0,
+            currentElectricity: garage ? parseFloat(garage.electricityStorage.toFixed(2)) : 0,
+            message: `ALERT: Route paused! Home garage runs dry of required fuel or CO2 allowances for Truck ${truck.model}. Stockpile refuel needed.`,
+          });
+
+          continue; // Skip progression ticks for this route
+        }
+
+        // Deduct commodities inside transaction
+        await prisma.$transaction(async (tx) => {
+          const garageUpdateData: any = {};
+          if (isEV) {
+            garageUpdateData.electricityStorage = { decrement: electricityNeeded };
+          } else {
+            garageUpdateData.dieselStorage = { decrement: dieselNeeded };
+            garageUpdateData.adblueStorage = { decrement: adblueNeeded };
+            garageUpdateData.co2Allowances = { decrement: co2Needed };
+          }
+
+          await tx.garage.update({
+            where: { id: truck.garageId },
+            data: garageUpdateData,
+          });
+
+          if (route.isPaused) {
+            await tx.activeRoute.update({
+              where: { id: route.id },
+              data: { isPaused: false },
+            });
+          }
+        });
+
+        // Broadcast updated stockpile capacities
+        if (garage) {
+          GameWebSocketServer.sendToCompany(route.companyId, 'garage:stock_update', {
+            garageId: truck.garageId,
+            dieselStorage: isEV ? garage.dieselStorage : Math.max(garage.dieselStorage - dieselNeeded, 0),
+            electricityStorage: isEV ? Math.max(garage.electricityStorage - electricityNeeded, 0) : garage.electricityStorage,
+            adblueStorage: isEV ? garage.adblueStorage : Math.max(garage.adblueStorage - adblueNeeded, 0),
+            co2Allowances: isEV ? garage.co2Allowances : Math.max(garage.co2Allowances - co2Needed, 0),
+          });
+        }
+
+        // ==========================================
         // A. SYSTEM REGULATORY CHECKS
         // ==========================================
         
@@ -71,8 +190,8 @@ export class DispatchSimulationService {
             const heat = 5;
             
             await prisma.$transaction(async (tx) => {
-              await tx.user.update({
-                where: { id: route.userId },
+              await tx.company.update({
+                where: { id: route.companyId },
                 data: {
                   legalBalance: { decrement: fine },
                   policeHeat: { increment: heat },
@@ -87,7 +206,7 @@ export class DispatchSimulationService {
               });
             });
 
-            GameWebSocketServer.sendToUser(route.userId, 'alert:weigh_station_fine', {
+            GameWebSocketServer.sendToCompany(route.companyId, 'alert:weigh_station_fine', {
               truckId: truck.id,
               driverName: driver.name,
               fine,
@@ -127,7 +246,7 @@ export class DispatchSimulationService {
               });
             });
 
-            GameWebSocketServer.sendToUser(route.userId, 'alert:driver_wreck', {
+            GameWebSocketServer.sendToCompany(route.companyId, 'alert:driver_wreck', {
               truckId: truck.id,
               driverName: driver.name,
               message: `FATAL WRECK: Driver ${driver.name} crashed due to extreme fatigue! Route aborted.`,
@@ -154,8 +273,8 @@ export class DispatchSimulationService {
             releaseDate.setDate(releaseDate.getDate() + impoundDays);
 
             await prisma.$transaction(async (tx) => {
-              await tx.user.update({
-                where: { id: route.userId },
+              await tx.company.update({
+                where: { id: route.companyId },
                 data: {
                   legalBalance: { decrement: bustFine },
                   reputationScore: { decrement: bustRep },
@@ -179,7 +298,7 @@ export class DispatchSimulationService {
               });
             });
 
-            GameWebSocketServer.sendToUser(route.userId, 'alert:driver_snitched', {
+            GameWebSocketServer.sendToCompany(route.companyId, 'alert:driver_snitched', {
               truckId: truck.id,
               driverName: driver.name,
               driverLoyalty: driver.loyalty,
@@ -217,7 +336,7 @@ export class DispatchSimulationService {
               });
             });
 
-            GameWebSocketServer.sendToUser(route.userId, 'alert:engine_breakdown', {
+            GameWebSocketServer.sendToCompany(route.companyId, 'alert:engine_breakdown', {
               truckId: truck.id,
               model: truck.model,
               engineHealth: Math.max(truck.engineHealth - 20, 1),
@@ -284,7 +403,7 @@ export class DispatchSimulationService {
           });
 
           // Dispatch WebSocket event to client alert dashboard
-          GameWebSocketServer.sendToUser(route.userId, 'border:inspection_event', {
+          GameWebSocketServer.sendToCompany(route.companyId, 'border:inspection_event', {
             routeId: route.id,
             truckId: truck.id,
             driverId: driver.id,
@@ -304,7 +423,7 @@ export class DispatchSimulationService {
           // Success delivery! Trigger payout loops
           const payoutResult = await BorderService.applyClearanceSuccess(truck.id);
           
-          GameWebSocketServer.sendToUser(route.userId, 'route:completed', {
+          GameWebSocketServer.sendToCompany(route.companyId, 'route:completed', {
             truckId: truck.id,
             payout: payoutResult.payout,
             message: 'Cargo successfully delivered. Fleet truck returned to garage slots!',
@@ -328,6 +447,22 @@ export class DispatchSimulationService {
                 tachoHours: newTacho,
               },
             });
+          });
+
+          // Broadcast live telemetry to Godot client every tick
+          GameWebSocketServer.sendToCompany(route.companyId, 'route:progress', {
+            routeId: route.id,
+            truckId: truck.id,
+            truckModel: truck.model,
+            driverId: driver.id,
+            driverName: driver.name,
+            progressPct: newProgress,
+            driverFatigue: newFatigue,
+            driverTachoHours: parseFloat(newTacho.toFixed(1)),
+            driverIsStimulated: driver.isStimulated,
+            currentCity: route.currentCity,
+            engineHealth: truck.engineHealth,
+            tireWear: truck.tireWear,
           });
         }
 

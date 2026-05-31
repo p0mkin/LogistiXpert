@@ -1,0 +1,29 @@
+# ==========================================
+# LogistiXpert — .gitignore
+# ==========================================
+
+# --- Node.js / Server ---
+server/node_modules/
+server/dist/
+server/.env
+server/prisma/migrations/*.lock
+server/coverage/
+server/*.log
+
+# --- Godot 4 Client ---
+client/.godot/
+client/.import/
+client/export/
+client/*.apk
+client/*.aab
+client/*.exe
+client/*.x86_64
+client/*.arm64
+
+# --- OS / Editor ---
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.vscode/
+.idea/

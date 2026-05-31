@@ -18,12 +18,11 @@ export class AuctionSocketHandler {
     }
 
     const { auctionId, amount } = parsed.data;
-    const userId = ws.user.id;
-    const username = ws.user.username;
+    const companyId = ws.user.companyId;
 
     try {
       // 3. Process bid through atomic state engine
-      const result = await AuctionService.placeBid(auctionId, userId, username, amount);
+      const result = await AuctionService.placeBid(auctionId, companyId, amount);
 
       // 4. Send success receipt back to the sender
       ws.send(JSON.stringify({
@@ -40,8 +39,8 @@ export class AuctionSocketHandler {
       // 5. Broadcast new bid price update to EVERY client globally
       GameWebSocketServer.broadcast('auction:bid_update', {
         auctionId,
-        highestBidderId: userId,
-        highestBidderName: username,
+        highestBidderCompanyId: companyId,
+        highestBidderCompanyName: result.companyName,
         currentBid: result.newPrice,
         expiresAt: result.expiresAt.toISOString(),
       });
@@ -52,6 +51,9 @@ export class AuctionSocketHandler {
       let message = 'Your bid could not be processed';
 
       switch (code) {
+        case 'COMPANY_NOT_FOUND':
+          message = 'Your company profile was not found';
+          break;
         case 'AUCTION_NOT_FOUND':
           message = 'Auction listing does not exist';
           break;

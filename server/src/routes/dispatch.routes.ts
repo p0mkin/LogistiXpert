@@ -10,10 +10,10 @@ router.use(authenticateJWT);
 
 // 1. GET ALL ACTIVE DISPATCHED FLEET ROUTES
 router.get('/active', async (req: AuthRequest, res: Response) => {
-  const userId = req.user!.id;
+  const companyId = req.user!.companyId;
   try {
     const active = await prisma.activeRoute.findMany({
-      where: { userId },
+      where: { companyId },
       include: {
         truck: true,
         driver: true,
@@ -49,7 +49,7 @@ router.get('/contracts/contraband', async (req: AuthRequest, res: Response) => {
 
 // 2. DISPATCH A TRUCK ON A ROUTE CONTRACT
 router.post('/launch', async (req: AuthRequest, res: Response) => {
-  const userId = req.user!.id;
+  const companyId = req.user!.companyId;
   const { truckId, legalContractId, contrabandJobId } = req.body;
 
   if (!truckId || (!legalContractId && !contrabandJobId)) {
@@ -66,7 +66,7 @@ router.post('/launch', async (req: AuthRequest, res: Response) => {
       include: { driver: true, activeRoute: true },
     });
 
-    if (!truck || truck.ownerId !== userId) {
+    if (!truck || truck.companyId !== companyId) {
       return res.status(404).json({ error: 'TRUCK_NOT_FOUND', message: 'Truck not found in your fleet.' });
     }
 
@@ -130,7 +130,7 @@ router.post('/launch', async (req: AuthRequest, res: Response) => {
     const activeRoute = await prisma.$transaction(async (tx) => {
       const route = await tx.activeRoute.create({
         data: {
-          userId,
+          companyId,
           truckId,
           driverId: driver.id,
           legalContractId: legalContractId || null,

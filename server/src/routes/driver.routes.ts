@@ -10,10 +10,10 @@ router.use(authenticateJWT);
 
 // 1. GET ALL USER DRIVERS
 router.get('/', async (req: AuthRequest, res: Response) => {
-  const userId = req.user!.id;
+  const companyId = req.user!.companyId;
   try {
     const drivers = await prisma.driver.findMany({
-      where: { ownerId: userId },
+      where: { companyId },
       include: { assignedTruck: true },
     });
     res.json(drivers);
@@ -24,14 +24,14 @@ router.get('/', async (req: AuthRequest, res: Response) => {
 
 // 2. HIRE A NEW DRIVER (starter recruitment fee)
 router.post('/hire', async (req: AuthRequest, res: Response) => {
-  const userId = req.user!.id;
+  const companyId = req.user!.companyId;
   const { name } = req.body;
 
   const recruitmentCost = 2500; // $2500 legal cash
 
   try {
-    const user = await prisma.user.findUnique({ where: { id: userId } });
-    if (!user || user.legalBalance.toNumber() < recruitmentCost) {
+    const company = await prisma.company.findUnique({ where: { id: companyId } });
+    if (!company || company.legalBalance.toNumber() < recruitmentCost) {
       return res.status(400).json({
         error: 'INSUFFICIENT_FUNDS',
         message: `Hiring a new driver card costs $${recruitmentCost} Clean Cash.`,
@@ -50,15 +50,15 @@ router.post('/hire', async (req: AuthRequest, res: Response) => {
     const generatedName = name || `${firstNames[Math.floor(Math.random() * firstNames.length)]} ${lastNames[Math.floor(Math.random() * lastNames.length)]}`;
 
     const newDriver = await prisma.$transaction(async (tx) => {
-      // Deduct hiring cost
-      await tx.user.update({
-        where: { id: userId },
+      // Deduct hiring cost from Company
+      await tx.company.update({
+        where: { id: companyId },
         data: { legalBalance: { decrement: recruitmentCost } },
       });
 
       return await tx.driver.create({
         data: {
-          ownerId: userId,
+          companyId,
           name: generatedName,
           trait: randomTrait,
           charisma,
@@ -81,7 +81,7 @@ router.post('/hire', async (req: AuthRequest, res: Response) => {
 
 // 3. ORDER SHIFT REST ROTATION (Tacho & fatigue reset)
 router.post('/:driverId/rest', async (req: AuthRequest, res: Response) => {
-  const userId = req.user!.id;
+  const companyId = req.user!.companyId;
   const { driverId } = req.params;
   const { restLocation } = req.body; // 'SCHENGEN_GARAGE' or 'EAST_CABIN'
 
@@ -91,7 +91,7 @@ router.post('/:driverId/rest', async (req: AuthRequest, res: Response) => {
       include: { assignedTruck: { include: { activeRoute: true } } },
     });
 
-    if (!driver || driver.ownerId !== userId) {
+    if (!driver || driver.companyId !== companyId) {
       return res.status(404).json({ error: 'DRIVER_NOT_FOUND', message: 'Driver card not found in your company roster.' });
     }
 
@@ -103,12 +103,12 @@ router.post('/:driverId/rest', async (req: AuthRequest, res: Response) => {
 
     const updated = await prisma.$transaction(async (tx) => {
       if (restFee > 0) {
-        const user = await tx.user.findUnique({ where: { id: userId } });
-        if (!user || user.legalBalance.toNumber() < restFee) {
+        const company = await tx.company.findUnique({ where: { id: companyId } });
+        if (!company || company.legalBalance.toNumber() < restFee) {
           throw new Error('INSUFFICIENT_REST_FUNDS');
         }
-        await tx.user.update({
-          where: { id: userId },
+        await tx.company.update({
+          where: { id: companyId },
           data: { legalBalance: { decrement: restFee } },
         });
       }
@@ -168,7 +168,7 @@ router.post('/:driverId/rest', async (req: AuthRequest, res: Response) => {
 
 // 4. ADMINISTER STIMULANT ("Pop Pills" fatigue override)
 router.post('/:driverId/stimulate', async (req: AuthRequest, res: Response) => {
-  const userId = req.user!.id;
+  const companyId = req.user!.companyId;
   const { driverId } = req.params;
 
   const chemicalCost = 500; // $500 black market cash
@@ -178,7 +178,7 @@ router.post('/:driverId/stimulate', async (req: AuthRequest, res: Response) => {
       where: { id: driverId },
     });
 
-    if (!driver || driver.ownerId !== userId) {
+    if (!driver || driver.companyId !== companyId) {
       return res.status(404).json({ error: 'DRIVER_NOT_FOUND', message: 'Driver card not found.' });
     }
 
@@ -197,8 +197,8 @@ router.post('/:driverId/stimulate', async (req: AuthRequest, res: Response) => {
       });
     }
 
-    const user = await prisma.user.findUnique({ where: { id: userId } });
-    if (!user || user.blackMarketBalance.toNumber() < chemicalCost) {
+    const company = await prisma.company.findUnique({ where: { id: companyId } });
+    if (!company || company.blackMarketBalance.toNumber() < chemicalCost) {
       return res.status(400).json({
         error: 'INSUFFICIENT_BLACK_MARKET_FUNDS',
         message: `Chemical stimulants cost $${chemicalCost} Black Market proceeds.`,
@@ -207,9 +207,9 @@ router.post('/:driverId/stimulate', async (req: AuthRequest, res: Response) => {
 
     // Apply substance chemical boosting!
     const updated = await prisma.$transaction(async (tx) => {
-      // Deduct black market cash
-      await tx.user.update({
-        where: { id: userId },
+      // Deduct black market cash from Company
+      await tx.company.update({
+        where: { id: companyId },
         data: { blackMarketBalance: { decrement: chemicalCost } },
       });
 
@@ -243,6 +243,142 @@ router.post('/:driverId/stimulate', async (req: AuthRequest, res: Response) => {
 
   } catch (error) {
     res.status(500).json({ error: 'SERVER_ERROR', message: 'Failed to process driver stimulant administration.' });
+  }
+});
+
+// 5. INSTALL TACHO SPOOF ECU HACK (Illegal modification — forges rest log timestamps)
+router.post('/:driverId/spoof-tacho', async (req: AuthRequest, res: Response) => {
+  const companyId = req.user!.companyId;
+  const { driverId } = req.params;
+
+  const spoofCost = 3500; // $3500 Black Market Cash for ECU override module
+
+  try {
+    const driver = await prisma.driver.findUnique({
+      where: { id: driverId },
+      include: { assignedTruck: { include: { activeRoute: true } } },
+    });
+
+    if (!driver || driver.companyId !== companyId) {
+      return res.status(404).json({ error: 'DRIVER_NOT_FOUND', message: 'Driver not found in your roster.' });
+    }
+
+    if (driver.assignedTruck?.activeRoute) {
+      return res.status(400).json({
+        error: 'DRIVER_ON_ROAD',
+        message: 'Cannot install ECU hack while driver is on an active route. Return to garage first.',
+      });
+    }
+
+    const company = await prisma.company.findUnique({ where: { id: companyId } });
+    if (!company || company.blackMarketBalance.toNumber() < spoofCost) {
+      return res.status(400).json({
+        error: 'INSUFFICIENT_BLACK_MARKET_FUNDS',
+        message: `Tacho Spoof ECU module costs $${spoofCost} Black Market funds.`,
+      });
+    }
+
+    // Instantly zeros out the driver's tacho log (forged compliance)
+    const updated = await prisma.$transaction(async (tx) => {
+      await tx.company.update({
+        where: { id: companyId },
+        data: { blackMarketBalance: { decrement: spoofCost } },
+      });
+
+      const driverUpdate = await tx.driver.update({
+        where: { id: driverId },
+        data: { tachoHours: 0.0 },
+      });
+
+      if (driver.assignedTruckId) {
+        await tx.truckHistory.create({
+          data: {
+            truckId: driver.assignedTruckId,
+            eventType: 'TACHO_SPOOF_INSTALLED',
+            description: `ILLEGAL MOD: Tacho Spoof ECU hack installed. Tachograph log reset to 0.0h via forged compliance data. If discovered at deep customs scan, truck will be seized. Cost: $${spoofCost} (Black Market Cash).`,
+          },
+        });
+      }
+
+      return driverUpdate;
+    });
+
+    res.json({
+      message: `Tacho Spoof ECU active. Driver ${driver.name}'s digital tachograph now reads 0.0h — fully compliant on paper. CAUTION: Will trigger immediate seizure if detected at an in-depth customs scan.`,
+      driver: updated,
+    });
+
+  } catch (error) {
+    res.status(500).json({ error: 'SERVER_ERROR', message: 'Failed to install Tacho Spoof mod.' });
+  }
+});
+
+// 6. ASSIGN DRIVER TO TRUCK
+router.post('/:driverId/assign', async (req: AuthRequest, res: Response) => {
+  const companyId = req.user!.companyId;
+  const { driverId } = req.params;
+  const { truckId } = req.body;
+
+  try {
+    const driver = await prisma.driver.findUnique({ where: { id: driverId } });
+    if (!driver || driver.companyId !== companyId) {
+      return res.status(404).json({ error: 'DRIVER_NOT_FOUND' });
+    }
+
+    const truck = await prisma.truck.findUnique({ where: { id: truckId } });
+    if (!truck || truck.companyId !== companyId) {
+      return res.status(404).json({ error: 'TRUCK_NOT_FOUND' });
+    }
+
+    if (truck.isImpounded) {
+      return res.status(400).json({ error: 'TRUCK_IMPOUNDED', message: 'Cannot assign a driver to an impounded vehicle.' });
+    }
+
+    // Unassign any existing driver on that truck
+    await prisma.driver.updateMany({
+      where: { assignedTruckId: truckId },
+      data: { assignedTruckId: null },
+    });
+
+    const updated = await prisma.driver.update({
+      where: { id: driverId },
+      data: { assignedTruckId: truckId },
+      include: { assignedTruck: true },
+    });
+
+    res.json({ message: `Driver ${driver.name} assigned to ${truck.model}.`, driver: updated });
+  } catch (error) {
+    res.status(500).json({ error: 'SERVER_ERROR', message: 'Failed to assign driver.' });
+  }
+});
+
+// 7. UNASSIGN DRIVER
+router.post('/:driverId/unassign', async (req: AuthRequest, res: Response) => {
+  const companyId = req.user!.companyId;
+  const { driverId } = req.params;
+
+  try {
+    const driver = await prisma.driver.findUnique({
+      where: { id: driverId },
+      include: { assignedTruck: { include: { activeRoute: true } } },
+    });
+
+    if (!driver || driver.companyId !== companyId) {
+      return res.status(404).json({ error: 'DRIVER_NOT_FOUND' });
+    }
+
+    if (driver.assignedTruck?.activeRoute) {
+      return res.status(400).json({ error: 'DRIVER_ON_ROAD', message: 'Cannot unassign a driver on an active route.' });
+    }
+
+    const updated = await prisma.driver.update({
+      where: { id: driverId },
+      data: { assignedTruckId: null },
+    });
+
+    res.json({ message: `Driver ${driver.name} unassigned.`, driver: updated });
+  } catch (error) {
+    res.status(500).json({ error: 'SERVER_ERROR', message: 'Failed to unassign driver.' });
   }
 });
 
