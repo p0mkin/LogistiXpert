@@ -54,3 +54,13 @@ func update_balances(legal_diff: float, black_diff: float) -> void:
 	black_market_balance += black_diff
 	balance_updated.emit(legal_balance, black_market_balance)
 
+# Graphics settings supporting standard battery-saver and flagship OLED/PC modes
+var graphics_quality: String = "STANDARD" # "STANDARD" or "ULTRA_HD"
+signal graphics_settings_changed(new_quality: String)
+
+func set_graphics_quality(quality: String) -> void:
+	if quality in ["STANDARD", "ULTRA_HD"]:
+		graphics_quality = quality
+		graphics_settings_changed.emit(graphics_quality)
+
+

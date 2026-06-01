@@ -14,15 +14,112 @@ class_name VehicleBlueprint
 @export var health_pct: int = 100
 @export var highlighted_part: String = "" # ENGINE, TIRES, FUEL_TANK, CHASSIS, SHIELDING, TACHO
 
+var exhaust_particles: CPUParticles2D = null
+var exhaust_particles_2: CPUParticles2D = null
+
 func _ready() -> void:
 	# Set default size if none set
 	if custom_minimum_size == Vector2.ZERO:
 		custom_minimum_size = Vector2(744, 180)
 	size = custom_minimum_size
+	
+	# Connect to dynamic settings changes in GameState
+	if GameState.has_signal("graphics_settings_changed"):
+		GameState.graphics_settings_changed.connect(_on_graphics_quality_changed)
+		
+	_update_graphics_quality()
+
+func _on_graphics_quality_changed(_new_quality: String) -> void:
+	_update_graphics_quality()
+	queue_redraw()
+
+func _update_graphics_quality() -> void:
+	# 1. Spawn premium glowing CPUParticles2D exhaust smoke emitters for flagships & PCs
+	if GameState.graphics_quality == "ULTRA_HD":
+		if is_instance_valid(exhaust_particles):
+			exhaust_particles.queue_free()
+		if is_instance_valid(exhaust_particles_2):
+			exhaust_particles_2.queue_free()
+			
+		exhaust_particles = CPUParticles2D.new()
+		add_child(exhaust_particles)
+		_setup_exhaust_particles(exhaust_particles)
+		
+		if cab_type == "SUPER_LONG":
+			exhaust_particles_2 = CPUParticles2D.new()
+			add_child(exhaust_particles_2)
+			_setup_exhaust_particles(exhaust_particles_2)
+			
+		# 2. Compile and apply custom high-end OLED-glowing neon Bloom Shader Material
+		var shader = Shader.new()
+		shader.code = "shader_type canvas_item;\n" + \
+					"uniform float bloom_intensity : hint_range(0.0, 3.0) = 1.35;\n" + \
+					"void fragment() {\n" + \
+					"    vec4 col = texture(TEXTURE, UV);\n" + \
+					"    vec4 glow = vec4(0.0);\n" + \
+					"    glow += texture(TEXTURE, UV + vec2(-1.5, -1.5) * SCREEN_PIXEL_SIZE);\n" + \
+					"    glow += texture(TEXTURE, UV + vec2(1.5, -1.5) * SCREEN_PIXEL_SIZE);\n" + \
+					"    glow += texture(TEXTURE, UV + vec2(-1.5, 1.5) * SCREEN_PIXEL_SIZE);\n" + \
+					"    glow += texture(TEXTURE, UV + vec2(1.5, 1.5) * SCREEN_PIXEL_SIZE);\n" + \
+					"    COLOR = col + (glow * 0.25) * bloom_intensity;\n" + \
+					"}"
+		var mat = ShaderMaterial.new()
+		mat.shader = shader
+		material = mat
+	else:
+		if is_instance_valid(exhaust_particles):
+			exhaust_particles.queue_free()
+			exhaust_particles = null
+		if is_instance_valid(exhaust_particles_2):
+			exhaust_particles_2.queue_free()
+			exhaust_particles_2 = null
+		material = null
+
+func _setup_exhaust_particles(p: CPUParticles2D) -> void:
+	p.amount = 22
+	p.lifetime = 1.2
+	p.direction = Vector2(0, -1) # Blow upwards
+	p.spread = 12.0
+	p.gravity = Vector2(15.0, -32.0) # Blow upwards and drift right
+	p.initial_velocity_min = 30.0
+	p.initial_velocity_max = 60.0
+	p.scale_amount_min = 5.0
+	p.scale_amount_max = 14.0
+	
+	# Beautiful glowing cyber gradient fading from Cyan/Violet to transparent
+	var grad = Gradient.new()
+	var smoke_col = Color(0.2, 0.9, 0.7, 0.75) # Cyber Cyan
+	if manufacturer.to_upper() == "TESIO":
+		smoke_col = Color(0.65, 0.45, 1.0, 0.75) # Violet
+	elif manufacturer.to_upper() == "MOOSE":
+		smoke_col = Color(0.95, 0.55, 0.15, 0.75) # Orange
+	
+	grad.set_color(0, smoke_col)
+	grad.set_color(1, Color(0.04, 0.05, 0.07, 0.0)) # Fade out
+	p.color_ramp = grad
+	p.emitting = true
 
 func _process(_delta: float) -> void:
 	if is_animated:
 		queue_redraw()
+	_update_particle_positions()
+
+func _update_particle_positions() -> void:
+	var ground_y = 145.0
+	var cab_y_bottom = ground_y - 18.0
+	
+	if is_instance_valid(exhaust_particles):
+		if cab_type == "SUPER_LONG":
+			exhaust_particles.position = Vector2(268.0, cab_y_bottom - 98.0)
+			if is_instance_valid(exhaust_particles_2):
+				exhaust_particles_2.position = Vector2(272.0, cab_y_bottom - 98.0)
+				exhaust_particles_2.emitting = is_animated
+		elif cab_type == "EXTENDED":
+			exhaust_particles.position = Vector2(220.0, cab_y_bottom - 86.0)
+		else:
+			exhaust_particles.position = Vector2(185.0, cab_y_bottom - 82.0)
+			
+		exhaust_particles.emitting = is_animated
 
 func _draw() -> void:
 	_draw_cad_grid()
