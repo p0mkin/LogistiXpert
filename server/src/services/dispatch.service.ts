@@ -732,7 +732,7 @@ export class DispatchSimulationService {
 
           } else if (route.autopilotPolicy === 'AVERAGE') {
             // Pays 15% bribe of black market payout if legal balance is sufficient
-            const bribeAmount = Math.floor(route.contrabandJob.payoutBlack.toNumber() * 0.15);
+            const bribeAmount = Math.floor((route.contrabandJob?.payoutBlack?.toNumber() ?? 0) * 0.15);
             const legalBalance = Number(company.legalBalance);
 
             if (legalBalance >= bribeAmount) {
