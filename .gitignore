@@ -5,6 +5,7 @@
 # --- Node.js / Server ---
 server/node_modules/
 server/dist/
+server/prisma/seed.js
 server/.env
 server/prisma/migrations/*.lock
 server/coverage/

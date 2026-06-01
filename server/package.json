@@ -4,8 +4,8 @@
   "description": "Underworld Logistics Real-Time Tycoon Game Server",
   "main": "dist/index.js",
   "scripts": {
-    "build": "prisma generate && tsc",
-    "start": "prisma migrate deploy && node dist/index.js",
+    "build": "prisma generate && tsc && npx tsc prisma/seed.ts --target es2022 --module commonjs --moduleResolution node --esModuleInterop",
+    "start": "prisma db push && node dist/index.js",
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "test": "jest",
     "seed": "prisma db seed",
@@ -42,6 +42,6 @@
     "typescript": "^5.4.5"
   },
   "prisma": {
-    "seed": "ts-node prisma/seed.ts"
+    "seed": "node prisma/seed.js"
   }
 }
