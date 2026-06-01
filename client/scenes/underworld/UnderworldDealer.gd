@@ -54,18 +54,11 @@ func _ready() -> void:
 # BUILD THE FULL UI PROCEDURALLY
 # ====================================================
 func _build_ui() -> void:
-	# Background — deep underground atmosphere
-	var bg = ColorRect.new()
-	bg.color = Color(0.04, 0.03, 0.06, 1.0)
-	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	# Deep underworld atmosphere with animated cyber grid
+	var bg = CyberGridBackground.new()
+	bg.primary_color = Color(0.65, 0.45, 1.0, 0.08) # Underworld Purple (Faded)
+	bg.accent_color = Color(1.0, 0.25, 0.25, 0.06) # Crimson (Faded)
 	scene_root.add_child(bg)
-
-	# Scanline overlay texture effect
-	var scanlines = ColorRect.new()
-	scanlines.color = Color(0.0, 0.0, 0.0, 0.04)
-	scanlines.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	scanlines.name = "Scanlines"
-	scene_root.add_child(scanlines)
 
 	# TOP HEADER BAR
 	var header = _make_panel(Vector2(0, 0), Vector2(1280, 64), Color(0.08, 0.04, 0.12, 0.95))
@@ -89,6 +82,7 @@ func _build_ui() -> void:
 	header.add_child(heat_label)
 
 	var back_btn = _make_button("◀  HUB", Vector2(1170, 12), Vector2(90, 40))
+	_style_btn(back_btn, Color(1.0, 0.25, 0.25)) # Crimson Warnings for exit
 	back_btn.pressed.connect(_go_back)
 	header.add_child(back_btn)
 
@@ -139,11 +133,16 @@ func _build_ui() -> void:
 # DEALER PERSONA CARD (LEFT PANEL)
 # ====================================================
 func _build_dealer_card(parent: Control) -> void:
-	# Avatar circle
-	var avatar = ColorRect.new()
-	avatar.color = active_dealer.avatar_color
+	# Avatar box with rounded corners and border
+	var avatar = PanelContainer.new()
 	avatar.position = Vector2(100, 20)
 	avatar.size = Vector2(100, 100)
+	var savatar = StyleBoxFlat.new()
+	savatar.bg_color = active_dealer.avatar_color
+	savatar.border_color = Color(0.65, 0.45, 1.0, 0.4)
+	savatar.border_width_all(2)
+	savatar.set_corner_radius_all(50) # Circle!
+	avatar.add_theme_stylebox_override("panel", savatar)
 	parent.add_child(avatar)
 
 	# Skull overlay on avatar (simple label)
@@ -216,6 +215,7 @@ func _build_dealer_card(parent: Control) -> void:
 	truck_select.position = Vector2(10, 382)
 	truck_select.size = Vector2(280, 36)
 	truck_select.name = "TruckSelect"
+	_style_btn(truck_select, Color(0.65, 0.45, 1.0))
 	truck_select.item_selected.connect(_on_truck_selected)
 	parent.add_child(truck_select)
 
@@ -232,25 +232,27 @@ func _build_contracts_header(parent: Control) -> void:
 
 	# Filter buttons
 	var filter_all = _make_button("ALL", Vector2(12, 46), Vector2(70, 28))
+	_style_btn(filter_all, Color(0.65, 0.45, 1.0))
 	filter_all.pressed.connect(func(): _filter_jobs("ALL"))
 	parent.add_child(filter_all)
 
 	var filter_a = _make_button("CLASS A", Vector2(88, 46), Vector2(80, 28))
-	filter_a.add_theme_color_override("font_color", Color(0.2, 0.9, 0.5, 1.0))
+	_style_btn(filter_a, Color(0.2, 0.9, 0.5))
 	filter_a.pressed.connect(func(): _filter_jobs("CLASS_A"))
 	parent.add_child(filter_a)
 
 	var filter_b = _make_button("CLASS B", Vector2(174, 46), Vector2(80, 28))
-	filter_b.add_theme_color_override("font_color", Color(1.0, 0.6, 0.1, 1.0))
+	_style_btn(filter_b, Color(1.0, 0.6, 0.1))
 	filter_b.pressed.connect(func(): _filter_jobs("CLASS_B"))
 	parent.add_child(filter_b)
 
 	var filter_c = _make_button("CLASS C", Vector2(260, 46), Vector2(80, 28))
-	filter_c.add_theme_color_override("font_color", Color(1.0, 0.1, 0.2, 1.0))
+	_style_btn(filter_c, Color(1.0, 0.15, 0.2))
 	filter_c.pressed.connect(func(): _filter_jobs("CLASS_C"))
 	parent.add_child(filter_c)
 
 	var refresh_btn = _make_button("↻ REFRESH", Vector2(500, 46), Vector2(112, 28))
+	_style_btn(refresh_btn, Color(0.95, 0.75, 0.15))
 	refresh_btn.pressed.connect(_fetch_garage_data)
 	parent.add_child(refresh_btn)
 
@@ -408,14 +410,7 @@ func _render_job_list(jobs: Array) -> void:
 func _make_job_card(job: Dictionary) -> Control:
 	var card = PanelContainer.new()
 	card.custom_minimum_size = Vector2(590, 90)
-
-	var style = StyleBoxFlat.new()
-	style.bg_color = Color(0.09, 0.07, 0.13, 0.9)
-	style.border_color = _class_color(job.cargoClass)
-	style.border_width_bottom = 2
-	style.border_width_left = 3
-	style.set_corner_radius_all(4)
-	card.add_theme_stylebox_override("panel", style)
+	_style_panel(card, _class_color(job.cargoClass))
 
 	var hbox = HBoxContainer.new()
 	hbox.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -458,7 +453,7 @@ func _make_job_card(job: Dictionary) -> Control:
 	var sel_btn = Button.new()
 	sel_btn.text = "VIEW"
 	sel_btn.custom_minimum_size = Vector2(64, 0)
-	sel_btn.add_theme_color_override("font_color", _class_color(job.cargoClass))
+	_style_btn(sel_btn, _class_color(job.cargoClass))
 	sel_btn.pressed.connect(func(): _select_job(job))
 	hbox.add_child(sel_btn)
 
@@ -494,7 +489,7 @@ func _render_job_detail(job: Dictionary) -> void:
 	panel.add_child(class_lbl)
 
 	var div = ColorRect.new()
-	div.color = Color(0.3, 0.1, 0.5, 0.5)
+	div.color = Color(0.65, 0.45, 1.0, 0.3)
 	div.position = Vector2(12, 56)
 	div.size = Vector2(276, 1)
 	panel.add_child(div)
@@ -538,16 +533,32 @@ func _render_job_detail(job: Dictionary) -> void:
 
 	y_offset += 18
 	var risk_pct = clamp(job.riskMultiplier / 5.0, 0.0, 1.0)
-	var risk_bg = ColorRect.new()
-	risk_bg.color = Color(0.15, 0.05, 0.05, 0.8)
+	
+	# Risk bar background
+	var risk_bg = PanelContainer.new()
 	risk_bg.position = Vector2(12, y_offset)
 	risk_bg.size = Vector2(276, 16)
+	var sbg = StyleBoxFlat.new()
+	sbg.bg_color = Color(0.04, 0.04, 0.06, 0.8)
+	sbg.border_color = Color(1.0, 0.25, 0.25, 0.2)
+	sbg.border_width_all(1)
+	sbg.set_corner_radius_all(3)
+	risk_bg.add_theme_stylebox_override("panel", sbg)
 	panel.add_child(risk_bg)
 
-	var risk_fill = ColorRect.new()
-	risk_fill.color = Color(risk_pct, 1.0 - risk_pct * 0.8, 0.0, 1.0)
+	# Risk bar fill
+	var risk_fill = PanelContainer.new()
 	risk_fill.position = Vector2(12, y_offset)
 	risk_fill.size = Vector2(276 * risk_pct, 16)
+	var sfill = StyleBoxFlat.new()
+	var r_color = Color(0.18, 0.803, 0.443) # Emerald Green
+	if risk_pct > 0.6:
+		r_color = Color(1.0, 0.25, 0.25) # Crimson
+	elif risk_pct > 0.3:
+		r_color = Color(1.0, 0.6, 0.1) # Orange
+	sfill.bg_color = r_color
+	sfill.set_corner_radius_all(3)
+	risk_fill.add_theme_stylebox_override("panel", sfill)
 	panel.add_child(risk_fill)
 
 	y_offset += 30
@@ -558,7 +569,7 @@ func _render_job_detail(job: Dictionary) -> void:
 	accept_btn.position = Vector2(12, y_offset)
 	accept_btn.size = Vector2(276, 44)
 	accept_btn.add_theme_font_size_override("font_size", 14)
-	accept_btn.add_theme_color_override("font_color", Color(0.2, 1.0, 0.5, 1.0))
+	_style_btn(accept_btn, Color(0.18, 0.803, 0.443))
 	accept_btn.pressed.connect(_accept_job)
 	panel.add_child(accept_btn)
 
@@ -570,7 +581,7 @@ func _render_job_detail(job: Dictionary) -> void:
 	decline_btn.position = Vector2(12, y_offset)
 	decline_btn.size = Vector2(276, 32)
 	decline_btn.add_theme_font_size_override("font_size", 12)
-	decline_btn.add_theme_color_override("font_color", Color(0.8, 0.3, 0.3, 1.0))
+	_style_btn(decline_btn, Color(1.0, 0.25, 0.25))
 	decline_btn.pressed.connect(func(): selected_job = {})
 	panel.add_child(decline_btn)
 
@@ -654,15 +665,7 @@ func _make_panel(pos: Vector2, sz: Vector2, color: Color) -> PanelContainer:
 	var panel = PanelContainer.new()
 	panel.position = pos
 	panel.size = sz
-	var style = StyleBoxFlat.new()
-	style.bg_color = color
-	style.border_color = Color(0.35, 0.15, 0.5, 0.6)
-	style.border_width_bottom = 1
-	style.border_width_top = 1
-	style.border_width_left = 1
-	style.border_width_right = 1
-	style.set_corner_radius_all(6)
-	panel.add_theme_stylebox_override("panel", style)
+	_style_panel(panel, Color(0.65, 0.45, 1.0))
 	return panel
 
 func _make_button(label_text: String, pos: Vector2, sz: Vector2) -> Button:
@@ -671,7 +674,7 @@ func _make_button(label_text: String, pos: Vector2, sz: Vector2) -> Button:
 	btn.position = pos
 	btn.size = sz
 	btn.add_theme_font_size_override("font_size", 11)
-	btn.add_theme_color_override("font_color", Color(0.8, 0.6, 1.0, 1.0))
+	_style_btn(btn, Color(0.65, 0.45, 1.0))
 	return btn
 
 func _show_toast(msg: String, color: Color = Color(1.0, 0.8, 0.2, 1.0)) -> void:
@@ -705,3 +708,66 @@ func _format_money(amount: float) -> String:
 	if amount >= 1000.0:
 		return "%.1fK" % (amount / 1000.0)
 	return str(int(amount))
+
+func _style_panel(panel: PanelContainer, accent_col: Color) -> void:
+	if not panel: return
+	var s = StyleBoxFlat.new()
+	s.bg_color = Color(0.04, 0.04, 0.06, 0.85) # Glassmorphic 85% opacity
+	s.border_color = accent_col
+	s.border_width_left = 3 # Accent colored boundary edge
+	s.border_width_bottom = 1
+	s.border_width_right = 1
+	s.border_width_top = 1
+	s.set_corner_radius_all(6)
+	s.content_margin_left = 16
+	s.content_margin_right = 16
+	s.content_margin_top = 12
+	s.content_margin_bottom = 12
+	panel.add_theme_stylebox_override("panel", s)
+
+func _style_btn(btn: Button, accent_col: Color, is_selected: bool = false) -> void:
+	if not btn: return
+	var sb_normal = StyleBoxFlat.new()
+	var sb_hover = StyleBoxFlat.new()
+	var sb_pressed = StyleBoxFlat.new()
+	var sb_disabled = StyleBoxFlat.new()
+	
+	if is_selected:
+		sb_normal.bg_color = Color(accent_col.r * 0.15, accent_col.g * 0.15, accent_col.b * 0.15, 0.8)
+		sb_normal.border_color = accent_col
+		sb_normal.border_width_left = 2; sb_normal.border_width_bottom = 2
+		sb_normal.border_width_right = 2; sb_normal.border_width_top = 2
+		
+		sb_hover.bg_color = Color(accent_col.r * 0.25, accent_col.g * 0.25, accent_col.b * 0.25, 0.9)
+		sb_hover.border_color = accent_col
+		sb_hover.border_width_left = 2; sb_hover.border_width_bottom = 2
+		sb_hover.border_width_right = 2; sb_hover.border_width_top = 2
+	else:
+		sb_normal.bg_color = Color(accent_col.r * 0.08, accent_col.g * 0.08, accent_col.b * 0.08, 0.6)
+		sb_normal.border_color = Color(accent_col.r, accent_col.g, accent_col.b, 0.3)
+		sb_normal.border_width_left = 1; sb_normal.border_width_bottom = 1
+		sb_normal.border_width_right = 1; sb_normal.border_width_top = 1
+		
+		sb_hover.bg_color = Color(accent_col.r * 0.14, accent_col.g * 0.14, accent_col.b * 0.14, 0.8)
+		sb_hover.border_color = Color(accent_col.r, accent_col.g, accent_col.b, 0.6)
+		sb_hover.border_width_left = 1; sb_hover.border_width_bottom = 1
+		sb_hover.border_width_right = 1; sb_hover.border_width_top = 1
+		
+	for sb in [sb_normal, sb_hover, sb_pressed]:
+		sb.set_corner_radius_all(4)
+		
+	sb_pressed.bg_color = Color(accent_col.r * 0.3, accent_col.g * 0.3, accent_col.b * 0.3, 1.0)
+	sb_pressed.border_color = accent_col
+	sb_pressed.border_width_all(2)
+	sb_pressed.set_corner_radius_all(4)
+	
+	sb_disabled.bg_color = Color(0.04, 0.04, 0.05, 0.3)
+	sb_disabled.border_color = Color(0.1, 0.1, 0.12, 0.2)
+	sb_disabled.border_width_all(1)
+	sb_disabled.set_corner_radius_all(4)
+	
+	btn.add_theme_stylebox_override("normal", sb_normal)
+	btn.add_theme_stylebox_override("hover", sb_hover)
+	btn.add_theme_stylebox_override("pressed", sb_pressed)
+	btn.add_theme_stylebox_override("disabled", sb_disabled)
+	btn.add_theme_color_override("font_color", accent_col)

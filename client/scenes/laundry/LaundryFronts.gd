@@ -244,13 +244,7 @@ func _render_fronts() -> void:
 	var new_btn = Button.new()
 	new_btn.text = "+ ACQUIRE FRONT"
 	new_btn.add_theme_font_size_override("font_size", 11)
-	new_btn.add_theme_color_override("font_color", Color(0.925, 0.607, 0.141))
-	var style_new = StyleBoxFlat.new()
-	style_new.bg_color = Color(0.925, 0.607, 0.141, 0.07)
-	style_new.border_color = Color(0.925, 0.607, 0.141, 0.35)
-	style_new.border_width_bottom = 1
-	style_new.set_corner_radius_all(4)
-	new_btn.add_theme_stylebox_override("normal", style_new)
+	_style_btn(new_btn, Color(0.95, 0.75, 0.15)) # Financial Amber
 	new_btn.pressed.connect(_open_buy_panel)
 	buy_row.add_child(new_btn)
 	fronts_list.add_child(buy_row)
@@ -271,16 +265,7 @@ func _render_fronts() -> void:
 func _build_front_card(front: Dictionary) -> PanelContainer:
 	var panel = PanelContainer.new()
 	var is_raided = front.get("isRaided", false)
-	var style = StyleBoxFlat.new()
-	style.bg_color = Color(0.055, 0.063, 0.078, 1.0)
-	style.border_color = Color(0.901, 0.298, 0.235, 0.5) if is_raided else Color(0.607, 0.349, 0.713, 0.35)
-	style.border_width_left = 3
-	style.set_corner_radius_all(6)
-	style.content_margin_left = 16
-	style.content_margin_right = 16
-	style.content_margin_top = 12
-	style.content_margin_bottom = 12
-	panel.add_theme_stylebox_override("panel", style)
+	_style_panel(panel, Color(1.0, 0.25, 0.25) if is_raided else Color(0.65, 0.45, 1.0))
 
 	var vbox = VBoxContainer.new()
 	vbox.add_theme_constant_override("separation", 6)
@@ -371,13 +356,7 @@ func _build_front_card(front: Dictionary) -> PanelContainer:
 		launder_btn.text = "⚗ LAUNDER"
 		launder_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		launder_btn.add_theme_font_size_override("font_size", 11)
-		launder_btn.add_theme_color_override("font_color", Color(0.607, 0.349, 0.713))
-		var style_launder = StyleBoxFlat.new()
-		style_launder.bg_color = Color(0.607, 0.349, 0.713, 0.08)
-		style_launder.border_color = Color(0.607, 0.349, 0.713, 0.35)
-		style_launder.border_width_bottom = 1
-		style_launder.set_corner_radius_all(4)
-		launder_btn.add_theme_stylebox_override("normal", style_launder)
+		_style_btn(launder_btn, Color(0.65, 0.45, 1.0)) # Underworld Purple
 		launder_btn.pressed.connect(_open_launder_panel.bind(front))
 		btn_row.add_child(launder_btn)
 
@@ -389,13 +368,7 @@ func _build_front_card(front: Dictionary) -> PanelContainer:
 			upg_btn.text = "⬆ UPGRADE\n$%sk" % (upg_cost / 1000)
 			upg_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			upg_btn.add_theme_font_size_override("font_size", 10)
-			upg_btn.add_theme_color_override("font_color", Color(0.925, 0.607, 0.141))
-			var style_upg = StyleBoxFlat.new()
-			style_upg.bg_color = Color(0.925, 0.607, 0.141, 0.06)
-			style_upg.border_color = Color(0.925, 0.607, 0.141, 0.3)
-			style_upg.border_width_bottom = 1
-			style_upg.set_corner_radius_all(4)
-			upg_btn.add_theme_stylebox_override("normal", style_upg)
+			_style_btn(upg_btn, Color(0.95, 0.75, 0.15)) # Financial Amber
 			upg_btn.pressed.connect(_upgrade_front.bind(front.get("id", "")))
 			btn_row.add_child(upg_btn)
 		else:
@@ -411,13 +384,7 @@ func _build_front_card(front: Dictionary) -> PanelContainer:
 		bribe_btn.text = "💰 BRIBE AUDITORS ($15k)"
 		bribe_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		bribe_btn.add_theme_font_size_override("font_size", 11)
-		bribe_btn.add_theme_color_override("font_color", Color(0.925, 0.607, 0.141))
-		var style_bribe = StyleBoxFlat.new()
-		style_bribe.bg_color = Color(0.925, 0.607, 0.141, 0.07)
-		style_bribe.border_color = Color(0.925, 0.607, 0.141, 0.3)
-		style_bribe.border_width_bottom = 1
-		style_bribe.set_corner_radius_all(4)
-		bribe_btn.add_theme_stylebox_override("normal", style_bribe)
+		_style_btn(bribe_btn, Color(0.95, 0.75, 0.15)) # Financial Amber
 		bribe_btn.pressed.connect(_bribe_auditors.bind(front.get("id", "")))
 		btn_row.add_child(bribe_btn)
 
@@ -455,7 +422,7 @@ func _open_buy_panel() -> void:
 	var close_btn = Button.new()
 	close_btn.text = "✕ CANCEL"
 	close_btn.add_theme_font_size_override("font_size", 11)
-	close_btn.add_theme_color_override("font_color", Color(0.709, 0.768, 0.843, 0.5))
+	_style_btn(close_btn, Color(1.0, 0.25, 0.25)) # Crimson Warnings for exit
 	close_btn.pressed.connect(buy_panel.hide)
 	vbox.add_child(close_btn)
 
@@ -463,16 +430,7 @@ func _open_buy_panel() -> void:
 
 func _build_buy_option(item: Dictionary) -> PanelContainer:
 	var panel = PanelContainer.new()
-	var style = StyleBoxFlat.new()
-	style.bg_color = Color(0.06, 0.07, 0.09, 1)
-	style.border_color = Color(0.925, 0.607, 0.141, 0.2)
-	style.border_width_left = 2
-	style.set_corner_radius_all(5)
-	style.content_margin_left = 12
-	style.content_margin_right = 12
-	style.content_margin_top = 10
-	style.content_margin_bottom = 10
-	panel.add_theme_stylebox_override("panel", style)
+	_style_panel(panel, Color(0.95, 0.75, 0.15)) # Financial Amber border
 
 	var vbox = VBoxContainer.new()
 	vbox.add_theme_constant_override("separation", 4)
@@ -504,13 +462,7 @@ func _build_buy_option(item: Dictionary) -> PanelContainer:
 	var buy_btn = Button.new()
 	buy_btn.text = "💰 BUY — $%s" % _format_cash(float(item.cost))
 	buy_btn.add_theme_font_size_override("font_size", 11)
-	buy_btn.add_theme_color_override("font_color", Color(0.925, 0.607, 0.141))
-	var sb = StyleBoxFlat.new()
-	sb.bg_color = Color(0.925, 0.607, 0.141, 0.07)
-	sb.border_color = Color(0.925, 0.607, 0.141, 0.3)
-	sb.border_width_bottom = 1
-	sb.set_corner_radius_all(4)
-	buy_btn.add_theme_stylebox_override("normal", sb)
+	_style_btn(buy_btn, Color(0.95, 0.75, 0.15)) # Financial Amber
 	buy_btn.pressed.connect(_buy_front.bind(item.type))
 	vbox.add_child(buy_btn)
 
@@ -599,4 +551,98 @@ func _on_back() -> void:
 	SceneTransition.change_scene_to_file("res://scenes/game_map/GameMap.tscn")
 
 func _apply_theme() -> void:
-	pass
+	if has_node("Background"):
+		get_node("Background").hide()
+	
+	var bg = CyberGridBackground.new()
+	bg.primary_color = Color(0.65, 0.45, 1.0, 0.08) # Underworld Purple (Faded)
+	bg.accent_color = Color(1.0, 0.25, 0.25, 0.06) # Crimson (Faded)
+	add_child(bg)
+	move_child(bg, 0)
+	
+	_style_panel(buy_panel, Color(0.65, 0.45, 1.0)) # Underworld Purple
+	_style_panel(launder_panel, Color(0.65, 0.45, 1.0)) # Underworld Purple
+	_style_panel(result_panel, Color(1.0, 0.25, 0.25)) # Crimson Warnings/raid results
+	
+	# BottomBar is a PanelContainer
+	if has_node("MainLayout/BottomBar"):
+		_style_panel(get_node("MainLayout/BottomBar") as PanelContainer, Color(0.65, 0.45, 1.0))
+		
+	_style_btn(back_btn, Color(1.0, 0.25, 0.25)) # Crimson Warnings for exit
+	_style_btn(launder_btn, Color(0.65, 0.45, 1.0)) # Underworld Purple
+	
+	# Style the LineEdit
+	var sb_input = StyleBoxFlat.new()
+	sb_input.bg_color = Color(0.04, 0.04, 0.06, 0.8)
+	sb_input.border_color = Color(0.65, 0.45, 1.0, 0.4)
+	sb_input.border_width_bottom = 2
+	sb_input.set_corner_radius_all(4)
+	sb_input.content_margin_left = 10
+	sb_input.content_margin_right = 10
+	launder_input.add_theme_stylebox_override("normal", sb_input)
+	launder_input.add_theme_stylebox_override("focus", sb_input)
+	launder_input.add_theme_color_override("font_color", Color(1, 1, 1))
+	launder_input.add_theme_color_override("placeholder_color", Color(0.709, 0.768, 0.843, 0.4))
+
+func _style_panel(panel: PanelContainer, accent_col: Color) -> void:
+	if not panel: return
+	var s = StyleBoxFlat.new()
+	s.bg_color = Color(0.04, 0.04, 0.06, 0.85) # Glassmorphic 85% opacity
+	s.border_color = accent_col
+	s.border_width_left = 3 # Accent colored boundary edge
+	s.border_width_bottom = 1
+	s.border_width_right = 1
+	s.border_width_top = 1
+	s.set_corner_radius_all(6)
+	s.content_margin_left = 16
+	s.content_margin_right = 16
+	s.content_margin_top = 12
+	s.content_margin_bottom = 12
+	panel.add_theme_stylebox_override("panel", s)
+
+func _style_btn(btn: Button, accent_col: Color, is_selected: bool = false) -> void:
+	if not btn: return
+	var sb_normal = StyleBoxFlat.new()
+	var sb_hover = StyleBoxFlat.new()
+	var sb_pressed = StyleBoxFlat.new()
+	var sb_disabled = StyleBoxFlat.new()
+	
+	if is_selected:
+		sb_normal.bg_color = Color(accent_col.r * 0.15, accent_col.g * 0.15, accent_col.b * 0.15, 0.8)
+		sb_normal.border_color = accent_col
+		sb_normal.border_width_left = 2; sb_normal.border_width_bottom = 2
+		sb_normal.border_width_right = 2; sb_normal.border_width_top = 2
+		
+		sb_hover.bg_color = Color(accent_col.r * 0.25, accent_col.g * 0.25, accent_col.b * 0.25, 0.9)
+		sb_hover.border_color = accent_col
+		sb_hover.border_width_left = 2; sb_hover.border_width_bottom = 2
+		sb_hover.border_width_right = 2; sb_hover.border_width_top = 2
+	else:
+		sb_normal.bg_color = Color(accent_col.r * 0.08, accent_col.g * 0.08, accent_col.b * 0.08, 0.6)
+		sb_normal.border_color = Color(accent_col.r, accent_col.g, accent_col.b, 0.3)
+		sb_normal.border_width_left = 1; sb_normal.border_width_bottom = 1
+		sb_normal.border_width_right = 1; sb_normal.border_width_top = 1
+		
+		sb_hover.bg_color = Color(accent_col.r * 0.14, accent_col.g * 0.14, accent_col.b * 0.14, 0.8)
+		sb_hover.border_color = Color(accent_col.r, accent_col.g, accent_col.b, 0.6)
+		sb_hover.border_width_left = 1; sb_hover.border_width_bottom = 1
+		sb_hover.border_width_right = 1; sb_hover.border_width_top = 1
+		
+	for sb in [sb_normal, sb_hover, sb_pressed]:
+		sb.set_corner_radius_all(4)
+		
+	sb_pressed.bg_color = Color(accent_col.r * 0.3, accent_col.g * 0.3, accent_col.b * 0.3, 1.0)
+	sb_pressed.border_color = accent_col
+	sb_pressed.border_width_all(2)
+	sb_pressed.set_corner_radius_all(4)
+	
+	sb_disabled.bg_color = Color(0.04, 0.04, 0.05, 0.3)
+	sb_disabled.border_color = Color(0.1, 0.1, 0.12, 0.2)
+	sb_disabled.border_width_all(1)
+	sb_disabled.set_corner_radius_all(4)
+	
+	btn.add_theme_stylebox_override("normal", sb_normal)
+	btn.add_theme_stylebox_override("hover", sb_hover)
+	btn.add_theme_stylebox_override("pressed", sb_pressed)
+	btn.add_theme_stylebox_override("disabled", sb_disabled)
+	btn.add_theme_color_override("font_color", accent_col)

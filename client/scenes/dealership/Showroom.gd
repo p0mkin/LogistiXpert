@@ -97,22 +97,12 @@ func _on_balance_sync(_l, _b) -> void:
 # PROGRAMMATIC UI SYSTEM
 # ====================================================
 func _build_ui() -> void:
-	# Deep background
-	var bg = ColorRect.new()
-	bg.color = Color(0.04, 0.04, 0.05, 1.0)
-	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	# Programmatic High-Fidelity Animated HUD Background
+	var bg = CyberGridBackground.new()
 	scene_root.add_child(bg)
 	
-	# Cyber blueprint overlays
-	for i in range(12):
-		var gl = ColorRect.new()
-		gl.color = Color(0.08, 0.12, 0.16, 0.35)
-		gl.position = Vector2(0, 60 * i)
-		gl.size = Vector2(1280, 1)
-		scene_root.add_child(gl)
-		
 	# 1. HEADER (y=0)
-	var hdr = _panel(Vector2(0, 0), Vector2(1280, 60), Color(0.06, 0.05, 0.09, 0.98))
+	var hdr = _panel(Vector2(0, 0), Vector2(1280, 60), Color(0.04, 0.05, 0.08, 0.95), Color(0.2, 0.9, 0.7, 0.35))
 	scene_root.add_child(hdr)
 
 	var title = Label.new()
@@ -128,7 +118,7 @@ func _build_ui() -> void:
 	hdr.add_child(back_btn)
 
 	# 2. STATUS STRIP (y=60)
-	var bar = _panel(Vector2(0, 60), Vector2(1280, 42), Color(0.04, 0.04, 0.05, 0.96))
+	var bar = _panel(Vector2(0, 60), Vector2(1280, 42), Color(0.04, 0.04, 0.06, 0.92), Color(0.2, 0.9, 0.7, 0.2))
 	bar.name = "StatusStrip"
 	scene_root.add_child(bar)
 	
@@ -149,13 +139,18 @@ func _build_ui() -> void:
 	left_hdr.position = Vector2(24, 114)
 	scene_root.add_child(left_hdr)
 
+	# Left Catalog Panel container for glassmorphic borders
+	var cat_panel = _panel(Vector2(24, 138), Vector2(420, 560), Color(0.04, 0.04, 0.07, 0.85), Color(0.65, 0.45, 1.0, 0.3))
+	cat_panel.name = "CatalogPanel"
+	scene_root.add_child(cat_panel)
+
 	var catalog_scroll = ScrollContainer.new()
-	catalog_scroll.position = Vector2(24, 138)
-	catalog_scroll.size = Vector2(420, 560)
+	catalog_scroll.position = Vector2(8, 8)
+	catalog_scroll.size = Vector2(404, 544)
 	catalog_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	catalog_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 	catalog_scroll.name = "CatalogScroll"
-	scene_root.add_child(catalog_scroll)
+	cat_panel.add_child(catalog_scroll)
 
 	var catalog_vbox = VBoxContainer.new()
 	catalog_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -171,7 +166,7 @@ func _build_ui() -> void:
 	right_hdr.position = Vector2(476, 114)
 	scene_root.add_child(right_hdr)
 
-	var customizer_panel = _panel(Vector2(476, 138), Vector2(780, 560), Color(0.05, 0.05, 0.08, 0.95))
+	var customizer_panel = _panel(Vector2(476, 138), Vector2(780, 560), Color(0.04, 0.04, 0.07, 0.85), Color(0.2, 0.9, 0.7, 0.35))
 	customizer_panel.name = "CustomizerPanel"
 	scene_root.add_child(customizer_panel)
 
@@ -211,15 +206,16 @@ func _render_catalog_list() -> void:
 		var desc = model.get("description", "")
 		var tiers = model.get("tiers", [])
 		
-		# Card background
-		var card = _panel(Vector2.ZERO, Vector2(396, 110), Color(0.07, 0.07, 0.11, 0.92))
+		# Card background - selected gets glowing cyan border, unselected gets underworld purple
+		var is_selected = (selected_model_idx == idx)
+		var border_col = Color(0.2, 0.9, 0.7, 0.8) if is_selected else Color(0.65, 0.45, 1.0, 0.25)
+		var card = _panel(Vector2.ZERO, Vector2(396, 110), Color(0.07, 0.07, 0.11, 0.92), border_col)
 		card.custom_minimum_size = Vector2(396, 110)
 		catalog_vbox.add_child(card)
 
-		if selected_model_idx == idx:
+		if is_selected:
 			var style_sel = card.get_theme_stylebox("panel") as StyleBoxFlat
 			if style_sel:
-				style_sel.border_color = Color(0.2, 0.9, 0.7, 0.8) # Glowing cyan border on selected
 				style_sel.border_width_left = 3
 
 		var card_btn = Button.new()
@@ -357,7 +353,10 @@ func _update_customizer_panel() -> void:
 		t_btn.custom_minimum_size = Vector2(110, 36)
 		t_btn.add_theme_font_size_override("font_size", 10)
 		
-		if selected_tier_idx == t_idx:
+		var is_sel = (selected_tier_idx == t_idx)
+		_style_customizer_btn(t_btn, is_sel, Color(0.2, 0.9, 0.7))
+		
+		if is_sel:
 			t_btn.add_theme_color_override("font_color", Color(0.2, 0.9, 0.7, 1.0))
 		else:
 			t_btn.add_theme_color_override("font_color", Color(0.8, 0.8, 0.8, 0.7))
@@ -398,9 +397,14 @@ func _update_customizer_panel() -> void:
 		c_btn.text = "%s\n(%s)" % [spec[0], spec[1]]
 		c_btn.custom_minimum_size = Vector2(106, 42)
 		c_btn.add_theme_font_size_override("font_size", 10)
-		if selected_cab_type == spec[0]:
+		
+		var is_sel = (selected_cab_type == spec[0])
+		_style_customizer_btn(c_btn, is_sel, Color(0.2, 0.9, 0.7))
+		
+		if is_sel:
 			c_btn.add_theme_color_override("font_color", Color(0.2, 0.9, 0.7))
 		else:
+			c_btn.add_theme_color_override("font_color", Color(0.8, 0.8, 0.8, 0.7))
 			c_btn.pressed.connect(func(): _select_cab(spec[0]))
 		cab_hbox.add_child(c_btn)
 
@@ -430,9 +434,14 @@ func _update_customizer_panel() -> void:
 		t_btn.text = "%s\n(%s)" % [spec[0], spec[1]]
 		t_btn.custom_minimum_size = Vector2(80, 42)
 		t_btn.add_theme_font_size_override("font_size", 9)
-		if selected_tuning_tier == spec[0]:
+		
+		var is_sel = (selected_tuning_tier == spec[0])
+		_style_customizer_btn(t_btn, is_sel, Color(0.2, 0.9, 0.7))
+		
+		if is_sel:
 			t_btn.add_theme_color_override("font_color", Color(0.2, 0.9, 0.7))
 		else:
+			t_btn.add_theme_color_override("font_color", Color(0.8, 0.8, 0.8, 0.7))
 			t_btn.pressed.connect(func(): _select_tuning(spec[0]))
 		tune_hbox.add_child(t_btn)
 
@@ -465,9 +474,14 @@ func _update_customizer_panel() -> void:
 		p_btn.text = "%s\n(%s)" % [spec[0], spec[1]]
 		p_btn.custom_minimum_size = Vector2(98, 42)
 		p_btn.add_theme_font_size_override("font_size", 9)
-		if selected_payload_type == spec[0]:
+		
+		var is_sel = (selected_payload_type == spec[0])
+		_style_customizer_btn(p_btn, is_sel, Color(0.2, 0.9, 0.7))
+		
+		if is_sel:
 			p_btn.add_theme_color_override("font_color", Color(0.2, 0.9, 0.7))
 		else:
+			p_btn.add_theme_color_override("font_color", Color(0.8, 0.8, 0.8, 0.7))
 			p_btn.pressed.connect(func(): _select_payload(spec[0]))
 		pay_hbox.add_child(p_btn)
 
@@ -506,18 +520,22 @@ func _update_customizer_panel() -> void:
 			gar_btn.custom_minimum_size = Vector2(170, 42)
 			gar_btn.add_theme_font_size_override("font_size", 10)
 			
+			var is_sel = (selected_garage_id == gar_id)
+			_style_customizer_btn(gar_btn, is_sel, Color(0.2, 0.9, 0.7))
+			
 			if slots_rem <= 0:
 				gar_btn.disabled = true
 				gar_btn.add_theme_color_override("font_color", Color(0.65, 0.45, 0.45, 0.5))
-			elif selected_garage_id == gar_id:
+			elif is_sel:
 				gar_btn.add_theme_color_override("font_color", Color(0.2, 0.9, 0.7))
 			else:
+				gar_btn.add_theme_color_override("font_color", Color(0.8, 0.8, 0.8, 0.7))
 				gar_btn.pressed.connect(func(): _select_garage(gar_id))
 			
 			gar_hbox.add_child(gar_btn)
 
-	# 5. Live Pricing Invoice Card & Purchase Button
-	var invoice_card = _panel(Vector2.ZERO, Vector2(744, 114), Color(0.08, 0.08, 0.12, 0.98))
+	# 5. Live Pricing Invoice Card & Purchase Button - themed with financial amber glow
+	var invoice_card = _panel(Vector2.ZERO, Vector2(744, 114), Color(0.08, 0.08, 0.12, 0.98), Color(0.95, 0.7, 0.15, 0.35))
 	invoice_card.custom_minimum_size = Vector2(744, 114)
 	workspace_vbox.add_child(invoice_card)
 
@@ -599,12 +617,42 @@ func _update_customizer_panel() -> void:
 		can_buy = false
 		reason = "INSUFFICIENT FUNDS"
 		
+	# Neon buy button style boxes
+	var sb_buy_normal = StyleBoxFlat.new()
+	var sb_buy_hover = StyleBoxFlat.new()
+	var sb_buy_pressed = StyleBoxFlat.new()
+	var sb_buy_disabled = StyleBoxFlat.new()
+	
 	if can_buy:
+		sb_buy_normal.bg_color = Color(0.04, 0.22, 0.12, 0.75) # neon green backing
+		sb_buy_normal.border_color = Color(0.2, 0.85, 0.45, 0.8)
+		sb_buy_normal.border_width_all(2)
+		
+		sb_buy_hover.bg_color = Color(0.06, 0.3, 0.16, 0.85)
+		sb_buy_hover.border_color = Color(0.2, 0.85, 0.45, 1.0)
+		sb_buy_hover.border_width_all(2)
+		
+		sb_buy_pressed.bg_color = Color(0.1, 0.45, 0.24, 1.0)
+		sb_buy_pressed.border_color = Color(0.2, 0.85, 0.45, 1.0)
+		sb_buy_pressed.border_width_all(2)
+	else:
+		sb_buy_disabled.bg_color = Color(0.12, 0.05, 0.05, 0.5)
+		sb_buy_disabled.border_color = Color(0.8, 0.25, 0.25, 0.3)
+		sb_buy_disabled.border_width_all(1)
+		
+	for sb in [sb_buy_normal, sb_buy_hover, sb_buy_pressed, sb_buy_disabled]:
+		sb.set_corner_radius_all(6)
+		
+	if can_buy:
+		acquire_btn.add_theme_stylebox_override("normal", sb_buy_normal)
+		acquire_btn.add_theme_stylebox_override("hover", sb_buy_hover)
+		acquire_btn.add_theme_stylebox_override("pressed", sb_buy_pressed)
 		acquire_btn.add_theme_color_override("font_color", Color(0.2, 0.85, 0.45, 1.0))
 		acquire_btn.pressed.connect(func(): _execute_purchase_trade(brand, tiers[selected_tier_idx].get("name", ""), final_cost))
 	else:
 		acquire_btn.disabled = true
 		acquire_btn.text = reason
+		acquire_btn.add_theme_stylebox_override("disabled", sb_buy_disabled)
 		acquire_btn.add_theme_color_override("font_color", Color(1.0, 0.4, 0.4, 0.65))
 		
 	buy_vbox.add_child(acquire_btn)
@@ -671,13 +719,15 @@ func _show_toast(msg: String, color: Color = Color(1.0, 0.85, 0.2, 1.0), duratio
 	tw.tween_property(t, "modulate:a", 0.0, 1.0)
 	tw.tween_callback(t.queue_free)
 
-func _panel(pos: Vector2, sz: Vector2, col: Color) -> PanelContainer:
+func _panel(pos: Vector2, sz: Vector2, col: Color, b_col: Color = Color(0.12, 0.16, 0.24, 0.6)) -> PanelContainer:
 	var p = PanelContainer.new()
 	p.position = pos
 	p.size = sz
 	var s = StyleBoxFlat.new()
-	s.bg_color = col
-	s.border_color = Color(0.12, 0.16, 0.24, 0.6)
+	var alpha_col = col
+	alpha_col.a = 0.85 # Sleek translucent glassmorphism
+	s.bg_color = alpha_col
+	s.border_color = b_col
 	s.border_width_bottom = 1; s.border_width_top = 1
 	s.border_width_left = 1; s.border_width_right = 1
 	s.set_corner_radius_all(6)
@@ -688,8 +738,72 @@ func _btn(txt: String, pos: Vector2, sz: Vector2) -> Button:
 	var b = Button.new()
 	b.text = txt; b.position = pos; b.size = sz
 	b.add_theme_font_size_override("font_size", 11)
-	b.add_theme_color_override("font_color", Color(0.8, 0.72, 0.95, 1.0))
+	b.add_theme_color_override("font_color", Color(0.95, 0.35, 0.35, 1.0))
+	
+	# Apply sleek crimson/red border flat styling for back buttons
+	var sb_normal = StyleBoxFlat.new()
+	sb_normal.bg_color = Color(0.12, 0.05, 0.05, 0.5)
+	sb_normal.border_color = Color(0.95, 0.35, 0.35, 0.4)
+	sb_normal.border_width_all(1)
+	sb_normal.set_corner_radius_all(4)
+	
+	var sb_hover = StyleBoxFlat.new()
+	sb_hover.bg_color = Color(0.18, 0.08, 0.08, 0.75)
+	sb_hover.border_color = Color(0.95, 0.35, 0.35, 0.8)
+	sb_hover.border_width_all(1)
+	sb_hover.set_corner_radius_all(4)
+	
+	b.add_theme_stylebox_override("normal", sb_normal)
+	b.add_theme_stylebox_override("hover", sb_hover)
 	return b
+
+func _style_customizer_btn(btn: Button, is_selected: bool, accent_col: Color = Color(0.2, 0.9, 0.7)) -> void:
+	var sb_normal = StyleBoxFlat.new()
+	var sb_hover = StyleBoxFlat.new()
+	var sb_pressed = StyleBoxFlat.new()
+	var sb_disabled = StyleBoxFlat.new()
+	
+	if is_selected:
+		# Filled or glowing border
+		sb_normal.bg_color = Color(accent_col.r * 0.15, accent_col.g * 0.15, accent_col.b * 0.15, 0.8)
+		sb_normal.border_color = accent_col
+		sb_normal.border_width_left = 2; sb_normal.border_width_bottom = 2
+		sb_normal.border_width_right = 2; sb_normal.border_width_top = 2
+		
+		sb_hover.bg_color = Color(accent_col.r * 0.25, accent_col.g * 0.25, accent_col.b * 0.25, 0.9)
+		sb_hover.border_color = accent_col
+		sb_hover.border_width_left = 2; sb_hover.border_width_bottom = 2
+		sb_hover.border_width_right = 2; sb_hover.border_width_top = 2
+	else:
+		# Dark background, subtle border
+		sb_normal.bg_color = Color(0.06, 0.06, 0.08, 0.6)
+		sb_normal.border_color = Color(0.15, 0.2, 0.28, 0.4)
+		sb_normal.border_width_left = 1; sb_normal.border_width_bottom = 1
+		sb_normal.border_width_right = 1; sb_normal.border_width_top = 1
+		
+		sb_hover.bg_color = Color(0.08, 0.09, 0.12, 0.8)
+		sb_hover.border_color = Color(accent_col.r, accent_col.g, accent_col.b, 0.5)
+		sb_hover.border_width_left = 1; sb_hover.border_width_bottom = 1
+		sb_hover.border_width_right = 1; sb_hover.border_width_top = 1
+		
+	# Shared properties
+	for sb in [sb_normal, sb_hover, sb_pressed]:
+		sb.set_corner_radius_all(4)
+		
+	sb_pressed.bg_color = Color(accent_col.r * 0.3, accent_col.g * 0.3, accent_col.b * 0.3, 1.0)
+	sb_pressed.border_color = accent_col
+	sb_pressed.border_width_all(2)
+	sb_pressed.set_corner_radius_all(4)
+	
+	sb_disabled.bg_color = Color(0.04, 0.04, 0.05, 0.3)
+	sb_disabled.border_color = Color(0.1, 0.1, 0.12, 0.2)
+	sb_disabled.border_width_all(1)
+	sb_disabled.set_corner_radius_all(4)
+	
+	btn.add_theme_stylebox_override("normal", sb_normal)
+	btn.add_theme_stylebox_override("hover", sb_hover)
+	btn.add_theme_stylebox_override("pressed", sb_pressed)
+	btn.add_theme_stylebox_override("disabled", sb_disabled)
 
 func _fmt(n: int) -> String:
 	if n >= 1000000: return "%.1fM" % (float(n) / 1000000.0)

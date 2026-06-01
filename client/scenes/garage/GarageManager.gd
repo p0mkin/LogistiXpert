@@ -56,37 +56,54 @@ class ArcGauge extends Control:
 	
 	func _draw() -> void:
 		var center = size * 0.5
-		var radius = min(size.x, size.y) * 0.4
-		var width = 12.0
+		var radius = min(size.x, size.y) * 0.38
+		var width = 10.0
 		
 		# Draw grey backdrop arc from -PI * 0.8 to PI * 0.8
 		var start_angle = -PI * 0.8
 		var end_angle = PI * 0.8
-		draw_arc(center, radius, start_angle, end_angle, 64, Color(0.12, 0.12, 0.16, 1.0), width, true)
+		draw_arc(center, radius, start_angle, end_angle, 64, Color(0.1, 0.1, 0.13, 1.0), width, true)
 		
 		# Draw active colored arc based on value / max_value
 		var fill_ratio = clamp(value / max_value, 0.0, 1.0)
 		var fill_end_angle = start_angle + (end_angle - start_angle) * fill_ratio
 		
-		var color = Color(0.2, 0.8, 1.0, 1.0) # neon cyan
+		var color = Color(0.2, 0.9, 0.7, 1.0) # neon cyan
 		if label_unit == "kWh": color = Color(0.65, 0.45, 1.0, 1.0) # EV violet
-		elif label_unit == "L" and max_value < 1000.0: color = Color(0.2, 0.9, 0.5, 1.0) # adblue green
+		elif label_unit == "L" and max_value < 1000.0: color = Color(0.18, 0.8, 0.44, 1.0) # adblue green
+		elif label_unit == "Tons" or label_unit == "T": color = Color(0.95, 0.75, 0.15, 1.0) # Amber
 		
 		if fill_ratio > 0.0:
 			draw_arc(center, radius, start_angle, fill_end_angle, 64, color, width, true)
+			
+			# Glowing tip marker (white core + colored halo)
+			var tip_angle = fill_end_angle
+			var tip_pos = center + Vector2(cos(tip_angle), sin(tip_angle)) * radius
+			draw_circle(tip_pos, width * 0.5, Color(1, 1, 1, 0.95))
+			draw_circle(tip_pos, width * 1.0, Color(color.r, color.g, color.b, 0.45))
+			
+		# Outer graduation tick marks
+		var outer_radius = radius + width + 5.0
+		var tick_col = Color(color.r, color.g, color.b, 0.22)
+		for i in range(11):
+			var t_ratio = float(i) / 10.0
+			var t_angle = start_angle + (end_angle - start_angle) * t_ratio
+			var tick_start = center + Vector2(cos(t_angle), sin(t_angle)) * outer_radius
+			var tick_end = center + Vector2(cos(t_angle), sin(t_angle)) * (outer_radius + 4.0)
+			draw_line(tick_start, tick_end, tick_col, 1.5)
 
 class LineGraph extends Control:
 	var points: Array = []
 	var min_val: float = 0.0
 	var max_val: float = 100.0
-	var graph_color: Color = Color(0.925, 0.607, 0.141, 1.0) # amber
+	var graph_color: Color = Color(0.95, 0.75, 0.15, 1.0) # Curved Amber palette primary
 	
 	func _draw() -> void:
 		if points.size() < 2:
 			return
 			
 		# Draw a light grid background
-		var grid_color = Color(0.1, 0.1, 0.14, 0.5)
+		var grid_color = Color(0.1, 0.12, 0.16, 0.4)
 		for i in range(4):
 			var y_line = (size.y / 3.0) * i
 			draw_line(Vector2(0, y_line), Vector2(size.x, y_line), grid_color, 1.0)
@@ -105,9 +122,31 @@ class LineGraph extends Control:
 			var y = size.y - ((val - min_val) / range_val) * size.y
 			mapped_points.append(Vector2(x, y))
 			
+		# Draw glowing vertical fill gradient polygon under the lines
+		var poly_pts: PackedVector2Array = PackedVector2Array()
+		var poly_cols: PackedColorArray = PackedColorArray()
+		
+		# Bottom-left starting point
+		poly_pts.append(Vector2(mapped_points[0].x, size.y))
+		poly_cols.append(Color(graph_color.r, graph_color.g, graph_color.b, 0.0))
+		
+		# All mapped points
+		for p in mapped_points:
+			poly_pts.append(p)
+			poly_cols.append(Color(graph_color.r, graph_color.g, graph_color.b, 0.15)) # Low-opacity fill top
+			
+		# Bottom-right ending point
+		poly_pts.append(Vector2(mapped_points[mapped_points.size() - 1].x, size.y))
+		poly_cols.append(Color(graph_color.r, graph_color.g, graph_color.b, 0.0))
+		
+		# Draw the filled polygon with the vertical gradient colors
+		draw_polygon(poly_pts, poly_cols)
+		
 		# Draw lines connecting mapped coordinates
 		for i in range(mapped_points.size() - 1):
 			draw_line(mapped_points[i], mapped_points[i + 1], graph_color, 2.5, true)
+			# Ambient outer glow line
+			draw_line(mapped_points[i], mapped_points[i + 1], Color(graph_color.r, graph_color.g, graph_color.b, 0.25), 4.5, true)
 			
 		# Draw circle markers at each point
 		for i in range(mapped_points.size()):
@@ -116,7 +155,7 @@ class LineGraph extends Control:
 			
 			# Determine marker color: green if lower half, red if high peak
 			var ratio = (val - min_val) / range_val
-			var marker_col = Color(0.18, 0.8, 0.44) if ratio < 0.5 else Color(0.9, 0.3, 0.2)
+			var marker_col = Color(0.2, 0.9, 0.7) if ratio < 0.5 else Color(1.0, 0.25, 0.25) # Cyber Cyan or Crimson
 			
 			draw_circle(p, 4.0, marker_col)
 			# Outer glow ring
@@ -142,11 +181,20 @@ func _ready() -> void:
 		action_btn_3.name = "ActionBtn3"
 		action_btn_3.theme_type_variation = "Button"
 		action_btn_3.add_theme_font_size_override("font_size", 12)
+		_style_btn(action_btn_3, Color(0.2, 0.9, 0.7))
 		action_btn_3.pressed.connect(_on_action_3)
 		detail_inner.add_child(action_btn_3)
 	else:
 		action_btn_3 = detail_inner.get_node("ActionBtn3")
+		_style_btn(action_btn_3, Color(0.2, 0.9, 0.7))
 	action_btn_3.hide()
+	
+	# Theme top level controls
+	_style_panel(detail_panel, Color(0.2, 0.9, 0.7)) # Cyber Cyan detail panel
+	_style_btn(back_btn, Color(1.0, 0.25, 0.25)) # Crimson warnings for exit
+	_style_btn(hire_btn, Color(0.95, 0.75, 0.15)) # Financial Amber for recruitment
+	_style_btn(action_btn_1, Color(0.2, 0.9, 0.7))
+	_style_btn(action_btn_2, Color(0.2, 0.9, 0.7))
 	
 	# Dynamic Commodity Panel Setup
 	_prepopulate_price_histories()
@@ -449,16 +497,20 @@ func _render_driver_list() -> void:
 
 func _build_truck_card(truck: Dictionary) -> PanelContainer:
 	var panel = PanelContainer.new()
-	var style = StyleBoxFlat.new()
-	style.bg_color = Color(0.055, 0.063, 0.078, 1.0)
-	style.border_color = Color(0.180, 0.803, 0.443, 0.25)
-	style.border_width_left = 3
-	style.set_corner_radius_all(6)
-	style.content_margin_left = 16
-	style.content_margin_right = 16
-	style.content_margin_top = 12
-	style.content_margin_bottom = 12
-	panel.add_theme_stylebox_override("panel", style)
+	
+	# Color border dynamically reflecting truck health/damage or active state
+	var engine_pct = int(truck.get("engineHealth", 100))
+	var tire_pct = int(truck.get("tireWear", 100))
+	var border_color = Color(0.2, 0.9, 0.7) # Cyber Cyan default
+	
+	if truck.get("isImpounded", false):
+		border_color = Color(1.0, 0.25, 0.25) # Crimson warning
+	elif engine_pct < 40 or tire_pct < 40:
+		border_color = Color(0.95, 0.75, 0.15) # Financial Amber warning
+	elif truck.has("activeRoute"):
+		border_color = Color(0.65, 0.45, 1.0) # Underworld Purple active route
+		
+	_style_panel(panel, border_color)
 	panel.custom_minimum_size.x = 400
 	
 	var vbox = VBoxContainer.new()
@@ -536,13 +588,7 @@ func _build_truck_card(truck: Dictionary) -> PanelContainer:
 	var btn = Button.new()
 	btn.text = "▶ SELECT"
 	btn.add_theme_font_size_override("font_size", 11)
-	btn.add_theme_color_override("font_color", Color(0.180, 0.803, 0.443))
-	var style_btn = StyleBoxFlat.new()
-	style_btn.bg_color = Color(0.180, 0.803, 0.443, 0.08)
-	style_btn.border_color = Color(0.180, 0.803, 0.443, 0.3)
-	style_btn.border_width_bottom = 1
-	style_btn.set_corner_radius_all(4)
-	btn.add_theme_stylebox_override("normal", style_btn)
+	_style_btn(btn, border_color)
 	btn.pressed.connect(_select_truck.bind(truck))
 	vbox.add_child(btn)
 	
@@ -550,25 +596,22 @@ func _build_truck_card(truck: Dictionary) -> PanelContainer:
 
 func _build_driver_card(driver: Dictionary) -> PanelContainer:
 	var panel = PanelContainer.new()
-	var style = StyleBoxFlat.new()
-	style.bg_color = Color(0.055, 0.063, 0.078, 1.0)
 	
-	# Color border by loyalty tier
+	# Color border by loyalty tier and fatigue
 	var loyalty = int(driver.get("loyalty", 0))
-	if loyalty >= 80:
-		style.border_color = Color(0.607, 0.349, 0.713, 0.5)  # purple = high loyalty
-	elif loyalty >= 60:
-		style.border_color = Color(0.180, 0.803, 0.443, 0.35) # green = mid loyalty
-	else:
-		style.border_color = Color(0.901, 0.298, 0.235, 0.3)  # red = low loyalty / unreliable
+	var fatigue = int(driver.get("fatigue", 0))
+	var border_color = Color(0.65, 0.45, 1.0) # Underworld Purple default
 	
-	style.border_width_left = 3
-	style.set_corner_radius_all(6)
-	style.content_margin_left = 16
-	style.content_margin_right = 16
-	style.content_margin_top = 12
-	style.content_margin_bottom = 12
-	panel.add_theme_stylebox_override("panel", style)
+	if fatigue > 70:
+		border_color = Color(1.0, 0.25, 0.25) # Crimson (dangerous exhaustion)
+	elif loyalty >= 80:
+		border_color = Color(0.65, 0.45, 1.0) # Purple (high loyalty/illicit elite)
+	elif loyalty >= 60:
+		border_color = Color(0.2, 0.9, 0.7) # Cyan (reliable)
+	else:
+		border_color = Color(0.95, 0.75, 0.15) # Amber (unreliable warning)
+		
+	_style_panel(panel, border_color)
 	panel.custom_minimum_size.x = 400
 	
 	var vbox = VBoxContainer.new()
@@ -628,13 +671,7 @@ func _build_driver_card(driver: Dictionary) -> PanelContainer:
 	var btn = Button.new()
 	btn.text = "▶ MANAGE"
 	btn.add_theme_font_size_override("font_size", 11)
-	btn.add_theme_color_override("font_color", Color(0.607, 0.349, 0.713))
-	var style_btn = StyleBoxFlat.new()
-	style_btn.bg_color = Color(0.607, 0.349, 0.713, 0.08)
-	style_btn.border_color = Color(0.607, 0.349, 0.713, 0.3)
-	style_btn.border_width_bottom = 1
-	style_btn.set_corner_radius_all(4)
-	btn.add_theme_stylebox_override("normal", style_btn)
+	_style_btn(btn, border_color)
 	btn.pressed.connect(_select_driver.bind(driver))
 	vbox.add_child(btn)
 	
@@ -758,13 +795,7 @@ func _select_truck(truck: Dictionary) -> void:
 		var release_btn = Button.new()
 		release_btn.text = "💰 EARLY IMPOUND RELEASE ($3,500/day x2)"
 		release_btn.add_theme_font_size_override("font_size", 11)
-		release_btn.add_theme_color_override("font_color", Color(0.925, 0.607, 0.141))
-		var rs = StyleBoxFlat.new()
-		rs.bg_color = Color(0.925, 0.607, 0.141, 0.07)
-		rs.border_color = Color(0.925, 0.607, 0.141, 0.35)
-		rs.border_width_bottom = 1
-		rs.set_corner_radius_all(4)
-		release_btn.add_theme_stylebox_override("normal", rs)
+		_style_btn(release_btn, Color(0.95, 0.75, 0.15))
 		release_btn.pressed.connect(_release_impound.bind(truck.get("id", "")))
 		detail_body.add_child(release_btn)
 
@@ -784,13 +815,7 @@ func _select_truck(truck: Dictionary) -> void:
 		var roadside_btn = Button.new()
 		roadside_btn.text = "🔧 EMERGENCY ROADSIDE REPAIR (+50% surcharge)"
 		roadside_btn.add_theme_font_size_override("font_size", 11)
-		roadside_btn.add_theme_color_override("font_color", Color(0.925, 0.607, 0.141))
-		var rbs = StyleBoxFlat.new()
-		rbs.bg_color = Color(0.925, 0.607, 0.141, 0.07)
-		rbs.border_color = Color(0.925, 0.607, 0.141, 0.35)
-		rbs.border_width_bottom = 1
-		rbs.set_corner_radius_all(4)
-		roadside_btn.add_theme_stylebox_override("normal", rbs)
+		_style_btn(roadside_btn, Color(0.95, 0.75, 0.15))
 		roadside_btn.pressed.connect(_roadside_repair.bind(truck.get("id", "")))
 		detail_body.add_child(roadside_btn)
 
@@ -801,8 +826,10 @@ func _select_truck(truck: Dictionary) -> void:
 
 	action_btn_1.text = "🔧 REPAIR ENGINE ($1800)"
 	action_btn_1.show()
+	_style_btn(action_btn_1, Color(0.2, 0.9, 0.7)) # Cyan repair action
 	action_btn_2.text = "🛥 REPLACE TIRES ($900)"
 	action_btn_2.show()
+	_style_btn(action_btn_2, Color(0.2, 0.9, 0.7)) # Cyan repair action
 	if action_btn_3: action_btn_3.hide()
 
 func _select_driver(driver: Dictionary) -> void:
@@ -838,11 +865,14 @@ func _select_driver(driver: Dictionary) -> void:
 	
 	action_btn_1.text = "⚗ ADMINISTER STIMULANT ($500 BM)"
 	action_btn_1.show()
+	_style_btn(action_btn_1, Color(0.65, 0.45, 1.0)) # Purple stimulant action
 	action_btn_2.text = "🛌 SCHENGEN MOTEL REST ($250)"
 	action_btn_2.show()
+	_style_btn(action_btn_2, Color(0.2, 0.9, 0.7)) # Cyan rest action
 	if action_btn_3:
 		action_btn_3.text = "🛌 EASTERN CABIN REST (FREE)"
 		action_btn_3.show()
+		_style_btn(action_btn_3, Color(0.2, 0.9, 0.7)) # Cyan rest action
 
 	# Show Tacho Spoof button if tacho > 7h
 	var tacho_h = float(driver.get("tachoHours", 0.0))
@@ -850,13 +880,7 @@ func _select_driver(driver: Dictionary) -> void:
 		var spoof_btn = Button.new()
 		spoof_btn.text = "💾 INSTALL TACHO SPOOF ($3500 BM) — Tacho: %.1fh" % tacho_h
 		spoof_btn.add_theme_font_size_override("font_size", 11)
-		spoof_btn.add_theme_color_override("font_color", Color(0.607, 0.349, 0.713))
-		var style_spoof = StyleBoxFlat.new()
-		style_spoof.bg_color = Color(0.607, 0.349, 0.713, 0.06)
-		style_spoof.border_color = Color(0.607, 0.349, 0.713, 0.4)
-		style_spoof.border_width_bottom = 1
-		style_spoof.set_corner_radius_all(4)
-		spoof_btn.add_theme_stylebox_override("normal", style_spoof)
+		_style_btn(spoof_btn, Color(0.65, 0.45, 1.0))
 		spoof_btn.pressed.connect(_spoof_tacho.bind(driver.get("id", "")))
 		detail_body.add_child(spoof_btn)
 
@@ -886,7 +910,7 @@ func _select_driver(driver: Dictionary) -> void:
 		var unassign_btn = Button.new()
 		unassign_btn.text = "✕ UNASSIGN FROM TRUCK"
 		unassign_btn.add_theme_font_size_override("font_size", 11)
-		unassign_btn.add_theme_color_override("font_color", Color(0.901, 0.298, 0.235, 0.8))
+		_style_btn(unassign_btn, Color(1.0, 0.25, 0.25))
 		unassign_btn.pressed.connect(_unassign_driver.bind(driver.get("id", "")))
 		detail_body.add_child(unassign_btn)
 	else:
@@ -906,7 +930,7 @@ func _select_driver(driver: Dictionary) -> void:
 			var do_assign_btn = Button.new()
 			do_assign_btn.text = "✓ ASSIGN TO SELECTED TRUCK"
 			do_assign_btn.add_theme_font_size_override("font_size", 11)
-			do_assign_btn.add_theme_color_override("font_color", Color(0.18, 0.803, 0.443))
+			_style_btn(do_assign_btn, Color(0.180, 0.803, 0.443))
 			do_assign_btn.pressed.connect(func():
 				var idx = truck_picker.get_selected_id()
 				if idx >= 0 and idx < avail_trucks.size():
@@ -955,9 +979,90 @@ func _on_back_pressed() -> void:
 	SceneTransition.change_scene_to_file("res://scenes/game_map/GameMap.tscn")
 
 func _apply_theme() -> void:
-	var style_bg = StyleBoxFlat.new()
-	style_bg.bg_color = Color(0.047, 0.051, 0.059, 1.0)
-	add_theme_stylebox_override("panel", style_bg)
+	# Purge default background blocks if present in the tree
+	if has_node("Background"):
+		get_node("Background").visible = false
+	elif has_node("Bg"):
+		get_node("Bg").visible = false
+		
+	# Dynamically instantiate and register CyberGridBackground at base rendering layer
+	var bg = CyberGridBackground.new()
+	bg.primary_color = Color(0.2, 0.9, 0.7, 0.1) # Cyber Cyan theme
+	bg.accent_color = Color(0.95, 0.75, 0.15, 0.08) # Financial Amber accent
+	bg.base_color = Color(0.04, 0.04, 0.06, 1.0)
+	add_child(bg)
+	move_child(bg, 0)
+
+func _style_panel(panel: PanelContainer, accent_col: Color) -> void:
+	if not panel: return
+	var s = StyleBoxFlat.new()
+	s.bg_color = Color(0.055, 0.063, 0.078, 0.85) # Glassmorphic Translucent
+	s.border_color = accent_col
+	s.border_width_left = 3 # Accent colored boundary edge
+	s.border_width_bottom = 1
+	s.border_width_right = 1
+	s.border_width_top = 1
+	s.set_corner_radius_all(6)
+	s.content_margin_left = 16
+	s.content_margin_right = 16
+	s.content_margin_top = 12
+	s.content_margin_bottom = 12
+	panel.add_theme_stylebox_override("panel", s)
+
+func _style_btn(btn: Button, accent_col: Color, is_selected: bool = false) -> void:
+	if not btn: return
+	var sb_normal = StyleBoxFlat.new()
+	var sb_hover = StyleBoxFlat.new()
+	var sb_pressed = StyleBoxFlat.new()
+	var sb_disabled = StyleBoxFlat.new()
+	
+	if is_selected:
+		sb_normal.bg_color = Color(accent_col.r * 0.15, accent_col.g * 0.15, accent_col.b * 0.15, 0.8)
+		sb_normal.border_color = accent_col
+		sb_normal.border_width_left = 2; sb_normal.border_width_bottom = 2
+		sb_normal.border_width_right = 2; sb_normal.border_width_top = 2
+		
+		sb_hover.bg_color = Color(accent_col.r * 0.25, accent_col.g * 0.25, accent_col.b * 0.25, 0.9)
+		sb_hover.border_color = accent_col
+		sb_hover.border_width_left = 2; sb_hover.border_width_bottom = 2
+		sb_hover.border_width_right = 2; sb_hover.border_width_top = 2
+	else:
+		sb_normal.bg_color = Color(accent_col.r * 0.08, accent_col.g * 0.08, accent_col.b * 0.08, 0.6)
+		sb_normal.border_color = Color(accent_col.r, accent_col.g, accent_col.b, 0.3)
+		sb_normal.border_width_left = 1; sb_normal.border_width_bottom = 1
+		sb_normal.border_width_right = 1; sb_normal.border_width_top = 1
+		
+		sb_hover.bg_color = Color(accent_col.r * 0.14, accent_col.g * 0.14, accent_col.b * 0.14, 0.8)
+		sb_hover.border_color = Color(accent_col.r, accent_col.g, accent_col.b, 0.6)
+		sb_hover.border_width_left = 1; sb_hover.border_width_bottom = 1
+		sb_hover.border_width_right = 1; sb_hover.border_width_top = 1
+		
+	for sb in [sb_normal, sb_hover, sb_pressed]:
+		sb.set_corner_radius_all(4)
+		
+	sb_pressed.bg_color = Color(accent_col.r * 0.3, accent_col.g * 0.3, accent_col.b * 0.3, 1.0)
+	sb_pressed.border_color = accent_col
+	sb_pressed.border_width_all(2)
+	sb_pressed.set_corner_radius_all(4)
+	
+	sb_disabled.bg_color = Color(0.04, 0.04, 0.05, 0.3)
+	sb_disabled.border_color = Color(0.1, 0.1, 0.12, 0.2)
+	sb_disabled.border_width_all(1)
+	sb_disabled.set_corner_radius_all(4)
+	
+	btn.add_theme_stylebox_override("normal", sb_normal)
+	btn.add_theme_stylebox_override("hover", sb_hover)
+	btn.add_theme_stylebox_override("pressed", sb_pressed)
+	btn.add_theme_stylebox_override("disabled", sb_disabled)
+	btn.add_theme_color_override("font_color", accent_col)
+
+func _fmt_cash(val: float) -> String:
+	if val >= 1000000.0:
+		return "%.2fM" % (val / 1000000.0)
+	elif val >= 1000.0:
+		return "%.1fk" % (val / 1000.0)
+	else:
+		return "%.2f" % val
 
 # ==========================================
 # DYNAMIC COMMODITY TRADING OPERATIONS

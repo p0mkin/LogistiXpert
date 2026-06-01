@@ -21,6 +21,8 @@ var active_listings: Array = []
 
 var selected_listing_id: String = ""
 var trade_qty: int = 1000
+var loan_qty: float = 10000.00
+var gold_qty: float = 5.0
 
 @onready var scene_root = $CanvasLayer
 @onready var val_http = $ValHTTPRequest
@@ -114,22 +116,12 @@ func _build_ui() -> void:
 	add_child(layer)
 	scene_root = layer
 
-	# Deep space backdrop
-	var bg = ColorRect.new()
-	bg.color = Color(0.03, 0.03, 0.05, 1.0)
-	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	# Programmatic High-Fidelity Animated HUD Background
+	var bg = CyberGridBackground.new()
 	scene_root.add_child(bg)
-	
-	# Blueprint grid lines
-	for i in range(12):
-		var gl = ColorRect.new()
-		gl.color = Color(0.08, 0.06, 0.12, 0.4)
-		gl.position = Vector2(0, 60 * i)
-		gl.size = Vector2(1280, 1)
-		scene_root.add_child(gl)
 		
 	# HEADER
-	var hdr = _panel(Vector2(0, 0), Vector2(1280, 60), Color(0.06, 0.05, 0.09, 0.98))
+	var hdr = _panel(Vector2(0, 0), Vector2(1280, 60), Color(0.04, 0.05, 0.08, 0.95), Color(0.9, 0.75, 0.2, 0.35))
 	scene_root.add_child(hdr)
 
 	var title = Label.new()
@@ -141,10 +133,26 @@ func _build_ui() -> void:
 
 	var back_btn = _btn("◀  MAP", Vector2(1170, 10), Vector2(90, 38))
 	back_btn.pressed.connect(_go_back)
+	back_btn.add_theme_color_override("font_color", Color(1.0, 0.3, 0.3, 1.0))
+	
+	var sb_back_normal = StyleBoxFlat.new()
+	sb_back_normal.bg_color = Color(0.12, 0.05, 0.05, 0.5)
+	sb_back_normal.border_color = Color(1.0, 0.25, 0.25, 0.4)
+	sb_back_normal.border_width_all(1)
+	sb_back_normal.set_corner_radius_all(4)
+	
+	var sb_back_hover = StyleBoxFlat.new()
+	sb_back_hover.bg_color = Color(0.18, 0.08, 0.08, 0.75)
+	sb_back_hover.border_color = Color(1.0, 0.25, 0.25, 0.8)
+	sb_back_hover.border_width_all(1)
+	sb_back_hover.set_corner_radius_all(4)
+	
+	back_btn.add_theme_stylebox_override("normal", sb_back_normal)
+	back_btn.add_theme_stylebox_override("hover", sb_back_hover)
 	hdr.add_child(back_btn)
 
 	# TICKER TAPE OVERLAY (y=60)
-	var tape = _panel(Vector2(0, 60), Vector2(1280, 30), Color(0.08, 0.01, 0.05, 0.97))
+	var tape = _panel(Vector2(0, 60), Vector2(1280, 30), Color(0.08, 0.01, 0.05, 0.97), Color(0.9, 0.75, 0.2, 0.15))
 	tape.clip_contents = true
 	scene_root.add_child(tape)
 
@@ -157,7 +165,7 @@ func _build_ui() -> void:
 	tape.add_child(ticker_lbl)
 
 	# BALANCE & REPUTATION STRIP (y=90)
-	var strip = _panel(Vector2(0, 90), Vector2(1280, 42), Color(0.04, 0.04, 0.06, 0.95))
+	var strip = _panel(Vector2(0, 90), Vector2(1280, 42), Color(0.04, 0.04, 0.06, 0.95), Color(0.9, 0.75, 0.2, 0.2))
 	strip.name = "BalancesStrip"
 	scene_root.add_child(strip)
 	
@@ -170,7 +178,7 @@ func _build_ui() -> void:
 	strip.add_child(bal_lbl)
 
 	# TABS NAVIGATION BAR (y=132)
-	var tabs = _panel(Vector2(0, 132), Vector2(1280, 48), Color(0.05, 0.05, 0.08, 0.9))
+	var tabs = _panel(Vector2(0, 132), Vector2(1280, 48), Color(0.05, 0.05, 0.08, 0.9), Color(0.9, 0.75, 0.2, 0.2))
 	scene_root.add_child(tabs)
 	
 	var btn_over = _btn("📋 VALUATION & IPO", Vector2(20, 6), Vector2(180, 36))
@@ -190,7 +198,7 @@ func _build_ui() -> void:
 	tabs.add_child(btn_specs)
 
 	# MAIN VIEW CONTAINER
-	var view = _panel(Vector2(12, 190), Vector2(1256, 474), Color(0.04, 0.03, 0.06, 0.85))
+	var view = _panel(Vector2(12, 190), Vector2(1256, 474), Color(0.04, 0.03, 0.06, 0.85), Color(0.9, 0.75, 0.2, 0.35))
 	view.name = "MainView"
 	scene_root.add_child(view)
 
@@ -268,7 +276,7 @@ func _render_overview_tab() -> void:
 	view.add_child(title)
 
 	# Left Column: Balance Sheet
-	var left = _panel(Vector2(20, 48), Vector2(600, 400), Color(0.06, 0.05, 0.09, 0.95))
+	var left = _panel(Vector2(20, 48), Vector2(600, 400), Color(0.06, 0.05, 0.09, 0.95), Color(0.9, 0.75, 0.2, 0.25))
 	view.add_child(left)
 
 	var bs_lbl = Label.new()
@@ -343,7 +351,7 @@ func _render_overview_tab() -> void:
 	left.add_child(lbl_sh)
 
 	# Right Column: IPO Launcher Panel
-	var right = _panel(Vector2(640, 48), Vector2(596, 400), Color(0.06, 0.05, 0.09, 0.95))
+	var right = _panel(Vector2(640, 48), Vector2(596, 400), Color(0.06, 0.05, 0.09, 0.95), Color(0.85, 0.6, 1.0, 0.25))
 	view.add_child(right)
 
 	var ipo_title = Label.new()
@@ -438,7 +446,7 @@ func _render_stocks_tab() -> void:
 		return
 
 	# Header Columns
-	var list_panel = _panel(Vector2(20, 16), Vector2(740, 432), Color(0.06, 0.05, 0.09, 0.95))
+	var list_panel = _panel(Vector2(20, 16), Vector2(740, 432), Color(0.06, 0.05, 0.09, 0.95), Color(0.9, 0.75, 0.2, 0.25))
 	view.add_child(list_panel)
 
 	var table_title = Label.new()
@@ -472,7 +480,7 @@ func _render_stocks_tab() -> void:
 			list.add_child(row)
 
 	# Right Column: Buy/Sell Panel
-	var trade_panel = _panel(Vector2(780, 16), Vector2(456, 432), Color(0.06, 0.05, 0.09, 0.95))
+	var trade_panel = _panel(Vector2(780, 16), Vector2(456, 432), Color(0.06, 0.05, 0.09, 0.95), Color(0.9, 0.75, 0.2, 0.3))
 	view.add_child(trade_panel)
 
 	var tr_lbl = Label.new()
@@ -588,10 +596,10 @@ func _render_trading_details(panel: PanelContainer, target: Dictionary) -> void:
 		q_btn.text = "+" + _fmt(q)
 		q_btn.position = Vector2(q_x, 134)
 		q_btn.size = Vector2(90, 28)
+		_style_customizer_btn(q_btn, trade_qty == q, Color(0.9, 0.75, 0.2))
 		q_btn.pressed.connect(func():
 			trade_qty = q
-			_find(panel, "TradeQtyLabel").text = "Trade Volume: %s Shares" % _fmt(trade_qty)
-			_find(panel, "TotalEstLabel").text = "Total Cost estimate: $%.2f" % (target.sharePrice * trade_qty)
+			_render_stocks_tab()
 		)
 		panel.add_child(q_btn)
 		q_x += 104
@@ -677,7 +685,7 @@ func _render_credit_tab() -> void:
 		return
 
 	# Left Panel: Status Gauges
-	var left = _panel(Vector2(20, 16), Vector2(600, 432), Color(0.06, 0.05, 0.09, 0.95))
+	var left = _panel(Vector2(20, 16), Vector2(600, 432), Color(0.06, 0.05, 0.09, 0.95), Color(0.9, 0.75, 0.2, 0.3))
 	view.add_child(left)
 
 	var c_lbl = Label.new()
@@ -751,7 +759,7 @@ func _render_credit_tab() -> void:
 	left.add_child(usage_lbl)
 
 	# Right Panel: Borrow/Repay Transaction Controls
-	var right = _panel(Vector2(640, 16), Vector2(596, 432), Color(0.06, 0.05, 0.09, 0.95))
+	var right = _panel(Vector2(640, 16), Vector2(596, 432), Color(0.06, 0.05, 0.09, 0.95), Color(0.9, 0.75, 0.2, 0.3))
 	view.add_child(right)
 
 	var trans_title = Label.new()
@@ -768,7 +776,6 @@ func _render_credit_tab() -> void:
 	amt_lbl.position = Vector2(16, 48)
 	right.add_child(amt_lbl)
 
-	var loan_qty = 10000.00
 	var loan_qtys = [5000.00, 20000.00, 50000.00, 100000.00]
 	var lx = 16
 	for lq in loan_qtys:
@@ -776,9 +783,10 @@ func _render_credit_tab() -> void:
 		l_btn.text = "+$" + _fmt(int(lq))
 		l_btn.position = Vector2(lx, 68)
 		l_btn.size = Vector2(120, 30)
+		_style_customizer_btn(l_btn, loan_qty == lq, Color(0.9, 0.75, 0.2))
 		l_btn.pressed.connect(func():
 			loan_qty = lq
-			_find(right, "LoanAmountLabel").text = "Selected Volume:  $%.2f" % loan_qty
+			_render_credit_tab()
 		)
 		right.add_child(l_btn)
 		lx += 134
@@ -849,7 +857,7 @@ func _render_specs_tab() -> void:
 		return
 
 	# Left Column: Gold spot speculation
-	var left = _panel(Vector2(20, 16), Vector2(600, 432), Color(0.06, 0.05, 0.09, 0.95))
+	var left = _panel(Vector2(20, 16), Vector2(600, 432), Color(0.06, 0.05, 0.09, 0.95), Color(0.9, 0.75, 0.2, 0.35))
 	view.add_child(left)
 
 	var g_lbl = Label.new()
@@ -877,7 +885,6 @@ func _render_specs_tab() -> void:
 	qty_lbl.position = Vector2(16, 96)
 	left.add_child(qty_lbl)
 
-	var gold_qty = 5.0
 	var gold_vols = [1.0, 5.0, 10.0, 50.0]
 	var gx = 16
 	for gq in gold_vols:
@@ -885,9 +892,10 @@ func _render_specs_tab() -> void:
 		g_btn.text = "%.1f oz" % gq
 		g_btn.position = Vector2(gx, 116)
 		g_btn.size = Vector2(120, 28)
+		_style_customizer_btn(g_btn, gold_qty == gq, Color(0.9, 0.75, 0.2))
 		g_btn.pressed.connect(func():
 			gold_qty = gq
-			_find(left, "SelectedGoldQtyLabel").text = "Selected Gold Volume:  %.1f oz (Cost: $%.2f)" % [gold_qty, (spot_gold * gold_qty)]
+			_render_specs_tab()
 		)
 		left.add_child(g_btn)
 		gx += 134
@@ -927,7 +935,7 @@ func _render_specs_tab() -> void:
 	left.add_child(g_sell)
 
 	# Right Column: Advertising / PR campaigns
-	var right = _panel(Vector2(640, 16), Vector2(596, 432), Color(0.06, 0.05, 0.09, 0.95))
+	var right = _panel(Vector2(640, 16), Vector2(596, 432), Color(0.06, 0.05, 0.09, 0.95), Color(0.65, 0.45, 1.0, 0.3))
 	view.add_child(right)
 
 	var m_lbl = Label.new()
@@ -955,7 +963,7 @@ func _render_specs_tab() -> void:
 
 	var my = 96
 	for camp in campaigns:
-		var card = _panel(Vector2(16, my), Vector2(560, 68), Color(0.09, 0.08, 0.13, 0.9))
+		var card = _panel(Vector2(16, my), Vector2(560, 68), Color(0.09, 0.08, 0.13, 0.9), Color(0.65, 0.45, 1.0, 0.2))
 		right.add_child(card)
 
 		var c_t = Label.new()
@@ -1054,13 +1062,15 @@ func _show_toast(msg: String, color: Color = Color(1.0, 0.85, 0.2, 1.0), duratio
 	tw.tween_property(t, "modulate:a", 0.0, 1.0)
 	tw.tween_callback(t.queue_free)
 
-func _panel(pos: Vector2, sz: Vector2, col: Color) -> PanelContainer:
+func _panel(pos: Vector2, sz: Vector2, col: Color, b_col: Color = Color(0.18, 0.12, 0.28, 0.6)) -> PanelContainer:
 	var p = PanelContainer.new()
 	p.position = pos
 	p.size = sz
 	var s = StyleBoxFlat.new()
-	s.bg_color = col
-	s.border_color = Color(0.18, 0.12, 0.28, 0.6)
+	var alpha_col = col
+	alpha_col.a = 0.85 # Sleek translucent glassmorphism
+	s.bg_color = alpha_col
+	s.border_color = b_col
 	s.border_width_bottom = 1; s.border_width_top = 1
 	s.border_width_left = 1; s.border_width_right = 1
 	s.set_corner_radius_all(6)
@@ -1071,8 +1081,68 @@ func _btn(txt: String, pos: Vector2, sz: Vector2) -> Button:
 	var b = Button.new()
 	b.text = txt; b.position = pos; b.size = sz
 	b.add_theme_font_size_override("font_size", 11)
-	b.add_theme_color_override("font_color", Color(0.8, 0.72, 0.95, 1.0))
+	b.add_theme_color_override("font_color", Color(0.95, 0.85, 0.4, 1.0)) # Financial Amber font color
+	
+	var sb_normal = StyleBoxFlat.new()
+	sb_normal.bg_color = Color(0.08, 0.07, 0.05, 0.6)
+	sb_normal.border_color = Color(0.95, 0.7, 0.15, 0.3)
+	sb_normal.border_width_all(1)
+	sb_normal.set_corner_radius_all(4)
+	
+	var sb_hover = StyleBoxFlat.new()
+	sb_hover.bg_color = Color(0.14, 0.11, 0.08, 0.8)
+	sb_hover.border_color = Color(0.95, 0.7, 0.15, 0.6)
+	sb_hover.border_width_all(1)
+	sb_hover.set_corner_radius_all(4)
+	
+	b.add_theme_stylebox_override("normal", sb_normal)
+	b.add_theme_stylebox_override("hover", sb_hover)
 	return b
+
+func _style_customizer_btn(btn: Button, is_selected: bool, accent_col: Color = Color(0.2, 0.9, 0.7)) -> void:
+	var sb_normal = StyleBoxFlat.new()
+	var sb_hover = StyleBoxFlat.new()
+	var sb_pressed = StyleBoxFlat.new()
+	var sb_disabled = StyleBoxFlat.new()
+	
+	if is_selected:
+		sb_normal.bg_color = Color(accent_col.r * 0.15, accent_col.g * 0.15, accent_col.b * 0.15, 0.8)
+		sb_normal.border_color = accent_col
+		sb_normal.border_width_left = 2; sb_normal.border_width_bottom = 2
+		sb_normal.border_width_right = 2; sb_normal.border_width_top = 2
+		
+		sb_hover.bg_color = Color(accent_col.r * 0.25, accent_col.g * 0.25, accent_col.b * 0.25, 0.9)
+		sb_hover.border_color = accent_col
+		sb_hover.border_width_left = 2; sb_hover.border_width_bottom = 2
+		sb_hover.border_width_right = 2; sb_hover.border_width_top = 2
+	else:
+		sb_normal.bg_color = Color(0.06, 0.06, 0.08, 0.6)
+		sb_normal.border_color = Color(0.15, 0.2, 0.28, 0.4)
+		sb_normal.border_width_left = 1; sb_normal.border_width_bottom = 1
+		sb_normal.border_width_right = 1; sb_normal.border_width_top = 1
+		
+		sb_hover.bg_color = Color(0.08, 0.09, 0.12, 0.8)
+		sb_hover.border_color = Color(accent_col.r, accent_col.g, accent_col.b, 0.5)
+		sb_hover.border_width_left = 1; sb_hover.border_width_bottom = 1
+		sb_hover.border_width_right = 1; sb_hover.border_width_top = 1
+		
+	for sb in [sb_normal, sb_hover, sb_pressed]:
+		sb.set_corner_radius_all(4)
+		
+	sb_pressed.bg_color = Color(accent_col.r * 0.3, accent_col.g * 0.3, accent_col.b * 0.3, 1.0)
+	sb_pressed.border_color = accent_col
+	sb_pressed.border_width_all(2)
+	sb_pressed.set_corner_radius_all(4)
+	
+	sb_disabled.bg_color = Color(0.04, 0.04, 0.05, 0.3)
+	sb_disabled.border_color = Color(0.1, 0.1, 0.12, 0.2)
+	sb_disabled.border_width_all(1)
+	sb_disabled.set_corner_radius_all(4)
+	
+	btn.add_theme_stylebox_override("normal", sb_normal)
+	btn.add_theme_stylebox_override("hover", sb_hover)
+	btn.add_theme_stylebox_override("pressed", sb_pressed)
+	btn.add_theme_stylebox_override("disabled", sb_disabled)
 
 func _fmt(n: int) -> String:
 	if n >= 1000000: return "%.1fM" % (float(n) / 1000000.0)

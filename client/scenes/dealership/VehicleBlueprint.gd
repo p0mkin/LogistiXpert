@@ -155,6 +155,9 @@ func _draw() -> void:
 	
 	# Draw dynamic highlighted upgrade halos
 	_draw_highlight_halo()
+	
+	# Draw CAD HUD corner sights, specs, and telemetry sights
+	_draw_hud_decorations()
 
 func _draw_cad_grid() -> void:
 	var grid_color = Color(0.08, 0.14, 0.22, 0.22)
@@ -261,6 +264,8 @@ func _draw_cabin(color: Color) -> void:
 	var window_col = Color(0.08, 0.18, 0.24, 0.9)
 	var ground_y = 145.0
 	var cab_y_bottom = ground_y - 18.0
+	var pulse_light = (Time.get_ticks_msec() / 200) % 2 == 0
+	var warning_amber = Color(1.0, 0.6, 0.0, 1.0) if pulse_light else Color(0.35, 0.18, 0.0, 0.6)
 	
 	# Establish layout based on cab sleeper spec
 	if cab_type == "SUPER_LONG":
@@ -279,8 +284,23 @@ func _draw_cabin(color: Color) -> void:
 		draw_rect(cab_rect, cab_col, false, 2.0)
 		draw_rect(cab_rect, Color(0.04, 0.04, 0.06, 0.75), true)
 		
+		# Panel shut-lines & door handle
+		draw_line(Vector2(208, cab_y_bottom), Vector2(208, cab_y_bottom - 82), color * 0.4, 1.0)
+		draw_line(Vector2(155, cab_y_bottom - 40), Vector2(208, cab_y_bottom - 40), color * 0.4, 1.0)
+		draw_rect(Rect2(Vector2(196, cab_y_bottom - 36), Vector2(8, 2)), Color.LIGHT_GRAY, true)
+		
 		# Windshield slant line
 		draw_line(Vector2(155, cab_y_bottom - 44), Vector2(168, cab_y_bottom - 82), cab_col, 2.0)
+		
+		# Driver seat silhouette inside cabin window
+		var seat_pts = PackedVector2Array([
+			Vector2(182, cab_y_bottom - 44),
+			Vector2(190, cab_y_bottom - 44),
+			Vector2(190, cab_y_bottom - 62),
+			Vector2(185, cab_y_bottom - 62)
+		])
+		draw_polygon(seat_pts, [Color(0.12, 0.14, 0.18, 0.6)])
+		draw_circle(Vector2(187, cab_y_bottom - 66), 2.5, Color(0.12, 0.14, 0.18, 0.6))
 		
 		# Cabin windows
 		var win_points = PackedVector2Array([
@@ -292,9 +312,22 @@ func _draw_cabin(color: Color) -> void:
 		draw_polygon(win_points, [window_col])
 		draw_polyline(win_points, color * 0.8, 1.5)
 		
+		# Window Glass reflective streaks
+		draw_line(Vector2(172, cab_y_bottom - 74), Vector2(182, cab_y_bottom - 44), Color(1.0, 1.0, 1.0, 0.2), 1.5)
+		draw_line(Vector2(178, cab_y_bottom - 74), Vector2(188, cab_y_bottom - 44), Color(1.0, 1.0, 1.0, 0.08), 1.0)
+		
 		# Sleeper port-hole window
 		draw_circle(Vector2(230, cab_y_bottom - 60), 8.0, window_col)
 		draw_arc(Vector2(230, cab_y_bottom - 60), 8.0, 0, TAU, 16, color * 0.7, 1.0, true)
+		
+		# Rearview side mirrors
+		draw_rect(Rect2(Vector2(148, cab_y_bottom - 68), Vector2(4, 16)), color * 0.9, false, 1.5)
+		draw_line(Vector2(152, cab_y_bottom - 60), Vector2(155, cab_y_bottom - 60), color * 0.8, 1.5)
+		
+		# Roof warning lights
+		draw_circle(Vector2(180, cab_y_bottom - 84), 2.0, warning_amber)
+		draw_circle(Vector2(210, cab_y_bottom - 84), 2.0, warning_amber)
+		draw_circle(Vector2(240, cab_y_bottom - 84), 2.0, warning_amber)
 		
 		# Dual vertical exhaust smokestacks (super long feature)
 		var stack_x1 = 268.0
@@ -310,8 +343,23 @@ func _draw_cabin(color: Color) -> void:
 		draw_rect(cab_rect, cab_col, false, 2.0)
 		draw_rect(cab_rect, Color(0.04, 0.04, 0.06, 0.75), true)
 		
+		# Panel shut-lines & door handle
+		draw_line(Vector2(150, cab_y_bottom), Vector2(150, cab_y_bottom - 84), color * 0.4, 1.0)
+		draw_line(Vector2(100, cab_y_bottom - 40), Vector2(150, cab_y_bottom - 40), color * 0.4, 1.0)
+		draw_rect(Rect2(Vector2(138, cab_y_bottom - 36), Vector2(8, 2)), Color.LIGHT_GRAY, true)
+		
 		# Front aerodynamic slant
 		draw_line(Vector2(100, cab_y_bottom - 20), Vector2(104, cab_y_bottom - 84), cab_col, 2.0)
+		
+		# Driver seat silhouette inside cabin window
+		var seat_pts = PackedVector2Array([
+			Vector2(125, cab_y_bottom - 44),
+			Vector2(133, cab_y_bottom - 44),
+			Vector2(133, cab_y_bottom - 62),
+			Vector2(128, cab_y_bottom - 62)
+		])
+		draw_polygon(seat_pts, [Color(0.12, 0.14, 0.18, 0.6)])
+		draw_circle(Vector2(130, cab_y_bottom - 66), 2.5, Color(0.12, 0.14, 0.18, 0.6))
 		
 		# Side Door Window
 		var win_points = PackedVector2Array([
@@ -323,10 +371,16 @@ func _draw_cabin(color: Color) -> void:
 		draw_polygon(win_points, [window_col])
 		draw_polyline(win_points, color * 0.8, 1.5)
 		
+		# Window Glass reflective streaks
+		draw_line(Vector2(112, cab_y_bottom - 76), Vector2(124, cab_y_bottom - 44), Color(1.0, 1.0, 1.0, 0.2), 1.5)
+		draw_line(Vector2(118, cab_y_bottom - 76), Vector2(130, cab_y_bottom - 44), Color(1.0, 1.0, 1.0, 0.08), 1.0)
+		
 		# Sleeper window (extended cabin)
 		var sleep_win = Rect2(Vector2(170, cab_y_bottom - 66), Vector2(28, 16))
 		draw_rect(sleep_win, window_col, true)
 		draw_rect(sleep_win, color * 0.7, false, 1.0)
+		# Sleeper window streak
+		draw_line(Vector2(174, cab_y_bottom - 66), Vector2(182, cab_y_bottom - 50), Color(1.0, 1.0, 1.0, 0.12), 1.0)
 		
 		# Deflector roof vane
 		var def_points = PackedVector2Array([
@@ -336,11 +390,35 @@ func _draw_cabin(color: Color) -> void:
 		])
 		draw_polyline(def_points, color * 1.2, 2.0)
 		
+		# Rearview side mirrors
+		draw_rect(Rect2(Vector2(92, cab_y_bottom - 72), Vector2(4, 18)), color * 0.9, false, 1.5)
+		draw_line(Vector2(96, cab_y_bottom - 62), Vector2(100, cab_y_bottom - 62), color * 0.8, 1.5)
+		
+		# Roof warning lights
+		draw_circle(Vector2(120, cab_y_bottom - 86), 2.0, warning_amber)
+		draw_circle(Vector2(150, cab_y_bottom - 86), 2.0, warning_amber)
+		draw_circle(Vector2(180, cab_y_bottom - 86), 2.0, warning_amber)
+		
 	else:
 		# STANDARD: Tight city cabover profile
 		var cab_rect = Rect2(Vector2(100, cab_y_bottom - 80), Vector2(80, 78))
 		draw_rect(cab_rect, cab_col, false, 2.0)
 		draw_rect(cab_rect, Color(0.04, 0.04, 0.06, 0.75), true)
+		
+		# Panel shut-lines & door handle
+		draw_line(Vector2(150, cab_y_bottom), Vector2(150, cab_y_bottom - 80), color * 0.4, 1.0)
+		draw_line(Vector2(100, cab_y_bottom - 40), Vector2(150, cab_y_bottom - 40), color * 0.4, 1.0)
+		draw_rect(Rect2(Vector2(138, cab_y_bottom - 36), Vector2(8, 2)), Color.LIGHT_GRAY, true)
+		
+		# Driver seat silhouette inside cabin window
+		var seat_pts = PackedVector2Array([
+			Vector2(125, cab_y_bottom - 44),
+			Vector2(133, cab_y_bottom - 44),
+			Vector2(133, cab_y_bottom - 60),
+			Vector2(128, cab_y_bottom - 60)
+		])
+		draw_polygon(seat_pts, [Color(0.12, 0.14, 0.18, 0.6)])
+		draw_circle(Vector2(130, cab_y_bottom - 64), 2.5, Color(0.12, 0.14, 0.18, 0.6))
 		
 		# Side Window
 		var win_points = PackedVector2Array([
@@ -351,6 +429,19 @@ func _draw_cabin(color: Color) -> void:
 		])
 		draw_polygon(win_points, [window_col])
 		draw_polyline(win_points, color * 0.8, 1.5)
+		
+		# Window Glass reflective streaks
+		draw_line(Vector2(112, cab_y_bottom - 72), Vector2(124, cab_y_bottom - 44), Color(1.0, 1.0, 1.0, 0.2), 1.5)
+		draw_line(Vector2(118, cab_y_bottom - 72), Vector2(130, cab_y_bottom - 44), Color(1.0, 1.0, 1.0, 0.08), 1.0)
+		
+		# Rearview side mirrors
+		draw_rect(Rect2(Vector2(92, cab_y_bottom - 68), Vector2(4, 16)), color * 0.9, false, 1.5)
+		draw_line(Vector2(96, cab_y_bottom - 58), Vector2(100, cab_y_bottom - 58), color * 0.8, 1.5)
+		
+		# Roof warning lights
+		draw_circle(Vector2(120, cab_y_bottom - 82), 2.0, warning_amber)
+		draw_circle(Vector2(145, cab_y_bottom - 82), 2.0, warning_amber)
+		draw_circle(Vector2(170, cab_y_bottom - 82), 2.0, warning_amber)
 
 func _draw_engine_block() -> void:
 	var ground_y = 145.0
@@ -423,9 +514,19 @@ func _draw_cargo_rig(color: Color) -> void:
 			for cx in range(int(cargo_x + 20), int(cargo_x + cargo_w), 24):
 				draw_line(Vector2(cx, cargo_y_top), Vector2(cx, rig_y_bottom), color * 0.35, 1.0)
 			
+			# Reflective safety tape at the bottom
+			var tape_y = rig_y_bottom - 4
+			for tx in range(int(cargo_x), int(cargo_x + cargo_w - 10), 16):
+				var tape_col = Color.RED if (tx / 16) % 2 == 0 else Color.WHITE
+				draw_line(Vector2(tx, tape_y), Vector2(tx + 12, tape_y), tape_col, 2.0)
+			
 			# Door structural details
 			draw_line(Vector2(cargo_x + cargo_w - 6, cargo_y_top), Vector2(cargo_x + cargo_w - 6, rig_y_bottom), color, 1.5)
 			draw_rect(Rect2(Vector2(cargo_x + cargo_w - 14, cargo_y_top + 40), Vector2(6, 12)), color * 0.8, true)
+			
+			# Dual vertical chrome locking rods
+			draw_line(Vector2(cargo_x + cargo_w - 16, cargo_y_top + 6), Vector2(cargo_x + cargo_w - 16, rig_y_bottom - 6), Color(0.7, 0.72, 0.78, 0.85), 1.5)
+			draw_line(Vector2(cargo_x + cargo_w - 24, cargo_y_top + 6), Vector2(cargo_x + cargo_w - 24, rig_y_bottom - 6), Color(0.7, 0.72, 0.78, 0.85), 1.5)
 			
 		"REEFER":
 			# Refrigerated Box Container
@@ -447,6 +548,19 @@ func _draw_cargo_rig(color: Color) -> void:
 					color * 1.5,
 					1.5
 				)
+				
+			# Micro Glowing LED Display Screen displaying Temperature
+			var disp_rect = Rect2(Vector2(cargo_x - comp_w + 3, cargo_y_top + 54), Vector2(16, 9))
+			draw_rect(disp_rect, Color(0.02, 0.02, 0.04), true)
+			var led_col = Color(0.2, 0.95, 0.3, 0.9) if is_animated else Color(0.05, 0.25, 0.08)
+			var font = ThemeDB.get_fallback_font()
+			draw_string(font, Vector2(cargo_x - comp_w + 4, cargo_y_top + 61), "-18C", HORIZONTAL_ALIGNMENT_LEFT, -1, 6, led_col)
+			
+			# Reflective safety tape at the bottom
+			var tape_y = rig_y_bottom - 4
+			for tx in range(int(cargo_x), int(cargo_x + cargo_w - 10), 16):
+				var tape_col = Color.RED if (tx / 16) % 2 == 0 else Color.WHITE
+				draw_line(Vector2(tx, tape_y), Vector2(tx + 12, tape_y), tape_col, 2.0)
 			
 			# Interior cooling wave lines
 			if is_animated:
@@ -484,6 +598,16 @@ func _draw_cargo_rig(color: Color) -> void:
 				Vector2(cargo_x + 15, tip_y_top + 25)
 			])
 			draw_polyline(hyd_pts, Color.GOLD, 2.5)
+			# Piston sleeve
+			draw_line(Vector2(cargo_x + 32, rig_y_bottom - 12), Vector2(cargo_x + 22, tip_y_top + 38), Color.DARK_GRAY, 4.0)
+			
+			# Heavy rear rubber mudflaps with diagonal hazard ticks
+			var flap_w = 12.0
+			var flap_h = 16.0
+			var flap_rect = Rect2(Vector2(cargo_x + cargo_w - 20, rig_y_bottom), Vector2(flap_w, flap_h))
+			draw_rect(flap_rect, Color(0.12, 0.12, 0.15), true)
+			draw_line(Vector2(cargo_x + cargo_w - 20, rig_y_bottom), Vector2(cargo_x + cargo_w - 8, rig_y_bottom + 16), Color.WHITE, 1.0)
+			draw_line(Vector2(cargo_x + cargo_w - 15, rig_y_bottom), Vector2(cargo_x + cargo_w - 4, rig_y_bottom + 15), Color.WHITE, 1.0)
 			
 		"AUTOMOTIVE":
 			# Skeletal double-deck car carrier frame
@@ -543,6 +667,23 @@ func _draw_cargo_rig(color: Color) -> void:
 			])
 			draw_polygon(icon_pts, [Color.RED])
 			draw_polyline(icon_pts, Color.WHITE, 1.0)
+			
+			# Placard text "HAZ"
+			var font = ThemeDB.get_fallback_font()
+			draw_string(font, icon_center + Vector2(-9, 3), "HAZ", HORIZONTAL_ALIGNMENT_CENTER, -1, 7, Color.WHITE)
+			
+			# Chevron safety caution stripes on the back of the tank cylinder
+			var back_x_start = cargo_x + cargo_w - 18.0
+			for sy in range(int(tank_y + 12), int(tank_y + tank_h - 12), 10):
+				draw_line(Vector2(back_x_start, sy), Vector2(back_x_start + 8, sy + 4), Color.YELLOW, 2.0)
+				draw_line(Vector2(back_x_start, sy + 4), Vector2(back_x_start + 8, sy + 8), Color.RED, 2.0)
+				
+			# Rear access metal ladder
+			var ladder_x = cargo_x + cargo_w - 24.0
+			draw_line(Vector2(ladder_x, tank_y), Vector2(ladder_x, rig_y_bottom), Color.LIGHT_GRAY, 1.5)
+			draw_line(Vector2(ladder_x - 5, tank_y), Vector2(ladder_x - 5, rig_y_bottom), Color.LIGHT_GRAY, 1.5)
+			for ly in range(int(tank_y + 4), int(rig_y_bottom - 4), 10):
+				draw_line(Vector2(ladder_x - 5, ly), Vector2(ladder_x, ly), Color.LIGHT_GRAY, 1.0)
 			
 			# Dynamic liquid sloshing indicators
 			if is_animated:
@@ -615,15 +756,27 @@ func _draw_cargo_rig(color: Color) -> void:
 			for cx in range(int(cargo_x + 75), int(cargo_x + 75 + payload_w - 40), 18):
 				draw_rect(Rect2(Vector2(cx, lowboy_y - payload_h + 10), Vector2(10, 55)), Color(0.6, 0.15, 0.95, 0.35), true)
 				
+			# Flashing amber warning beacon on the reactor
+			var amber_pulse = (Time.get_ticks_msec() / 250) % 2 == 0
+			var beacon_col = Color(1.0, 0.65, 0.0, 1.0) if amber_pulse else Color(0.3, 0.15, 0.0)
+			draw_rect(Rect2(Vector2(cargo_x + 50 + payload_w * 0.5 - 6, lowboy_y - payload_h - 6), Vector2(12, 6)), Color(0.15, 0.15, 0.18), true)
+			draw_circle(Vector2(cargo_x + 50 + payload_w * 0.5, lowboy_y - payload_h - 4), 3.0, beacon_col)
+			
 			# Glowing hazard indicators
 			if is_animated:
 				var electric_pulse = (Time.get_ticks_msec() / 150) % 2 == 0
 				var lamp_color = Color.MAGENTA if electric_pulse else Color(0.3, 0.0, 0.3)
 				draw_circle(Vector2(cargo_x + 50 + payload_w * 0.5, lowboy_y - payload_h + 15), 4.0, lamp_color)
 				
-				# Structural tiedown cables
-				draw_line(Vector2(cargo_x + 25, lowboy_y), Vector2(cargo_x + 70, lowboy_y - payload_h + 10), color * 0.4, 1.5)
-				draw_line(Vector2(cargo_x + cargo_w - 75, lowboy_y), Vector2(cargo_x + 50 + payload_w - 20, lowboy_y - payload_h + 10), color * 0.4, 1.5)
+				# Interlocking steel chains
+				var chain_col = Color(0.7, 0.72, 0.8, 0.85)
+				var ch1_start = Vector2(cargo_x + 25, lowboy_y)
+				var ch1_end = Vector2(cargo_x + 70, lowboy_y - payload_h + 10)
+				_draw_vector_chain(ch1_start, ch1_end, chain_col)
+				
+				var ch2_start = Vector2(cargo_x + cargo_w - 75, lowboy_y)
+				var ch2_end = Vector2(cargo_x + 50 + payload_w - 20, lowboy_y - payload_h + 10)
+				_draw_vector_chain(ch2_start, ch2_end, chain_col)
 
 func _draw_wireframe_car_silhouette(pos: Vector2, car_color: Color) -> void:
 	var car_pts = PackedVector2Array([
@@ -682,11 +835,26 @@ func _draw_wheels() -> void:
 		draw_circle(center, wheel_r, wheel_col * 0.4)
 		draw_arc(center, wheel_r, 0, TAU, 18, wheel_col, 2.0, true)
 		
+		# Dynamic high-fidelity rotating tire treads (radiating tick lines)
+		var tread_count = 14
+		for t in range(tread_count):
+			var ta = wheel_angle + (float(t) / tread_count) * TAU
+			var tread_start = center + Vector2(cos(ta), sin(ta)) * wheel_r
+			var tread_end = center + Vector2(cos(ta), sin(ta)) * (wheel_r + 1.8)
+			draw_line(tread_start, tread_end, Color(0.04, 0.04, 0.06, 0.9), 1.5)
+		
 		# Rim inner ring
 		draw_circle(center, wheel_r - 4, Color(0.06, 0.08, 0.12, 0.9))
 		draw_arc(center, wheel_r - 4, 0, TAU, 12, hub_col * 0.5, 1.0, true)
 		
-		# Rotating spoke lines (feel dynamic!)
+		# Rim nuts/bolts pattern (rotating)
+		var bolt_count = 6
+		for b in range(bolt_count):
+			var ba = wheel_angle + (float(b) / bolt_count) * TAU
+			var bolt_pos = center + Vector2(cos(ba), sin(ba)) * (wheel_r - 7)
+			draw_circle(bolt_pos, 0.8, Color(0.65, 0.7, 0.78, 0.9))
+		
+		# Rotating spoke lines
 		for s in range(5):
 			var a = wheel_angle + (float(s) / 5.0) * TAU
 			var outer_pt = center + Vector2(cos(a), sin(a)) * (wheel_r - 2)
@@ -798,3 +966,65 @@ func _draw_highlight_halo() -> void:
 		draw_arc(c, r, 0, TAU, 32, line_color, 2.0, true)
 		# Draw a smaller accent circle
 		draw_arc(c, base_r - 2.0, 0, TAU, 24, line_color * 0.5, 1.0, true)
+
+func _draw_vector_chain(p1: Vector2, p2: Vector2, col: Color) -> void:
+	var dist = p1.distance_to(p2)
+	var steps = int(dist / 4.5)
+	for i in range(steps + 1):
+		var t = float(i) / float(steps) if steps > 0 else 0.0
+		var pos = p1.lerp(p2, t)
+		draw_circle(pos, 1.6, col)
+		draw_circle(pos, 0.8, Color(0.04, 0.04, 0.06))
+
+func _draw_hud_decorations() -> void:
+	var margin = 6.0
+	var c_col = Color(0.2, 0.9, 0.7, 0.45) # Cyber Cyan tech hud
+	var border_w = 1.5
+	var corner_len = 12.0
+	
+	# Draw technical HUD corner brackets on the edges
+	var corners = [
+		[Vector2(margin, margin), Vector2(margin + corner_len, margin), Vector2(margin, margin + corner_len)],
+		[Vector2(size.x - margin, margin), Vector2(size.x - margin - corner_len, margin), Vector2(size.x - margin, margin + corner_len)],
+		[Vector2(margin, size.y - margin), Vector2(margin + corner_len, size.y - margin), Vector2(margin, size.y - margin - corner_len)],
+		[Vector2(size.x - margin, size.y - margin), Vector2(size.x - margin - corner_len, size.y - margin), Vector2(size.x - margin, size.y - margin - corner_len)]
+	]
+	for c in corners:
+		draw_line(c[0], c[1], c_col, border_w)
+		draw_line(c[0], c[2], c_col, border_w)
+		
+	# Draw technical crosshair/reticle at coordinates (70, 70) on the right side
+	var target_center = Vector2(size.x - 240, 48)
+	var tc_alpha = c_col * 0.7
+	draw_arc(target_center, 12.0, 0, TAU, 24, tc_alpha, 1.0, true)
+	draw_arc(target_center, 4.0, 0, TAU, 16, tc_alpha, 1.0, true)
+	draw_line(target_center - Vector2(18, 0), target_center - Vector2(6, 0), tc_alpha, 1.0)
+	draw_line(target_center + Vector2(6, 0), target_center + Vector2(18, 0), tc_alpha, 1.0)
+	draw_line(target_center - Vector2(0, 18), target_center - Vector2(0, 6), tc_alpha, 1.0)
+	draw_line(target_center + Vector2(0, 6), target_center + Vector2(0, 18), tc_alpha, 1.0)
+	
+	# Draw spec sheet legend box on the bottom left
+	var spec_x = 14.0
+	var spec_y = size.y - 58.0
+	var spec_w = 180.0
+	var spec_h = 44.0
+	
+	var spec_rect = Rect2(Vector2(spec_x, spec_y), Vector2(spec_w, spec_h))
+	draw_rect(spec_rect, Color(0.04, 0.04, 0.06, 0.8), true)
+	draw_rect(spec_rect, c_col * 0.2, false, 1.0)
+	
+	var font = ThemeDB.get_fallback_font()
+	var f_size = 7
+	var txt_col = Color(0.2, 0.9, 0.7, 0.85)
+	
+	# Draw nice mock telemetry parameters
+	draw_string(font, Vector2(spec_x + 6, spec_y + 10), "SYS_PLATFORM: SCARFIA R-600 COMP", HORIZONTAL_ALIGNMENT_LEFT, -1, f_size, txt_col)
+	draw_string(font, Vector2(spec_x + 6, spec_y + 18), "SYS_CHASSIS: STEEL-M12 MULT-AXLE", HORIZONTAL_ALIGNMENT_LEFT, -1, f_size, txt_col)
+	draw_string(font, Vector2(spec_x + 6, spec_y + 26), "TIRE_MODEL : FL_SER_315/70 R22.5", HORIZONTAL_ALIGNMENT_LEFT, -1, f_size, txt_col)
+	draw_string(font, Vector2(spec_x + 6, spec_y + 34), "LINK_SPEED : 2.44 GBPS_SEC_ENCR", HORIZONTAL_ALIGNMENT_LEFT, -1, f_size, txt_col)
+	
+	# Small glowing green status bullet
+	var pulse_status = (Time.get_ticks_msec() / 300) % 2 == 0
+	var stat_dot_col = Color(0.1, 0.9, 0.25, 0.9) if pulse_status else Color(0.05, 0.3, 0.08)
+	draw_circle(Vector2(spec_x + spec_w - 8, spec_y + 8), 2.0, stat_dot_col)
+

@@ -95,22 +95,12 @@ func _ready() -> void:
 # BUILD UI
 # ====================================================
 func _build_ui() -> void:
-	# Background
-	var bg = ColorRect.new()
-	bg.color = Color(0.04, 0.04, 0.07, 1.0)
-	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	# Programmatic High-Fidelity Animated HUD Background
+	var bg = CyberGridBackground.new()
 	scene_root.add_child(bg)
 
-	# Grid lines
-	for i in range(10):
-		var gl = ColorRect.new()
-		gl.color = Color(0.07, 0.07, 0.11, 0.5)
-		gl.position = Vector2(0, 72 * i)
-		gl.size = Vector2(1280, 1)
-		scene_root.add_child(gl)
-
 	# HEADER
-	var hdr = _panel(Vector2(0, 0), Vector2(1280, 64), Color(0.07, 0.06, 0.11, 0.97))
+	var hdr = _panel(Vector2(0, 0), Vector2(1280, 64), Color(0.04, 0.05, 0.08, 0.95), Color(0.2, 0.9, 0.7, 0.35))
 	scene_root.add_child(hdr)
 
 	var title = Label.new()
@@ -125,7 +115,7 @@ func _build_ui() -> void:
 	hdr.add_child(back_btn)
 
 	# TRUCK SELECTOR BAR
-	var truck_bar = _panel(Vector2(0, 64), Vector2(1280, 52), Color(0.06, 0.05, 0.09, 0.95))
+	var truck_bar = _panel(Vector2(0, 64), Vector2(1280, 52), Color(0.04, 0.04, 0.06, 0.92), Color(0.2, 0.9, 0.7, 0.2))
 	truck_bar.name = "TruckBar"
 	scene_root.add_child(truck_bar)
 
@@ -155,7 +145,7 @@ func _build_ui() -> void:
 
 	# THREE-COLUMN LAYOUT (y=120)
 	# Left: Catalog list
-	var cat_panel = _panel(Vector2(12, 122), Vector2(420, 548), Color(0.06, 0.06, 0.09, 0.9))
+	var cat_panel = _panel(Vector2(12, 122), Vector2(420, 548), Color(0.04, 0.04, 0.07, 0.85), Color(0.65, 0.45, 1.0, 0.3))
 	cat_panel.name = "CatalogPanel"
 	scene_root.add_child(cat_panel)
 
@@ -191,19 +181,19 @@ func _build_ui() -> void:
 	cat_scroll.add_child(cat_list)
 
 	# Center: Item detail + purchase
-	var det_panel = _panel(Vector2(440, 122), Vector2(430, 548), Color(0.06, 0.06, 0.09, 0.9))
+	var det_panel = _panel(Vector2(440, 122), Vector2(430, 548), Color(0.04, 0.04, 0.07, 0.85), Color(0.95, 0.7, 0.15, 0.3))
 	det_panel.name = "DetailPanel"
 	scene_root.add_child(det_panel)
 	_render_detail_placeholder()
 
 	# Right: Truck blueprint + health monitor
-	var truck_panel = _panel(Vector2(878, 122), Vector2(390, 548), Color(0.06, 0.06, 0.09, 0.9))
+	var truck_panel = _panel(Vector2(878, 122), Vector2(390, 548), Color(0.04, 0.04, 0.07, 0.85), Color(0.2, 0.9, 0.7, 0.3))
 	truck_panel.name = "TruckPanel"
 	scene_root.add_child(truck_panel)
 	_render_truck_panel_empty()
 
 	# Status / toast bar at bottom
-	var status_bar = _panel(Vector2(0, 678), Vector2(1280, 42), Color(0.05, 0.04, 0.08, 0.97))
+	var status_bar = _panel(Vector2(0, 678), Vector2(1280, 42), Color(0.04, 0.04, 0.06, 0.95), Color(0.2, 0.9, 0.7, 0.2))
 	scene_root.add_child(status_bar)
 	var status_lbl = Label.new()
 	status_lbl.text = "Select a truck to view its current health. Purchase parts to restore performance or install underworld mods."
@@ -765,13 +755,15 @@ func _show_toast(msg: String, color: Color = Color(1.0, 0.85, 0.2, 1.0), duratio
 	tw.tween_property(t, "modulate:a", 0.0, 1.0)
 	tw.tween_callback(t.queue_free)
 
-func _panel(pos: Vector2, sz: Vector2, col: Color) -> PanelContainer:
+func _panel(pos: Vector2, sz: Vector2, col: Color, b_col: Color = Color(0.2, 0.9, 0.7, 0.25)) -> PanelContainer:
 	var p = PanelContainer.new()
 	p.position = pos
 	p.size = sz
 	var s = StyleBoxFlat.new()
-	s.bg_color = col
-	s.border_color = Color(0.22, 0.16, 0.32, 0.6)
+	var alpha_col = col
+	alpha_col.a = 0.85 # Sleek translucent glassmorphism
+	s.bg_color = alpha_col
+	s.border_color = b_col
 	s.border_width_bottom = 1; s.border_width_top = 1
 	s.border_width_left = 1; s.border_width_right = 1
 	s.set_corner_radius_all(6)

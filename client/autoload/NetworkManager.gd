@@ -1,10 +1,10 @@
 extends Node
 
 # WebSocket connection parameters
-const HOST = "127.0.0.1"
-const PORT = 3000
-const WS_URL = "ws://%s:%d/ws" % [HOST, PORT]
-const HTTP_URL = "http://%s:%d/api" % [HOST, PORT]
+var HOST = "127.0.0.1"
+var PORT = 3000
+var WS_URL = "ws://127.0.0.1:3000/ws"
+var HTTP_URL = "http://127.0.0.1:3000/api"
 
 # Local connection states
 var socket: WebSocketPeer = null
@@ -54,11 +54,36 @@ signal foreclosure_settled(data)
 
 
 func _ready() -> void:
+	_load_config()
 	# Build reconnection timer
 	reconnect_timer = Timer.new()
 	reconnect_timer.one_shot = true
 	reconnect_timer.timeout.connect(_on_reconnect_timeout)
 	add_child(reconnect_timer)
+
+func _load_config() -> void:
+	var path = "res://config.json"
+	if FileAccess.file_exists("user://config.json"):
+		path = "user://config.json"
+	
+	if FileAccess.file_exists(path):
+		var file = FileAccess.open(path, FileAccess.READ)
+		var content = file.get_as_text()
+		var json = JSON.parse_string(content)
+		if json:
+			if json.has("host"):
+				HOST = json.host
+			if json.has("port"):
+				PORT = int(json.port)
+			if json.has("ws_url"):
+				WS_URL = json.ws_url
+			else:
+				WS_URL = "ws://%s:%d/ws" % [HOST, PORT]
+			if json.has("http_url"):
+				HTTP_URL = json.http_url
+			else:
+				HTTP_URL = "http://%s:%d/api" % [HOST, PORT]
+			print("[Network] Config loaded from %s. WS: %s, HTTP: %s" % [path, WS_URL, HTTP_URL])
 
 func _process(_delta: float) -> void:
 	if socket:

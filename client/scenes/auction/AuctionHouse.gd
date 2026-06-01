@@ -145,11 +145,23 @@ func _render_listings() -> void:
 func _build_listing_card(listing: Dictionary) -> PanelContainer:
 	var panel = PanelContainer.new()
 	var is_my_listing = listing.get("sellerCompanyId", "") == GameState.company_id or listing.get("sellerId", "") == GameState.player_id
+	var currency = listing.get("currency", "LEGAL")
+	
+	var border_col: Color
+	if is_my_listing:
+		border_col = Color(0.95, 0.75, 0.15, 0.6)  # Glowing Financial Amber
+	elif currency == "LEGAL":
+		border_col = Color(0.2, 0.9, 0.7, 0.4)     # Glowing Cyber Cyan
+	else:
+		border_col = Color(0.65, 0.45, 1.0, 0.4)    # Glowing Underworld Purple
+		
 	var style = StyleBoxFlat.new()
-	style.bg_color = Color(0.055, 0.063, 0.078, 1.0)
-	style.border_color = Color(0.925, 0.607, 0.141, 0.4) if is_my_listing else Color(0.18, 0.803, 0.443, 0.2)
+	style.bg_color = Color(0.04, 0.04, 0.06, 0.85) # Glassmorphic
+	style.border_color = border_col
 	style.border_width_left = 3
-	style.border_width_top = 0
+	style.border_width_top = 1
+	style.border_width_right = 1
+	style.border_width_bottom = 1
 	style.set_corner_radius_all(6)
 	style.content_margin_left = 14
 	style.content_margin_right = 14
@@ -178,7 +190,7 @@ func _build_listing_card(listing: Dictionary) -> PanelContainer:
 	if is_my_listing:
 		var own_lbl = Label.new()
 		own_lbl.text = "★ YOUR LISTING"
-		own_lbl.add_theme_color_override("font_color", Color(0.925, 0.607, 0.141))
+		own_lbl.add_theme_color_override("font_color", Color(0.95, 0.75, 0.15))
 		own_lbl.add_theme_font_size_override("font_size", 11)
 		header.add_child(own_lbl)
 	vbox.add_child(header)
@@ -191,7 +203,7 @@ func _build_listing_card(listing: Dictionary) -> PanelContainer:
 		int(truck.get("engineHealth", 0)),
 		int(truck.get("tireWear", 0))
 	]
-	sub_lbl.add_theme_color_override("font_color", Color(0.709, 0.768, 0.843, 0.6))
+	sub_lbl.add_theme_color_override("font_color", Color(0.75, 0.75, 0.85, 0.6))
 	sub_lbl.add_theme_font_size_override("font_size", 11)
 	vbox.add_child(sub_lbl)
 
@@ -200,7 +212,7 @@ func _build_listing_card(listing: Dictionary) -> PanelContainer:
 	if mod != "STOCK":
 		var rig_lbl = Label.new()
 		rig_lbl.text = "⚠ RIGGED: " + mod
-		rig_lbl.add_theme_color_override("font_color", Color(0.607, 0.349, 0.713))
+		rig_lbl.add_theme_color_override("font_color", Color(0.65, 0.45, 1.0))
 		rig_lbl.add_theme_font_size_override("font_size", 11)
 		vbox.add_child(rig_lbl)
 
@@ -208,9 +220,8 @@ func _build_listing_card(listing: Dictionary) -> PanelContainer:
 	var bid_row = HBoxContainer.new()
 	bid_row.add_theme_constant_override("separation", 16)
 
-	var currency = listing.get("currency", "LEGAL")
 	var current_bid = float(listing.get("currentBid", listing.get("startingBid", 0)))
-	var bid_color = Color(0.18, 0.803, 0.443) if currency == "LEGAL" else Color(0.607, 0.349, 0.713)
+	var bid_color = Color(0.2, 0.9, 0.7) if currency == "LEGAL" else Color(0.65, 0.45, 1.0)
 
 	var bid_lbl = Label.new()
 	bid_lbl.text = ("$%.0f CLEAN" if currency == "LEGAL" else "$%.0f DIRTY") % current_bid
@@ -221,7 +232,7 @@ func _build_listing_card(listing: Dictionary) -> PanelContainer:
 	# Bid count
 	var count_lbl = Label.new()
 	count_lbl.text = "%d bids" % int(listing.get("bidCount", 0))
-	count_lbl.add_theme_color_override("font_color", Color(0.709, 0.768, 0.843, 0.5))
+	count_lbl.add_theme_color_override("font_color", Color(0.75, 0.75, 0.85, 0.5))
 	count_lbl.add_theme_font_size_override("font_size", 11)
 	bid_row.add_child(count_lbl)
 	vbox.add_child(bid_row)
@@ -231,13 +242,7 @@ func _build_listing_card(listing: Dictionary) -> PanelContainer:
 		var btn = Button.new()
 		btn.text = "⚡ PLACE BID"
 		btn.add_theme_font_size_override("font_size", 12)
-		btn.add_theme_color_override("font_color", Color(0.925, 0.607, 0.141))
-		var style_btn = StyleBoxFlat.new()
-		style_btn.bg_color = Color(0.925, 0.607, 0.141, 0.07)
-		style_btn.border_color = Color(0.925, 0.607, 0.141, 0.4)
-		style_btn.border_width_bottom = 1
-		style_btn.set_corner_radius_all(4)
-		btn.add_theme_stylebox_override("normal", style_btn)
+		_style_btn(btn, Color(0.2, 0.9, 0.7) if currency == "LEGAL" else Color(0.65, 0.45, 1.0))
 		btn.pressed.connect(_open_bid_panel.bind(listing))
 		vbox.add_child(btn)
 
@@ -257,14 +262,13 @@ func _open_bid_panel(listing: Dictionary) -> void:
 	var currency = listing.get("currency", "LEGAL")
 	bid_current_lbl.text = ("Current: $%.0f CLEAN" if currency == "LEGAL" else "Current: $%.0f DIRTY") % current_bid
 	bid_current_lbl.add_theme_color_override("font_color",
-		Color(0.18, 0.803, 0.443) if currency == "LEGAL" else Color(0.607, 0.349, 0.713)
+		Color(0.2, 0.9, 0.7) if currency == "LEGAL" else Color(0.65, 0.45, 1.0)
 	)
 
 	# Calculate remaining time
 	var expires_at = listing.get("expiresAt", "")
 	if expires_at != "":
 		var now = Time.get_unix_time_from_system()
-		# Parse ISO string roughly (Godot 4 doesn't have full ISO parser)
 		countdown_timer = max(0.0, float(listing.get("secondsRemaining", 300)))
 	else:
 		countdown_timer = 300.0  # default 5 min if no data
@@ -338,7 +342,7 @@ func _append_bid_history_entry(bid: Dictionary) -> void:
 	bidder_lbl.text = bidder_name
 	bidder_lbl.add_theme_font_size_override("font_size", 11)
 	bidder_lbl.add_theme_color_override("font_color",
-		Color(0.925, 0.607, 0.141) if (bidder_name == GameState.company_name or bidder_name == GameState.username) else Color(0.709, 0.768, 0.843, 0.7)
+		Color(0.95, 0.75, 0.15) if (bidder_name == GameState.company_name or bidder_name == GameState.username) else Color(0.75, 0.75, 0.85, 0.7)
 	)
 	row.add_child(bidder_lbl)
 
@@ -349,7 +353,7 @@ func _append_bid_history_entry(bid: Dictionary) -> void:
 	var amt_lbl = Label.new()
 	amt_lbl.text = "$%.0f" % float(bid.get("amount", 0))
 	amt_lbl.add_theme_font_size_override("font_size", 11)
-	amt_lbl.add_theme_color_override("font_color", Color(0.18, 0.803, 0.443))
+	amt_lbl.add_theme_color_override("font_color", Color(0.2, 0.9, 0.7))
 	row.add_child(amt_lbl)
 
 	bid_history.add_child(row)
@@ -382,9 +386,9 @@ func _on_bid_update(payload: Dictionary) -> void:
 		var bidder_name = payload.get("highestBidderCompanyName", payload.get("bidderUsername", "?"))
 
 		if bidder_company_id != GameState.company_id:
-			_log("New bid placed: $%.0f by %s" % [current_bid, bidder_name], Color(0.925, 0.607, 0.141))
+			_log("New bid placed: $%.0f by %s" % [current_bid, bidder_name], Color(0.95, 0.75, 0.15))
 		else:
-			_log("✓ You placed a bid of $%.0f!" % current_bid, Color(0.18, 0.803, 0.443))
+			_log("✓ You placed a bid of $%.0f!" % current_bid, Color(0.2, 0.9, 0.7))
 
 		_append_bid_history_entry({
 			"bidderUsername": bidder_name,
@@ -393,9 +397,9 @@ func _on_bid_update(payload: Dictionary) -> void:
 
 func _on_bid_resolved(success: bool, data: Dictionary) -> void:
 	if success:
-		_log("✓ Bid accepted! You are the current high bidder.", Color(0.18, 0.803, 0.443))
+		_log("✓ Bid accepted! You are the current high bidder.", Color(0.2, 0.9, 0.7))
 	else:
-		_log("✗ Bid rejected: " + data.get("message", "Insufficient amount."), Color(0.901, 0.298, 0.235))
+		_log("✗ Bid rejected: " + data.get("message", "Insufficient amount."), Color(1.0, 0.25, 0.25))
 
 func _on_ws_packet(packet: Dictionary) -> void:
 	match packet.get("type", ""):
@@ -405,9 +409,9 @@ func _on_ws_packet(packet: Dictionary) -> void:
 			var winner_name = payload.get("winnerCompanyName", payload.get("winnerUsername", ""))
 			
 			if winner_company_id == GameState.company_id or winner_name == GameState.username:
-				_log("🏆 YOUR COMPANY WON the auction! Truck added to your fleet.", Color(0.18, 0.803, 0.443))
+				_log("🏆 YOUR COMPANY WON the auction! Truck added to your fleet.", Color(0.2, 0.9, 0.7))
 			else:
-				_log("Auction settled. Winner: %s" % (winner_name if not winner_name.is_empty() else "Unsold"), Color(0.709, 0.768, 0.843))
+				_log("Auction settled. Winner: %s" % (winner_name if not winner_name.is_empty() else "Unsold"), Color(0.75, 0.75, 0.85))
 			_fetch_listings()
 
 # ==========================================
@@ -419,32 +423,32 @@ func _on_place_bid() -> void:
 
 	var input_val = bid_input.text.strip_edges()
 	if not input_val.is_valid_float():
-		_log("Invalid bid amount entered.", Color(0.901, 0.298, 0.235))
+		_log("Invalid bid amount entered.", Color(1.0, 0.25, 0.25))
 		return
 
 	var amount = float(input_val)
 	var current_bid = float(selected_listing.get("currentBid", selected_listing.get("startingBid", 0)))
 	if amount <= current_bid:
-		_log("Bid must exceed current high bid of $%.0f." % current_bid, Color(0.901, 0.298, 0.235))
+		_log("Bid must exceed current high bid of $%.0f." % current_bid, Color(1.0, 0.25, 0.25))
 		return
 
 	if countdown_timer <= 0.0:
-		_log("This auction has expired.", Color(0.901, 0.298, 0.235))
+		_log("This auction has expired.", Color(1.0, 0.25, 0.25))
 		return
 
-	_log("Submitting bid of $%.0f via secure channel..." % amount, Color(0.925, 0.607, 0.141))
+	_log("Submitting bid of $%.0f via secure channel..." % amount, Color(0.95, 0.75, 0.15))
 	NetworkManager.send_bid(selected_listing.get("id", ""), amount)
 
 func _show_all_filter() -> void:
 	filter_mode = "all"
-	filter_all_btn.add_theme_color_override("font_color", Color(0.18, 0.803, 0.443))
-	filter_mine_btn.add_theme_color_override("font_color", Color(0.709, 0.768, 0.843, 0.4))
+	filter_all_btn.add_theme_color_override("font_color", Color(0.2, 0.9, 0.7))
+	filter_mine_btn.add_theme_color_override("font_color", Color(0.75, 0.75, 0.85, 0.4))
 	_render_listings()
 
 func _show_mine_filter() -> void:
 	filter_mode = "mine"
-	filter_mine_btn.add_theme_color_override("font_color", Color(0.925, 0.607, 0.141))
-	filter_all_btn.add_theme_color_override("font_color", Color(0.709, 0.768, 0.843, 0.4))
+	filter_mine_btn.add_theme_color_override("font_color", Color(0.95, 0.75, 0.15))
+	filter_all_btn.add_theme_color_override("font_color", Color(0.75, 0.75, 0.85, 0.4))
 	_render_listings()
 
 # ==========================================
@@ -466,4 +470,67 @@ func _on_back() -> void:
 	SceneTransition.change_scene_to_file("res://scenes/game_map/GameMap.tscn")
 
 func _apply_theme() -> void:
-	pass
+	# 1. Remove old Background if exists
+	for child in get_children():
+		if child.name == "Background" or child.name == "BG" or child.name == "Bg" or child is ColorRect:
+			child.queue_free()
+	
+	# 2. Add CyberGridBackground at index 0
+	var bg = CyberGridBackground.new()
+	bg.name = "CyberGridBackground"
+	bg.primary_color = Color(0.95, 0.75, 0.15, 0.1) # Financial Amber marketplace tone
+	bg.accent_color = Color(0.65, 0.45, 1.0, 0.08) # Underworld Purple secondary
+	add_child(bg)
+	move_child(bg, 0)
+	
+	# Style buttons
+	_style_btn(back_btn, Color(1.0, 0.25, 0.25)) # Crimson back warning button
+	_style_btn(place_bid_btn, Color(0.95, 0.75, 0.15)) # Amber bid placement
+	_style_btn(filter_all_btn, Color(0.2, 0.9, 0.7)) # Cyber Cyan filters
+	_style_btn(filter_mine_btn, Color(0.95, 0.75, 0.15)) # Amber filter
+	
+	# Style panels
+	_style_panel(bid_panel, Color(0.05, 0.05, 0.08, 0.9), Color(0.95, 0.75, 0.15, 0.35))
+
+func _style_btn(b: Button, accent_col: Color) -> void:
+	var sb_normal = StyleBoxFlat.new()
+	var sb_hover = StyleBoxFlat.new()
+	var sb_pressed = StyleBoxFlat.new()
+	var sb_disabled = StyleBoxFlat.new()
+	
+	sb_normal.bg_color = Color(accent_col.r * 0.06, accent_col.g * 0.06, accent_col.b * 0.06, 0.6)
+	sb_normal.border_color = Color(accent_col.r, accent_col.g, accent_col.b, 0.3)
+	sb_normal.border_width_all(1)
+	sb_normal.set_corner_radius_all(4)
+	
+	sb_hover.bg_color = Color(accent_col.r * 0.12, accent_col.g * 0.12, accent_col.b * 0.12, 0.8)
+	sb_hover.border_color = Color(accent_col.r, accent_col.g, accent_col.b, 0.6)
+	sb_hover.border_width_all(1)
+	sb_hover.set_corner_radius_all(4)
+	
+	sb_pressed.bg_color = Color(accent_col.r * 0.2, accent_col.g * 0.2, accent_col.b * 0.2, 0.9)
+	sb_pressed.border_color = accent_col
+	sb_pressed.border_width_all(2)
+	sb_pressed.set_corner_radius_all(4)
+	
+	sb_disabled.bg_color = Color(0.04, 0.04, 0.05, 0.3)
+	sb_disabled.border_color = Color(0.1, 0.1, 0.12, 0.2)
+	sb_disabled.border_width_all(1)
+	sb_disabled.set_corner_radius_all(4)
+	
+	b.add_theme_stylebox_override("normal", sb_normal)
+	b.add_theme_stylebox_override("hover", sb_hover)
+	b.add_theme_stylebox_override("pressed", sb_pressed)
+	b.add_theme_stylebox_override("disabled", sb_disabled)
+	b.add_theme_color_override("font_color", Color(accent_col.r * 0.9 + 0.1, accent_col.g * 0.9 + 0.1, accent_col.b * 0.9 + 0.1, 1.0))
+
+func _style_panel(p: PanelContainer, bg_col: Color, border_col: Color) -> void:
+	var s = StyleBoxFlat.new()
+	var alpha_col = bg_col
+	alpha_col.a = 0.85 # glassmorphic translucent
+	s.bg_color = alpha_col
+	s.border_color = border_col
+	s.border_width_all(1)
+	s.set_corner_radius_all(6)
+	p.add_theme_stylebox_override("panel", s)
+

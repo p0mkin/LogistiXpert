@@ -86,22 +86,14 @@ func _on_balance_sync(_l, _b) -> void:
 # PROGRAMMATIC UI SYSTEM
 # ====================================================
 func _build_ui() -> void:
-	# Outer background
-	var bg = ColorRect.new()
-	bg.color = Color(0.04, 0.04, 0.06, 1.0)
-	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	# Programmatic High-Fidelity Cyber Grid Background
+	var bg = CyberGridBackground.new()
+	bg.primary_color = Color(0.65, 0.45, 1.0, 0.1) # Underworld Purple primary
+	bg.accent_color = Color(0.2, 0.9, 0.7, 0.08)   # Cyber Cyan secondary
 	scene_root.add_child(bg)
-	
-	# Grid blueprint decorations
-	for i in range(12):
-		var gl = ColorRect.new()
-		gl.color = Color(0.12, 0.08, 0.18, 0.3)
-		gl.position = Vector2(0, 60 * i)
-		gl.size = Vector2(1280, 1)
-		scene_root.add_child(gl)
 		
 	# 1. HEADER (y=0)
-	var hdr = _panel(Vector2(0, 0), Vector2(1280, 60), Color(0.06, 0.05, 0.09, 0.98))
+	var hdr = _panel(Vector2(0, 0), Vector2(1280, 60), Color(0.06, 0.05, 0.09, 0.98), Color(0.65, 0.45, 1.0, 0.35))
 	scene_root.add_child(hdr)
 
 	var title = Label.new()
@@ -113,11 +105,26 @@ func _build_ui() -> void:
 
 	var back_btn = _btn("◀  MAP HUD", Vector2(1150, 11), Vector2(106, 38))
 	back_btn.pressed.connect(_go_back)
-	back_btn.add_theme_color_override("font_color", Color(0.9, 0.3, 0.3, 1.0))
+	back_btn.add_theme_color_override("font_color", Color(1.0, 0.3, 0.3, 1.0))
+	
+	var sb_back_normal = StyleBoxFlat.new()
+	sb_back_normal.bg_color = Color(0.12, 0.05, 0.05, 0.5)
+	sb_back_normal.border_color = Color(1.0, 0.25, 0.25, 0.4)
+	sb_back_normal.border_width_all(1)
+	sb_back_normal.set_corner_radius_all(4)
+	
+	var sb_back_hover = StyleBoxFlat.new()
+	sb_back_hover.bg_color = Color(0.18, 0.08, 0.08, 0.75)
+	sb_back_hover.border_color = Color(1.0, 0.25, 0.25, 0.8)
+	sb_back_hover.border_width_all(1)
+	sb_back_hover.set_corner_radius_all(4)
+	
+	back_btn.add_theme_stylebox_override("normal", sb_back_normal)
+	back_btn.add_theme_stylebox_override("hover", sb_back_hover)
 	hdr.add_child(back_btn)
 
 	# 2. STATUS BAR (y=60)
-	var bar = _panel(Vector2(0, 60), Vector2(1280, 42), Color(0.04, 0.04, 0.05, 0.96))
+	var bar = _panel(Vector2(0, 60), Vector2(1280, 42), Color(0.04, 0.04, 0.05, 0.96), Color(0.65, 0.45, 1.0, 0.2))
 	bar.name = "StatusStrip"
 	scene_root.add_child(bar)
 	
@@ -134,7 +141,7 @@ func _build_ui() -> void:
 	var left_hdr = Label.new()
 	left_hdr.text = "DEVELOPMENT BLUEPRINTS"
 	left_hdr.add_theme_font_size_override("font_size", 12)
-	left_hdr.add_theme_color_override("font_color", Color(0.6, 0.8, 1.0, 1.0))
+	left_hdr.add_theme_color_override("font_color", Color(0.2, 0.9, 0.7, 1.0)) # Cyan accent
 	left_hdr.position = Vector2(24, 114)
 	scene_root.add_child(left_hdr)
 
@@ -156,11 +163,11 @@ func _build_ui() -> void:
 	var right_hdr = Label.new()
 	right_hdr.text = "EXCLUSIVE BRAND SPONSORSHIP CONTRACTS"
 	right_hdr.add_theme_font_size_override("font_size", 12)
-	right_hdr.add_theme_color_override("font_color", Color(1.0, 0.8, 0.2, 1.0))
+	right_hdr.add_theme_color_override("font_color", Color(0.95, 0.75, 0.15, 1.0)) # Financial Amber
 	right_hdr.position = Vector2(730, 114)
 	scene_root.add_child(right_hdr)
 
-	var brand_view = _panel(Vector2(730, 138), Vector2(526, 560), Color(0.05, 0.05, 0.08, 0.95))
+	var brand_view = _panel(Vector2(730, 138), Vector2(526, 560), Color(0.05, 0.05, 0.08, 0.95), Color(0.95, 0.75, 0.15, 0.35))
 	brand_view.name = "BrandView"
 	scene_root.add_child(brand_view)
 
@@ -194,7 +201,8 @@ func _render_research_nodes() -> void:
 		var next_cost = node.get("nextUpgradeCost")
 		
 		# Main card container
-		var card = _panel(Vector2.ZERO, Vector2(650, 94), Color(0.07, 0.06, 0.1, 0.92))
+		var border_col = Color(0.2, 0.9, 0.7, 0.4) if is_max else Color(0.65, 0.45, 1.0, 0.25)
+		var card = _panel(Vector2.ZERO, Vector2(650, 94), Color(0.07, 0.06, 0.1, 0.92), border_col)
 		card.custom_minimum_size = Vector2(650, 94)
 		tech_vbox.add_child(card)
 
@@ -275,7 +283,7 @@ func _render_research_nodes() -> void:
 		if is_max:
 			upgrade_btn.text = "COMPLETED"
 			upgrade_btn.disabled = true
-			upgrade_btn.add_theme_color_override("font_color", Color(0.4, 0.6, 0.4, 0.5))
+			_style_customizer_btn(upgrade_btn, false, Color(0.4, 0.6, 0.4))
 		else:
 			var cost_val = int(next_cost) if next_cost != null else 0
 			var formatted_cost = "$%s" % _fmt(cost_val)
@@ -283,10 +291,10 @@ func _render_research_nodes() -> void:
 			
 			# Disable if cash insufficient
 			if GameState.legal_balance < cost_val:
-				upgrade_btn.add_theme_color_override("font_color", Color(1.0, 0.4, 0.4, 0.8))
 				upgrade_btn.disabled = true
+				_style_customizer_btn(upgrade_btn, false, Color(1.0, 0.3, 0.3))
 			else:
-				upgrade_btn.add_theme_color_override("font_color", Color(0.2, 0.85, 0.45, 1.0))
+				_style_customizer_btn(upgrade_btn, true, Color(0.2, 0.85, 0.45))
 				upgrade_btn.pressed.connect(func(): _execute_upgrade(node_key))
 
 		var right_margin = Control.new()
@@ -322,7 +330,8 @@ func _render_brand_contracts() -> void:
 	panel_vbox.add_child(desc_lbl)
 
 	# Active contract highlights
-	var active_card = _panel(Vector2.ZERO, Vector2(480, 50), Color(0.09, 0.08, 0.14, 0.96))
+	var active_b_col = Color(0.2, 0.9, 0.7, 0.5) if active_partnership != "NONE" else Color(0.65, 0.45, 1.0, 0.3)
+	var active_card = _panel(Vector2.ZERO, Vector2(480, 50), Color(0.09, 0.08, 0.14, 0.96), active_b_col)
 	active_card.custom_minimum_size = Vector2(480, 50)
 	panel_vbox.add_child(active_card)
 	
@@ -332,7 +341,7 @@ func _render_brand_contracts() -> void:
 		active_lbl.add_theme_color_override("font_color", Color(1.0, 0.4, 0.4, 1.0))
 	else:
 		active_lbl.text = "📜  CURRENT STATUS: EXCLUSIVE PARTNERSHIP WITH %s" % active_partnership
-		active_lbl.add_theme_color_override("font_color", Color(0.2, 0.85, 0.45, 1.0))
+		active_lbl.add_theme_color_override("font_color", Color(0.2, 0.9, 0.7, 1.0))
 	active_lbl.add_theme_font_size_override("font_size", 11)
 	active_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	active_lbl.position = Vector2(0, 16)
@@ -367,14 +376,14 @@ func _render_brand_contracts() -> void:
 		var item_desc = item[2]
 		
 		# Render card
-		var item_card = _panel(Vector2.ZERO, Vector2(460, 68), Color(0.07, 0.06, 0.1, 0.95))
+		var item_b_col = Color(0.95, 0.75, 0.15, 0.7) if selected_brand == item_name else Color(0.18, 0.12, 0.28, 0.4)
+		var item_card = _panel(Vector2.ZERO, Vector2(460, 68), Color(0.07, 0.06, 0.1, 0.95), item_b_col)
 		item_card.custom_minimum_size = Vector2(460, 68)
 		brand_vbox.add_child(item_card)
 		
 		if selected_brand == item_name:
 			var style_sel = item_card.get_theme_stylebox("panel") as StyleBoxFlat
 			if style_sel:
-				style_sel.border_color = Color(1.0, 0.8, 0.2, 0.8) # Glowing golden border on selected
 				style_sel.border_width_left = 3
 		
 		var card_btn = Button.new()
@@ -404,7 +413,7 @@ func _render_brand_contracts() -> void:
 		item_title.text = "⚡  " + item_name
 		item_title.add_theme_font_size_override("font_size", 12)
 		if active_partnership == item_name:
-			item_title.add_theme_color_override("font_color", Color(0.2, 0.85, 0.45))
+			item_title.add_theme_color_override("font_color", Color(0.2, 0.9, 0.7))
 			item_title.text += " [ACTIVE BRAND CONTRACT]"
 		else:
 			item_title.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0))
@@ -419,7 +428,7 @@ func _render_brand_contracts() -> void:
 		var sel_rect = ColorRect.new()
 		sel_rect.custom_minimum_size = Vector2(10, 10)
 		if selected_brand == item_name:
-			sel_rect.color = Color(1.0, 0.8, 0.2, 1.0) # Golden active selection
+			sel_rect.color = Color(0.95, 0.75, 0.15, 1.0) # Financial Amber active selection
 		else:
 			sel_rect.color = Color(0.2, 0.15, 0.28, 0.5)
 		sel_rect.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -438,12 +447,12 @@ func _render_brand_contracts() -> void:
 	if active_partnership == selected_brand:
 		sign_btn.text = "ALREADY PARTNERED WITH %s" % selected_brand
 		sign_btn.disabled = true
-		sign_btn.add_theme_color_override("font_color", Color(0.4, 0.6, 0.4, 0.5))
+		_style_customizer_btn(sign_btn, false, Color(0.4, 0.6, 0.4))
 	elif GameState.legal_balance < 150000.00:
 		sign_btn.disabled = true
-		sign_btn.add_theme_color_override("font_color", Color(1.0, 0.4, 0.4, 0.8))
+		_style_customizer_btn(sign_btn, false, Color(1.0, 0.3, 0.3))
 	else:
-		sign_btn.add_theme_color_override("font_color", Color(1.0, 0.8, 0.2, 1.0))
+		_style_customizer_btn(sign_btn, true, Color(0.95, 0.75, 0.15))
 		sign_btn.pressed.connect(func(): _execute_sign_partnership(selected_brand))
 	
 	panel_vbox.add_child(sign_btn)
@@ -491,13 +500,15 @@ func _show_toast(msg: String, color: Color = Color(1.0, 0.85, 0.2, 1.0), duratio
 	tw.tween_property(t, "modulate:a", 0.0, 1.0)
 	tw.tween_callback(t.queue_free)
 
-func _panel(pos: Vector2, sz: Vector2, col: Color) -> PanelContainer:
+func _panel(pos: Vector2, sz: Vector2, col: Color, b_col: Color = Color(0.18, 0.12, 0.28, 0.6)) -> PanelContainer:
 	var p = PanelContainer.new()
 	p.position = pos
 	p.size = sz
 	var s = StyleBoxFlat.new()
-	s.bg_color = col
-	s.border_color = Color(0.18, 0.12, 0.28, 0.6)
+	var alpha_col = col
+	alpha_col.a = 0.85 # Sleek translucent glassmorphism
+	s.bg_color = alpha_col
+	s.border_color = b_col
 	s.border_width_bottom = 1; s.border_width_top = 1
 	s.border_width_left = 1; s.border_width_right = 1
 	s.set_corner_radius_all(6)
@@ -508,8 +519,64 @@ func _btn(txt: String, pos: Vector2, sz: Vector2) -> Button:
 	var b = Button.new()
 	b.text = txt; b.position = pos; b.size = sz
 	b.add_theme_font_size_override("font_size", 11)
-	b.add_theme_color_override("font_color", Color(0.8, 0.72, 0.95, 1.0))
+	b.add_theme_color_override("font_color", Color(0.85, 0.75, 1.0, 1.0)) # Purple R&D tone
+	
+	var sb_normal = StyleBoxFlat.new()
+	sb_normal.bg_color = Color(0.06, 0.05, 0.08, 0.6)
+	sb_normal.border_color = Color(0.65, 0.45, 1.0, 0.3)
+	sb_normal.border_width_all(1)
+	sb_normal.set_corner_radius_all(4)
+	
+	var sb_hover = StyleBoxFlat.new()
+	sb_hover.bg_color = Color(0.1, 0.08, 0.14, 0.8)
+	sb_hover.border_color = Color(0.65, 0.45, 1.0, 0.6)
+	sb_hover.border_width_all(1)
+	sb_hover.set_corner_radius_all(4)
+	
+	b.add_theme_stylebox_override("normal", sb_normal)
+	b.add_theme_stylebox_override("hover", sb_hover)
 	return b
+
+func _style_customizer_btn(btn: Button, is_selected: bool, accent_col: Color = Color(0.2, 0.9, 0.7)) -> void:
+	var sb_normal = StyleBoxFlat.new()
+	var sb_hover = StyleBoxFlat.new()
+	var sb_pressed = StyleBoxFlat.new()
+	var sb_disabled = StyleBoxFlat.new()
+	
+	if is_selected:
+		sb_normal.bg_color = Color(accent_col.r * 0.15, accent_col.g * 0.15, accent_col.b * 0.15, 0.8)
+		sb_normal.border_color = accent_col
+		sb_normal.border_width_all(2)
+		
+		sb_hover.bg_color = Color(accent_col.r * 0.25, accent_col.g * 0.25, accent_col.b * 0.25, 0.9)
+		sb_hover.border_color = accent_col
+		sb_hover.border_width_all(2)
+	else:
+		sb_normal.bg_color = Color(0.06, 0.06, 0.08, 0.6)
+		sb_normal.border_color = Color(0.15, 0.2, 0.28, 0.4)
+		sb_normal.border_width_all(1)
+		
+		sb_hover.bg_color = Color(0.08, 0.09, 0.12, 0.8)
+		sb_hover.border_color = Color(accent_col.r, accent_col.g, accent_col.b, 0.5)
+		sb_hover.border_width_all(1)
+		
+	for sb in [sb_normal, sb_hover, sb_pressed]:
+		sb.set_corner_radius_all(4)
+		
+	sb_pressed.bg_color = Color(accent_col.r * 0.3, accent_col.g * 0.3, accent_col.b * 0.3, 1.0)
+	sb_pressed.border_color = accent_col
+	sb_pressed.border_width_all(2)
+	sb_pressed.set_corner_radius_all(4)
+	
+	sb_disabled.bg_color = Color(0.04, 0.04, 0.05, 0.3)
+	sb_disabled.border_color = Color(0.1, 0.1, 0.12, 0.2)
+	sb_disabled.border_width_all(1)
+	sb_disabled.set_corner_radius_all(4)
+	
+	btn.add_theme_stylebox_override("normal", sb_normal)
+	btn.add_theme_stylebox_override("hover", sb_hover)
+	btn.add_theme_stylebox_override("pressed", sb_pressed)
+	btn.add_theme_stylebox_override("disabled", sb_disabled)
 
 func _fmt(n: int) -> String:
 	if n >= 1000000: return "%.1fM" % (float(n) / 1000000.0)

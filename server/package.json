@@ -4,7 +4,7 @@
   "description": "Underworld Logistics Real-Time Tycoon Game Server",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc",
+    "build": "prisma generate && tsc",
     "start": "node dist/index.js",
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "test": "jest",
