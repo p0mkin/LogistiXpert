@@ -14,12 +14,17 @@ import shopRoutes from './routes/shop.routes';
 import breakdownRoutes from './routes/breakdown.routes';
 import leaderboardRoutes from './routes/leaderboard.routes';
 import commodityRoutes from './routes/commodity.routes';
+import financeRoutes from './routes/finance.routes';
+import dealershipRoutes from './routes/dealership.routes';
+import analyticsRoutes from './routes/analytics.routes';
+import researchRoutes from './routes/research.routes';
 import { errorHandler } from './middleware/error';
 import { GameWebSocketServer } from './websocket';
 import { redis, AuctionService } from './services/auction.service';
 import { DispatchSimulationService } from './services/dispatch.service';
 import { ContractService } from './services/contract.service';
 import { CommodityMarketService } from './services/commodity.service';
+import { FinanceService } from './services/finance.service';
 
 const app = express();
 const server = http.createServer(app);
@@ -43,6 +48,10 @@ app.use('/api/shop', shopRoutes);
 app.use('/api/breakdown', breakdownRoutes);
 app.use('/api/leaderboard', leaderboardRoutes);
 app.use('/api/commodity', commodityRoutes);
+app.use('/api/finance', financeRoutes);
+app.use('/api/dealership', dealershipRoutes);
+app.use('/api/research', researchRoutes);
+app.use('/api/analytics', analyticsRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -181,6 +190,9 @@ async function main() {
 
     // 4. Start active fleet dispatch simulation ticker
     DispatchSimulationService.startTicker();
+
+    // 4.1. Start active corporate financial ticker
+    FinanceService.startTicker();
 
     // 4.5. Start contract job board regenerator
     ContractService.startGenerator();

@@ -591,7 +591,7 @@ func _log(text: String, color: Color) -> void:
 	console_lbl.add_theme_color_override("font_color", color)
 
 func _on_back() -> void:
-	get_tree().change_scene_to_file("res://scenes/game_map/GameMap.tscn")
+	SceneTransition.change_scene_to_file("res://scenes/game_map/GameMap.tscn")
 
 func _apply_theme() -> void:
 	pass

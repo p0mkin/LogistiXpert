@@ -1,5 +1,6 @@
 import { PrismaClient, CommodityType } from '@prisma/client';
 import { GameWebSocketServer } from '../websocket';
+import { AnalyticsService } from './analytics.service';
 
 const prisma = new PrismaClient();
 
@@ -207,6 +208,16 @@ export class CommodityMarketService {
           legalBalance: { decrement: totalCost },
         },
       });
+
+      // Record fuel expense transaction
+      await AnalyticsService.recordTransaction(
+        tx,
+        companyId,
+        garageId,
+        garage.city,
+        'EXPENSE_FUEL',
+        totalCost
+      );
 
       // 5. Update garage storage stockpiles
       const garageUpdateData: any = {};

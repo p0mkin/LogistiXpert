@@ -528,7 +528,7 @@ func _on_action_response(_r, code, _h, body) -> void:
 # HELPERS
 # ====================================================
 func _go_back() -> void:
-	get_tree().change_scene_to_file("res://scenes/game_map/GameMap.tscn")
+	SceneTransition.change_scene_to_file("res://scenes/game_map/GameMap.tscn")
 
 func _health_color(pct: int) -> Color:
 	if pct < 20: return Color(1.0, 0.2, 0.2, 1.0)

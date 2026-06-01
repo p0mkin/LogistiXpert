@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticateJWT, AuthRequest } from '../middleware/auth';
+import { AnalyticsService } from '../services/analytics.service';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -88,7 +89,7 @@ router.post('/buy', async (req: AuthRequest, res: Response) => {
     // 1. Verify vehicle details
     const truck = await prisma.truck.findUnique({
       where: { id: truckId },
-      include: { activeRoute: true },
+      include: { activeRoute: true, garage: true },
     });
 
     if (!truck || truck.companyId !== companyId) {
@@ -129,6 +130,17 @@ router.post('/buy', async (req: AuthRequest, res: Response) => {
           where: { id: companyId },
           data: { legalBalance: { decrement: part.cost } },
         });
+
+        if (part.category === 'MAINTENANCE') {
+          await AnalyticsService.recordTransaction(
+            tx,
+            companyId,
+            truck.garageId,
+            truck.garage.city,
+            'EXPENSE_REPAIRS',
+            part.cost
+          );
+        }
       } else {
         await tx.company.update({
           where: { id: companyId },

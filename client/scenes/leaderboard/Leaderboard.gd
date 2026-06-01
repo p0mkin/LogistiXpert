@@ -417,7 +417,7 @@ func _show_error(msg: String) -> void:
 	table.add_child(lbl)
 
 func _go_back() -> void:
-	get_tree().change_scene_to_file("res://scenes/game_map/GameMap.tscn")
+	SceneTransition.change_scene_to_file("res://scenes/game_map/GameMap.tscn")
 
 func _panel(pos: Vector2, sz: Vector2, color: Color) -> PanelContainer:
 	var p = PanelContainer.new()

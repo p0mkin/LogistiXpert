@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { AnalyticsService } from './analytics.service';
 
 const prisma = new PrismaClient();
 
@@ -10,6 +11,47 @@ export interface CheckpointDefinition {
 }
 
 export class BorderService {
+  /**
+   * Automatically re-binds a truck to owned garages upon delivery arrivals
+   */
+  public static async handleTerminalRebinding(
+    tx: any,
+    truckId: string,
+    companyId: string,
+    destinationCity: string,
+    previousGarageId: string
+  ): Promise<string> {
+    // 1. Find if there is an owned garage in the destinationCity.
+    const destGarage = await tx.garage.findFirst({
+      where: { companyId, city: destinationCity },
+    });
+
+    if (!destGarage) {
+      return `Destination terminal in ${destinationCity} is not owned. Truck remains bound to previous terminal.`;
+    }
+
+    if (destGarage.id === previousGarageId) {
+      return `Truck is already bound to terminal in destination city ${destinationCity}.`;
+    }
+
+    // 2. Count trucks currently assigned to it
+    const assignedTrucksCount = await tx.truck.count({
+      where: { garageId: destGarage.id },
+    });
+
+    if (assignedTrucksCount >= destGarage.capacity) {
+      return `Destination terminal in ${destinationCity} is full (capacity ${destGarage.capacity}/${destGarage.capacity}). Truck remains bound to previous terminal.`;
+    }
+
+    // 3. Update truck's garageId to destGarage.id
+    await tx.truck.update({
+      where: { id: truckId },
+      data: { garageId: destGarage.id },
+    });
+
+    return `Truck successfully re-bound to owned destination terminal in ${destinationCity}.`;
+  }
+
   /**
    * Main mathematical risk and clearance engine
    */
@@ -139,7 +181,7 @@ export class BorderService {
     await prisma.$transaction(async (tx) => {
       const truck = await tx.truck.findUnique({
         where: { id: truckId },
-        include: { activeRoute: true },
+        include: { activeRoute: true, garage: true },
       });
 
       if (!truck || !truck.activeRoute) return;
@@ -158,6 +200,16 @@ export class BorderService {
           policeHeat: { increment: penalties.policeHeatIncrease },
         },
       });
+
+      // Record daily fine expense
+      await AnalyticsService.recordTransaction(
+        tx,
+        companyId,
+        truck.garageId,
+        truck.garage.city,
+        'EXPENSE_BRIBES_FINES',
+        penalties.fineAmount
+      );
 
       // 2. Impound truck
       await tx.truck.update({
@@ -191,7 +243,7 @@ export class BorderService {
     return await prisma.$transaction(async (tx) => {
       const truck = await tx.truck.findUnique({
         where: { id: truckId },
-        include: { activeRoute: { include: { contrabandJob: true, legalContract: true } } },
+        include: { company: true, garage: true, activeRoute: { include: { contrabandJob: true, legalContract: true, clanContract: true } } },
       });
 
       if (!truck || !truck.activeRoute) {
@@ -201,6 +253,17 @@ export class BorderService {
       const route = truck.activeRoute;
       let payout = 0;
       let payoutLog = '';
+
+      const kgDelivered = AnalyticsService.getCargoWeight(truck.tier);
+      await AnalyticsService.recordTransaction(
+        tx,
+        truck.companyId,
+        truck.garageId,
+        truck.garage.city,
+        'ROUTE_COMPLETED',
+        0,
+        kgDelivered
+      );
 
       if (route.contrabandJob) {
         // Smuggling Payout (goes to black market balance)
@@ -213,20 +276,76 @@ export class BorderService {
           },
         });
         payoutLog = `Successfully smuggled contraband to ${route.contrabandJob.destination}. Payout: $${payout} (Black Market Cash).`;
+
+        await AnalyticsService.recordTransaction(
+          tx,
+          truck.companyId,
+          truck.garageId,
+          truck.garage.city,
+          'REVENUE_BLACK',
+          payout
+        );
       } else if (route.legalContract) {
         // Legal Payout (goes to legal balance)
         payout = route.legalContract.payoutLegal.toNumber();
+        // Apply R&D packing buff (+5% per level, up to +15% payout)
+        if (truck.company.resAdvancedPacking > 0) {
+          payout = payout * (1.0 + truck.company.resAdvancedPacking * 0.05);
+        }
         await tx.company.update({
           where: { id: truck.companyId },
           data: {
             legalBalance: { increment: payout },
           },
         });
-        payoutLog = `Delivered legal cargo to ${route.legalContract.destination}. Payout: $${payout} (Legal Cash).`;
+        payoutLog = `Delivered legal cargo to ${route.legalContract.destination}. Payout: $${payout.toFixed(2)} (Legal Cash).`;
+
+        await AnalyticsService.recordTransaction(
+          tx,
+          truck.companyId,
+          truck.garageId,
+          truck.garage.city,
+          'REVENUE_LEGAL',
+          payout
+        );
+      } else if (route.clanContract) {
+        // Clan Payout
+        const payoutLegal = route.clanContract.payoutLegal.toNumber();
+        const payoutBlack = route.clanContract.payoutBlack.toNumber();
+        payout = payoutLegal + payoutBlack;
+        await tx.company.update({
+          where: { id: truck.companyId },
+          data: {
+            legalBalance: { increment: payoutLegal },
+            blackMarketBalance: { increment: payoutBlack },
+          },
+        });
+        payoutLog = `Delivered clan cargo to ${route.clanContract.destination}. Payout: $${payoutLegal} Legal, $${payoutBlack} Black.`;
+
+        if (payoutLegal > 0) {
+          await AnalyticsService.recordTransaction(
+            tx,
+            truck.companyId,
+            truck.garageId,
+            truck.garage.city,
+            'REVENUE_LEGAL',
+            payoutLegal
+          );
+        }
+        if (payoutBlack > 0) {
+          await AnalyticsService.recordTransaction(
+            tx,
+            truck.companyId,
+            truck.garageId,
+            truck.garage.city,
+            'REVENUE_BLACK',
+            payoutBlack
+          );
+        }
       }
 
       // Add mileage to truck & wear and tear
-      const distance = route.legalContract?.distanceKm || 350; // default 350km if not found
+      const distance = route.legalContract?.distanceKm || route.clanContract?.distanceKm || 350; // default 350km if not found
       const newMileage = truck.mileage + distance;
       
       // Calculate wear based on mileage and chassis mods
@@ -234,6 +353,16 @@ export class BorderService {
       if (truck.fuelTankMod === 'CHASSIS_CAVITY') {
         wearPercent = Math.floor(wearPercent * 1.3); // heavier chassis wears tires and engine faster
       }
+
+      // Apply Starting HQ road wear modifiers
+      let roadWearMod = 1.0;
+      switch (truck.company.jurisdiction) {
+        case 'SCANDINAVIA': roadWearMod = 0.60; break;
+        case 'GERMANY': roadWearMod = 0.70; break;
+        case 'BALTICS': roadWearMod = 1.00; break;
+        case 'BELARUS': roadWearMod = 1.35; break;
+      }
+      wearPercent = Math.max(1, Math.round(wearPercent * roadWearMod));
 
       const newEngine = Math.max(truck.engineHealth - wearPercent, 0);
       const newTires = Math.max(truck.tireWear - wearPercent, 0);
@@ -247,6 +376,27 @@ export class BorderService {
         },
       });
 
+      // Get destination city for terminal re-binding
+      let destinationCity = '';
+      if (route.contrabandJob) {
+        destinationCity = route.contrabandJob.destination;
+      } else if (route.legalContract) {
+        destinationCity = route.legalContract.destination;
+      } else if (route.clanContract) {
+        destinationCity = route.clanContract.destination;
+      }
+
+      let rebindMsg = '';
+      if (destinationCity) {
+        rebindMsg = await BorderService.handleTerminalRebinding(
+          tx,
+          truckId,
+          truck.companyId,
+          destinationCity,
+          truck.garageId
+        );
+      }
+
       // Clear active route
       await tx.activeRoute.delete({
         where: { id: route.id },
@@ -257,7 +407,7 @@ export class BorderService {
         data: {
           truckId,
           eventType: 'JOB_DELIVERY',
-          description: `${payoutLog} Driven ${distance} km. Engine wear: -${wearPercent}%, Tire wear: -${wearPercent}%.`,
+          description: `${payoutLog} Driven ${distance} km. Engine wear: -${wearPercent}%, Tire wear: -${wearPercent}%. ${rebindMsg}`.trim(),
         },
       });
 
@@ -281,7 +431,7 @@ export class BorderService {
     return await prisma.$transaction(async (tx) => {
       const truck = await tx.truck.findUnique({
         where: { id: truckId },
-        include: { company: true, activeRoute: { include: { driver: true, contrabandJob: true } } },
+        include: { company: true, garage: true, activeRoute: { include: { driver: true, contrabandJob: true } } },
       });
 
       if (!truck || !truck.activeRoute || !truck.activeRoute.contrabandJob) {
@@ -325,6 +475,16 @@ export class BorderService {
         },
       });
 
+      // Record bribe expense
+      await AnalyticsService.recordTransaction(
+        tx,
+        company.id,
+        truck.garageId,
+        truck.garage.city,
+        'EXPENSE_BRIBES_FINES',
+        bribeAmount
+      );
+
       if (success) {
         const payout = job.payoutBlack.toNumber();
         await tx.company.update({
@@ -334,6 +494,36 @@ export class BorderService {
             reputationScore: { increment: Math.floor(job.riskMultiplier * 12) },
           },
         });
+
+        // Record successful completion and payout revenue
+        const kgDelivered = AnalyticsService.getCargoWeight(truck.tier);
+        await AnalyticsService.recordTransaction(
+          tx,
+          company.id,
+          truck.garageId,
+          truck.garage.city,
+          'ROUTE_COMPLETED',
+          0,
+          kgDelivered
+        );
+
+        await AnalyticsService.recordTransaction(
+          tx,
+          company.id,
+          truck.garageId,
+          truck.garage.city,
+          'REVENUE_BLACK',
+          payout
+        );
+
+        // RE-BINDING LOGIC!
+        const rebindMsg = await BorderService.handleTerminalRebinding(
+          tx,
+          truckId,
+          truck.companyId,
+          job.destination,
+          truck.garageId
+        );
 
         // Clear active route
         await tx.activeRoute.delete({
@@ -345,7 +535,7 @@ export class BorderService {
           data: {
             truckId,
             eventType: 'BORDER_CLEAR',
-            description: `Successfully bribed customs officer with $${bribeAmount}. Driver: ${driver.name}. Cargo delivered, payout: $${payout} BM.`,
+            description: `Successfully bribed customs officer with $${bribeAmount}. Driver: ${driver.name}. Cargo delivered, payout: $${payout} BM. ${rebindMsg}`.trim(),
           },
         });
 
@@ -389,6 +579,16 @@ export class BorderService {
             policeHeat: { increment: penalties.policeHeatIncrease },
           },
         });
+
+        // Record fail fine expense
+        await AnalyticsService.recordTransaction(
+          tx,
+          company.id,
+          truck.garageId,
+          truck.garage.city,
+          'EXPENSE_BRIBES_FINES',
+          penalties.fineAmount
+        );
 
         // Impound truck
         await tx.truck.update({
@@ -434,7 +634,7 @@ export class BorderService {
     return await prisma.$transaction(async (tx) => {
       const truck = await tx.truck.findUnique({
         where: { id: truckId },
-        include: { company: true, activeRoute: { include: { driver: true, contrabandJob: true } } },
+        include: { company: true, garage: true, activeRoute: { include: { driver: true, contrabandJob: true } } },
       });
 
       if (!truck || !truck.activeRoute || !truck.activeRoute.contrabandJob) {
@@ -475,6 +675,36 @@ export class BorderService {
           },
         });
 
+        // Record successful run completion and payout revenue
+        const kgDelivered = AnalyticsService.getCargoWeight(truck.tier);
+        await AnalyticsService.recordTransaction(
+          tx,
+          company.id,
+          truck.garageId,
+          truck.garage.city,
+          'ROUTE_COMPLETED',
+          0,
+          kgDelivered
+        );
+
+        await AnalyticsService.recordTransaction(
+          tx,
+          company.id,
+          truck.garageId,
+          truck.garage.city,
+          'REVENUE_BLACK',
+          payout
+        );
+
+        // RE-BINDING LOGIC!
+        const rebindMsg = await BorderService.handleTerminalRebinding(
+          tx,
+          truckId,
+          truck.companyId,
+          job.destination,
+          truck.garageId
+        );
+
         // Add wear & tear from running the border barricades
         const newEngine = Math.max(truck.engineHealth - 15, 0);
         const newTires = Math.max(truck.tireWear - 20, 0);
@@ -496,7 +726,7 @@ export class BorderService {
           data: {
             truckId,
             eventType: 'BORDER_RUN_SUCCESS',
-            description: `Broke through customs barricades! High speed chase ensued. Engine wear: -15%, Tire wear: -20%. Police Heat increased by +30. Cargo delivered, payout: $${payout} BM.`,
+            description: `Broke through customs barricades! High speed chase ensued. Engine wear: -15%, Tire wear: -20%. Police Heat increased by +30. Cargo delivered, payout: $${payout} BM. ${rebindMsg}`.trim(),
           },
         });
 
@@ -539,6 +769,16 @@ export class BorderService {
             policeHeat: { increment: penalties.policeHeatIncrease },
           },
         });
+
+        // Record crash fine expense
+        await AnalyticsService.recordTransaction(
+          tx,
+          company.id,
+          truck.garageId,
+          truck.garage.city,
+          'EXPENSE_BRIBES_FINES',
+          penalties.fineAmount
+        );
 
         // Clear active route
         await tx.activeRoute.delete({

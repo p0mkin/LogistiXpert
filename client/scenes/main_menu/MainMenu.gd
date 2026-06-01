@@ -108,7 +108,7 @@ func _on_auth_completed(success: bool, message: String) -> void:
 			_set_status("Access Granted. Routing database state...", Color(0.180, 0.803, 0.443))
 			# Wait a split second to see the success message before loading map
 			await get_tree().create_timer(0.6).timeout
-			get_tree().change_scene_to_file("res://scenes/game_map/GameMap.tscn")
+			SceneTransition.change_scene_to_file("res://scenes/game_map/GameMap.tscn")
 		else:
 			_set_status(message, Color(0.180, 0.803, 0.443))
 	else:

@@ -19,6 +19,9 @@ extends Control
 @onready var shop_btn: Button = %ShopBtn
 @onready var breakdown_btn: Button = %BreakdownBtn
 @onready var leaderboard_btn: Button = %LeaderboardBtn
+@onready var analytics_btn: Button = %AnalyticsBtn
+@onready var research_btn: Button = %ResearchBtn
+@onready var dealership_btn: Button = %DealershipBtn
 
 # Camera Pan & Zoom controls
 @onready var camera: Camera2D = %Camera
@@ -62,14 +65,17 @@ func _ready() -> void:
 	NetworkManager.connection_status_changed.connect(_on_network_status_changed)
 	
 	back_menu_btn.pressed.connect(_on_back_pressed)
-	garage_btn.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/garage/GarageManager.tscn"))
-	dispatch_btn.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/dispatch/DispatchCenter.tscn"))
-	auction_btn.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/auction/AuctionHouse.tscn"))
-	laundry_btn.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/laundry/LaundryFronts.tscn"))
-	underworld_btn.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/underworld/UnderworldDealer.tscn"))
-	shop_btn.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/shop/PartsShop.tscn"))
-	breakdown_btn.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/breakdown/BreakdownPanel.tscn"))
-	leaderboard_btn.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/leaderboard/Leaderboard.tscn"))
+	garage_btn.pressed.connect(func(): SceneTransition.change_scene_to_file("res://scenes/garage/GarageManager.tscn"))
+	dispatch_btn.pressed.connect(func(): SceneTransition.change_scene_to_file("res://scenes/dispatch/DispatchCenter.tscn"))
+	auction_btn.pressed.connect(func(): SceneTransition.change_scene_to_file("res://scenes/auction/AuctionHouse.tscn"))
+	laundry_btn.pressed.connect(func(): SceneTransition.change_scene_to_file("res://scenes/laundry/LaundryFronts.tscn"))
+	underworld_btn.pressed.connect(func(): SceneTransition.change_scene_to_file("res://scenes/underworld/UnderworldDealer.tscn"))
+	shop_btn.pressed.connect(func(): SceneTransition.change_scene_to_file("res://scenes/shop/PartsShop.tscn"))
+	breakdown_btn.pressed.connect(func(): SceneTransition.change_scene_to_file("res://scenes/breakdown/BreakdownPanel.tscn"))
+	leaderboard_btn.pressed.connect(func(): SceneTransition.change_scene_to_file("res://scenes/leaderboard/Leaderboard.tscn"))
+	analytics_btn.pressed.connect(func(): SceneTransition.change_scene_to_file("res://scenes/analytics/LogisticsAnalytics.tscn"))
+	research_btn.pressed.connect(func(): SceneTransition.change_scene_to_file("res://scenes/research/TechTree.tscn"))
+	dealership_btn.pressed.connect(func(): SceneTransition.change_scene_to_file("res://scenes/dealership/Showroom.tscn"))
 	
 	# Instruct map drawer to implement our custom vector _draw call
 	map_drawer.draw.connect(_draw_vector_map)
@@ -355,4 +361,4 @@ func _log_console(text: String, color: Color) -> void:
 
 func _on_back_pressed() -> void:
 	NetworkManager.disconnect_from_server()
-	get_tree().change_scene_to_file("res://scenes/main_menu/MainMenu.tscn")
+	SceneTransition.change_scene_to_file("res://scenes/main_menu/MainMenu.tscn")

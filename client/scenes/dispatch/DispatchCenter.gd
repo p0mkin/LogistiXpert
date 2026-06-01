@@ -34,6 +34,8 @@ var is_contraband_mode: bool = false
 var tacho_anim_time: float = 0.0
 var live_progress: float = 0.0  # 0.0 - 1.0
 
+var autopilot_policy_box: OptionButton = null
+
 func _ready() -> void:
 	_apply_theme()
 	player_lbl.text = GameState.username.to_upper()
@@ -51,6 +53,25 @@ func _ready() -> void:
 	launch_btn.pressed.connect(_on_launch_dispatch)
 	tab_legal_btn.pressed.connect(_show_legal_tab)
 	tab_contra_btn.pressed.connect(_show_contra_tab)
+	
+	# Create and add Autopilot Policy Selector dynamically
+	var policy_lbl = Label.new()
+	policy_lbl.text = "AUTOPILOT POLICY:"
+	policy_lbl.add_theme_font_size_override("font_size", 11)
+	policy_lbl.add_theme_color_override("font_color", Color(0.709, 0.768, 0.843, 0.8))
+	
+	autopilot_policy_box = OptionButton.new()
+	autopilot_policy_box.name = "AutopilotPolicyBox"
+	autopilot_policy_box.add_item("🛡 SAFE (Never risk crossings/weather)", 0)
+	autopilot_policy_box.add_item("⚖ AVERAGE (Auto-solve using worker skills)", 1)
+	autopilot_policy_box.add_item("🔥 GREEDY (Speedy, aggressive, high-risk)", 2)
+	
+	var dispatch_inner = %DispatchPanel.get_node("DispatchInner")
+	var launch_idx = %LaunchBtn.get_index()
+	dispatch_inner.add_child(policy_lbl)
+	dispatch_inner.move_child(policy_lbl, launch_idx)
+	dispatch_inner.add_child(autopilot_policy_box)
+	dispatch_inner.move_child(autopilot_policy_box, launch_idx + 1)
 	
 	_fetch_contracts()
 	_fetch_active_routes()
@@ -140,14 +161,25 @@ func _launch_dispatch() -> void:
 		return
 	
 	var truck_id = available_trucks[truck_idx].get("id", "")
-	var body: Dictionary = {"truckId": truck_id}
+	
+	var policy_idx = autopilot_policy_box.get_selected_id()
+	var policy_str = "SAFE"
+	if policy_idx == 1:
+		policy_str = "AVERAGE"
+	elif policy_idx == 2:
+		policy_str = "GREEDY"
+		
+	var body: Dictionary = {
+		"truckId": truck_id,
+		"autopilotPolicy": policy_str
+	}
 	
 	if is_contraband_mode:
 		body["contrabandJobId"] = selected_contract.get("id", "")
 	else:
 		body["legalContractId"] = selected_contract.get("id", "")
 	
-	_log("Dispatching truck %s..." % truck_id, Color(0.925, 0.607, 0.141))
+	_log("Dispatching truck %s with %s autopilot..." % [truck_id, policy_str], Color(0.925, 0.607, 0.141))
 	
 	var http = HTTPRequest.new()
 	add_child(http)
@@ -176,7 +208,10 @@ func _on_legal_contracts_response(result: int, code: int, headers: PackedStringA
 					"cargoType": item.get("cargoType", ""),
 					"distanceKm": float(item.get("distanceKm", 0.0)),
 					"payoutCash": float(item.get("payoutLegal", 0.0)),
-					"border": false
+					"border": false,
+					"contractType": item.get("contractType", "SPOT"),
+					"remainingQuota": item.get("remainingQuota", null),
+					"expiresAt": item.get("expiresAt", null)
 				}
 				legal_contracts.append(contract)
 			_render_contracts()
@@ -196,7 +231,10 @@ func _on_contraband_jobs_response(result: int, code: int, headers: PackedStringA
 					"cargoType": item.get("cargoClass", "CONTRABAND"),
 					"distanceKm": 350.0,
 					"payoutCash": float(item.get("payoutBlack", 0.0)),
-					"detectionRisk": float(item.get("riskMultiplier", 1.0)) * 15.0
+					"detectionRisk": float(item.get("riskMultiplier", 1.0)) * 15.0,
+					"contractType": item.get("contractType", "SPOT"),
+					"remainingQuota": item.get("remainingQuota", null),
+					"expiresAt": item.get("expiresAt", null)
 				}
 				contraband_jobs.append(job)
 			_render_contracts()
@@ -295,12 +333,29 @@ func _build_contract_card(contract: Dictionary) -> PanelContainer:
 	vbox.add_theme_constant_override("separation", 5)
 	panel.add_child(vbox)
 	
-	# Route header
+	# Route header horizontal container for title + badge capsule
+	var header_row = HBoxContainer.new()
+	header_row.add_theme_constant_override("separation", 10)
+	vbox.add_child(header_row)
+	
 	var header_lbl = Label.new()
 	header_lbl.text = "%s → %s" % [contract.get("origin", "?"), contract.get("destination", "?")]
 	header_lbl.add_theme_color_override("font_color", Color(1, 1, 1))
 	header_lbl.add_theme_font_size_override("font_size", 14)
-	vbox.add_child(header_lbl)
+	header_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header_row.add_child(header_lbl)
+	
+	# Append the contract type badge
+	var contract_type = contract.get("contractType", "SPOT")
+	if contract_type == "SPOT":
+		var badge = _create_badge_capsule("SPOT", Color(0.2, 0.22, 0.25, 0.5), Color(0.35, 0.38, 0.42, 0.6))
+		header_row.add_child(badge)
+	elif contract_type == "PERSISTENT":
+		var badge = _create_badge_capsule("PERSISTENT ∞", Color(0.0, 0.4, 0.8, 0.15), Color(0.0, 0.6, 1.0, 0.5))
+		header_row.add_child(badge)
+	elif contract_type == "LIMITED":
+		var badge = _create_badge_capsule("LIMITED", Color(0.9, 0.45, 0.0, 0.15), Color(1.0, 0.6, 0.1, 0.5))
+		header_row.add_child(badge)
 	
 	# Cargo + distance
 	var cargo_lbl = Label.new()
@@ -328,6 +383,30 @@ func _build_contract_card(contract: Dictionary) -> PanelContainer:
 		risk_lbl.add_theme_color_override("font_color", Color(0.925, 0.607, 0.141))
 		risk_lbl.add_theme_font_size_override("font_size", 11)
 		vbox.add_child(risk_lbl)
+		
+	# Quota and timer for LIMITED
+	if contract_type == "LIMITED":
+		var quota_val = contract.get("remainingQuota", null)
+		if quota_val != null:
+			var quota_lbl = Label.new()
+			quota_lbl.text = "📦 QUOTA REMAINING: %s kg" % String.num(float(quota_val), 0)
+			quota_lbl.add_theme_color_override("font_color", Color(1.0, 0.6, 0.1))
+			quota_lbl.add_theme_font_size_override("font_size", 10)
+			vbox.add_child(quota_lbl)
+			
+		var expires_at = contract.get("expiresAt", null)
+		if expires_at != null and typeof(expires_at) == TYPE_STRING and expires_at != "":
+			var expires_unix = Time.get_unix_time_from_datetime_string(expires_at)
+			var current_unix = Time.get_unix_time_from_system()
+			var remaining_sec = expires_unix - current_unix
+			if remaining_sec > 0:
+				var h = int(remaining_sec / 3600)
+				var m = int((int(remaining_sec) % 3600) / 60)
+				var timer_lbl = Label.new()
+				timer_lbl.text = "⏰ TIME REMAINING: %dh %dm" % [h, m]
+				timer_lbl.add_theme_color_override("font_color", Color(1.0, 0.45, 0.0))
+				timer_lbl.add_theme_font_size_override("font_size", 10)
+				vbox.add_child(timer_lbl)
 	
 	var btn = Button.new()
 	btn.text = "▶ SELECT CONTRACT"
@@ -358,6 +437,15 @@ func _build_route_card(route: Dictionary) -> PanelContainer:
 	var current_city = route.get("currentCity", "En Route")
 	var origin = route.get("originCity", route.get("currentCity", "?"))
 	var dest = route.get("destinationCity", "?")
+	
+	# Cosmetic health parsing
+	var cosmetic_hp = 100
+	if route.has("cosmeticHealth"):
+		cosmetic_hp = int(route.get("cosmeticHealth", 100))
+	elif route.has("truck") and route.get("truck") is Dictionary:
+		cosmetic_hp = int(route.get("truck", {}).get("cosmeticHealth", 100))
+		
+	var weather = route.get("currentWeather", "CLEAR")
 
 	var panel = PanelContainer.new()
 	panel.name = "route_" + truck_id
@@ -400,6 +488,35 @@ func _build_route_card(route: Dictionary) -> PanelContainer:
 	# Route progress bar
 	_add_stat_bar(vbox, "ROUTE", pct, 100, Color(0.925, 0.607, 0.141))
 
+	# Weather banner (if applicable)
+	if weather != "CLEAR":
+		var weather_banner = PanelContainer.new()
+		var w_style = StyleBoxFlat.new()
+		if weather == "THICK_FOG":
+			w_style.bg_color = Color(0.2, 0.22, 0.25, 0.4)
+			w_style.border_color = Color(0.5, 0.55, 0.6, 0.6)
+		elif weather == "ICE_STORM":
+			w_style.bg_color = Color(0.0, 0.3, 0.5, 0.3)
+			w_style.border_color = Color(0.0, 0.7, 1.0, 0.6)
+		w_style.border_width_all = 1
+		w_style.set_corner_radius_all(4)
+		w_style.content_margin_left = 10
+		w_style.content_margin_right = 10
+		w_style.content_margin_top = 4
+		w_style.content_margin_bottom = 4
+		weather_banner.add_theme_stylebox_override("panel", w_style)
+		
+		var w_lbl = Label.new()
+		if weather == "THICK_FOG":
+			w_lbl.text = "🌫️ WEATHER HAZARD: THICK FOG (-50% Speed)"
+			w_lbl.add_theme_color_override("font_color", Color(0.85, 0.85, 0.9))
+		elif weather == "ICE_STORM":
+			w_lbl.text = "❄️ WEATHER HAZARD: ICE STORM (Cosmetic Damage)"
+			w_lbl.add_theme_color_override("font_color", Color(0.4, 0.9, 1.0))
+		w_lbl.add_theme_font_size_override("font_size", 10)
+		weather_banner.add_child(w_lbl)
+		vbox.add_child(weather_banner)
+
 	# Driver row
 	var driver_row = HBoxContainer.new()
 	driver_row.add_theme_constant_override("separation", 8)
@@ -427,23 +544,35 @@ func _build_route_card(route: Dictionary) -> PanelContainer:
 
 	# Truck health row
 	var health_row = HBoxContainer.new()
-	health_row.add_theme_constant_override("separation", 10)
+	health_row.add_theme_constant_override("separation", 8)
+	
 	var engine_lbl = Label.new()
-	engine_lbl.text = "ENGINE"
+	engine_lbl.text = "ENG"
 	engine_lbl.add_theme_color_override("font_color", Color(0.709, 0.768, 0.843, 0.5))
-	engine_lbl.add_theme_font_size_override("font_size", 10)
+	engine_lbl.add_theme_font_size_override("font_size", 9)
 	health_row.add_child(engine_lbl)
 	var e_bar_bg = _make_bar_bg(Color(0.901, 0.298, 0.235) if engine_hp < 30 else Color(0.18, 0.803, 0.443), engine_hp, 100)
 	e_bar_bg.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	health_row.add_child(e_bar_bg)
+	
 	var tire_lbl = Label.new()
-	tire_lbl.text = "TIRES"
+	tire_lbl.text = "TIR"
 	tire_lbl.add_theme_color_override("font_color", Color(0.709, 0.768, 0.843, 0.5))
-	tire_lbl.add_theme_font_size_override("font_size", 10)
+	tire_lbl.add_theme_font_size_override("font_size", 9)
 	health_row.add_child(tire_lbl)
 	var t_bar_bg = _make_bar_bg(Color(0.901, 0.298, 0.235) if tire_hp < 30 else Color(0.925, 0.607, 0.141), tire_hp, 100)
 	t_bar_bg.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	health_row.add_child(t_bar_bg)
+
+	var cosmetic_lbl = Label.new()
+	cosmetic_lbl.text = "COS"
+	cosmetic_lbl.add_theme_color_override("font_color", Color(0.709, 0.768, 0.843, 0.5))
+	cosmetic_lbl.add_theme_font_size_override("font_size", 9)
+	health_row.add_child(cosmetic_lbl)
+	var c_bar_bg = _make_bar_bg(Color(0.901, 0.298, 0.235) if cosmetic_hp < 30 else Color(0.7, 0.8, 0.9), cosmetic_hp, 100)
+	c_bar_bg.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	health_row.add_child(c_bar_bg)
+	
 	vbox.add_child(health_row)
 
 	return panel
@@ -550,6 +679,14 @@ func _on_route_completed(payload: Dictionary) -> void:
 
 func _on_ws_message(packet: Dictionary) -> void:
 	match packet.get("type", ""):
+		"dispatch:autopilot_resolution":
+			var payload = packet.get("payload", {})
+			var msg = payload.get("message", "Autopilot resolved an event.")
+			var is_success = payload.get("success", true)
+			var log_color = Color(0.18, 0.803, 0.443) if is_success else Color(0.901, 0.298, 0.235)
+			_log("🤖 AUTOPILOT: " + msg, log_color)
+			_fetch_active_routes()
+			_fetch_trucks()
 		"alert:weigh_station_fine":
 			var payload = packet.get("payload", {})
 			_log("🏛 TACHO FINE: $%d — Driver exceeded Schengen limits!" % int(payload.get("fine", 0)), Color(0.925, 0.607, 0.141))
@@ -597,7 +734,7 @@ func _log(text: String, color: Color) -> void:
 	console_lbl.add_theme_color_override("font_color", color)
 
 func _on_back() -> void:
-	get_tree().change_scene_to_file("res://scenes/game_map/GameMap.tscn")
+	SceneTransition.change_scene_to_file("res://scenes/game_map/GameMap.tscn")
 
 func _apply_theme() -> void:
 	pass
@@ -687,3 +824,23 @@ func _on_border_resolved(type: String, payload: Dictionary) -> void:
 		
 	# Re-fetch routes to update state
 	_fetch_active_routes()
+
+func _create_badge_capsule(text: String, bg_color: Color, border_color: Color) -> PanelContainer:
+	var badge = PanelContainer.new()
+	var style = StyleBoxFlat.new()
+	style.bg_color = bg_color
+	style.border_color = border_color
+	style.border_width_all = 1
+	style.set_corner_radius_all(10) # Rounded capsule
+	style.content_margin_left = 8
+	style.content_margin_right = 8
+	style.content_margin_top = 2
+	style.content_margin_bottom = 2
+	badge.add_theme_stylebox_override("panel", style)
+	
+	var lbl = Label.new()
+	lbl.text = text
+	lbl.add_theme_font_size_override("font_size", 9)
+	lbl.add_theme_color_override("font_color", Color(1, 1, 1))
+	badge.add_child(lbl)
+	return badge

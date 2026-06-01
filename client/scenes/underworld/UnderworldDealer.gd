@@ -645,7 +645,7 @@ func _on_truck_selected(idx: int) -> void:
 		player_truck_id = player_trucks[idx].get("id", "")
 
 func _go_back() -> void:
-	get_tree().change_scene_to_file("res://scenes/game_map/GameMap.tscn")
+	SceneTransition.change_scene_to_file("res://scenes/game_map/GameMap.tscn")
 
 # ====================================================
 # HELPER WIDGETS

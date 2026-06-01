@@ -115,6 +115,29 @@ export class AuctionService {
       throw new Error('INSUFFICIENT_FUNDS');
     }
 
+    // 2. Validate fleet slot capacity loophole check
+    const garages = await prisma.garage.findMany({
+      where: { companyId },
+      select: { capacity: true },
+    });
+    const totalCapacity = garages.reduce((sum, g) => sum + g.capacity, 0);
+
+    const ownedTrucksCount = await prisma.truck.count({
+      where: { companyId },
+    });
+
+    const otherBidsCount = await prisma.auctionListing.count({
+      where: {
+        status: 'ACTIVE',
+        highestBidderCompanyId: companyId,
+        id: { not: auctionId },
+      },
+    });
+
+    if (ownedTrucksCount + otherBidsCount + 1 > totalCapacity) {
+      throw new Error('FLEET_CAPACITY_EXCEEDED');
+    }
+
     const key = `auction:${auctionId}`;
     const bidKey = `auction:${auctionId}:bids`;
     const now = Date.now();

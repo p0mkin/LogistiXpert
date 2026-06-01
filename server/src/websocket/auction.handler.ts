@@ -72,6 +72,9 @@ export class AuctionSocketHandler {
         case 'INSUFFICIENT_FUNDS':
           message = 'You do not have enough legal cash to cover this bid';
           break;
+        case 'FLEET_CAPACITY_EXCEEDED':
+          message = 'Placing this bid would exceed your total company garage fleet capacity slots';
+          break;
       }
 
       ws.send(JSON.stringify(makeErrorResponse(code, message, requestId)));

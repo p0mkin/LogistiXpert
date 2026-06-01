@@ -45,6 +45,12 @@ signal dispatch_no_fuel_alert(data)
 signal garage_stock_updated(data)
 signal market_prices_updated(data)
 signal company_balance_updated(data)
+signal market_gold_updated(data)
+signal market_c500_updated(data)
+signal insolvency_warning(data)
+signal insolvency_resolved(data)
+signal foreclosure_alert(data)
+signal foreclosure_settled(data)
 
 
 func _ready() -> void:
@@ -343,6 +349,44 @@ func _parse_and_route_message(json_str: String) -> void:
 			
 		"market:price_update":
 			market_prices_updated.emit(payload)
+			
+		"market:gold_update":
+			market_gold_updated.emit(payload)
+			
+		"market:c500_update":
+			market_c500_updated.emit(payload)
+			
+		"finance:insolvency_warning":
+			insolvency_warning.emit(payload)
+			_show_emergency_alert(
+				"⚠️ DEBT INSOLVENCY ALERT",
+				payload.get("message", "Your company has breached its dynamic debt limits!"),
+				Color(1.0, 0.3, 0.1, 1.0)
+			)
+			
+		"finance:insolvency_resolved":
+			insolvency_resolved.emit(payload)
+			_show_emergency_alert(
+				"✔ DEBT ALERT RESOLVED",
+				payload.get("message", "Your legal cash balance is back in the safe zone."),
+				Color(0.2, 0.9, 0.5, 1.0)
+			)
+			
+		"finance:foreclosure_alert":
+			foreclosure_alert.emit(payload)
+			_show_emergency_alert(
+				"💥 BANK REPOSSESSION TRIGGERED",
+				payload.get("message", "Your newest truck has been seized and placed in foreclosure auction!"),
+				Color(1.0, 0.1, 0.1, 1.0)
+			)
+			
+		"finance:foreclosure_settled":
+			foreclosure_settled.emit(payload)
+			_show_emergency_alert(
+				"🏛 FORECLOSURE SETTLED",
+				payload.get("message", "Your truck auction was closed. Balance adjusted."),
+				Color(0.2, 0.8, 1.0, 1.0)
+			)
 			
 		"company:balance_update":
 			GameState.legal_balance = float(payload.get("legalBalance", GameState.legal_balance))

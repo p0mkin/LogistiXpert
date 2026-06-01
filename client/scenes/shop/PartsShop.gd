@@ -368,7 +368,24 @@ func _render_detail_placeholder() -> void:
 func _select_item(item: Dictionary) -> void:
 	selected_item = item
 	_render_catalog("ALL") # refresh to show highlight
+	_refresh_active_truck_blueprint()
 	_render_item_detail(item)
+
+func _refresh_active_truck_blueprint() -> void:
+	for t in player_trucks:
+		if t.get("id", "") == selected_truck_id:
+			_render_truck_blueprint(t)
+			break
+
+func _get_highlight_for_item_id(item_id: String) -> String:
+	match item_id:
+		"engine_kit": return "ENGINE"
+		"tires_set": return "TIRES"
+		"false_bottom": return "FUEL_TANK"
+		"chassis_cavity": return "CHASSIS"
+		"shielding_lvl": return "SHIELDING"
+		"tacho_spoofer": return "TACHO"
+	return ""
 
 func _render_item_detail(item: Dictionary) -> void:
 	var panel = _find(scene_root, "DetailPanel")
@@ -537,22 +554,20 @@ func _render_truck_blueprint(truck: Dictionary) -> void:
 	div.size = Vector2(362, 1)
 	panel.add_child(div)
 
-	# ASCII blueprint wireframe (retro vibes)
-	var blueprint = Label.new()
-	blueprint.text = (
-"""
- ___________________________
-|  ___  |    NIGHTHAUL      |
-| |cab| |__________________ |
-| |___| /==================\\|
-|______/  []  []  []  []   \\|
- \\____[o]______________[o]__/
-"""
-	)
-	blueprint.add_theme_font_size_override("font_size", 11)
-	blueprint.add_theme_color_override("font_color", Color(0.3, 0.5, 0.85, 0.5))
-	blueprint.position = Vector2(8, 62)
-	blueprint.size = Vector2(374, 100)
+	# Dynamic Programmatic Vector Blueprint
+	var blueprint = VehicleBlueprint.new()
+	blueprint.manufacturer = truck.get("manufacturer", "SCARFIA")
+	blueprint.cab_type = truck.get("cabType", "STANDARD")
+	blueprint.payload_type = truck.get("payloadType", "DRY")
+	blueprint.tuning_tier = truck.get("tuningTier", "STOCK")
+	blueprint.health_pct = int(truck.get("engineHealth", 100))
+	blueprint.custom_minimum_size = Vector2(362, 100)
+	blueprint.position = Vector2(14, 62)
+	
+	# Highlight selected upgrade part if matching
+	if selected_item and selected_item.has("id"):
+		blueprint.highlighted_part = _get_highlight_for_item_id(selected_item.get("id", ""))
+		
 	panel.add_child(blueprint)
 
 	# HEALTH BARS
@@ -732,7 +747,7 @@ func _on_estimate_response(_r, code, _h, body) -> void:
 # HELPERS
 # ====================================================
 func _go_back() -> void:
-	get_tree().change_scene_to_file("res://scenes/game_map/GameMap.tscn")
+	SceneTransition.change_scene_to_file("res://scenes/game_map/GameMap.tscn")
 
 func _show_toast(msg: String, color: Color = Color(1.0, 0.85, 0.2, 1.0), duration: float = 3.0) -> void:
 	var t = Label.new()

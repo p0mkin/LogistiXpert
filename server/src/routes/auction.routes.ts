@@ -20,6 +20,7 @@ router.get('/', async (req: AuthRequest, res: Response) => {
             mileage: true,
             engineHealth: true,
             tireWear: true,
+            cosmeticHealth: true,
             fuelCapacity: true,
             fuelTankMod: true,
             scannerShielding: true,

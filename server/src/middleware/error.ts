@@ -5,6 +5,18 @@ export interface AppError extends Error {
   code?: string;
 }
 
+export class HttpError extends Error implements AppError {
+  statusCode: number;
+  code: string;
+
+  constructor(statusCode: number, message: string, code: string = 'HTTP_ERROR') {
+    super(message);
+    this.statusCode = statusCode;
+    this.code = code;
+    this.name = 'HttpError';
+  }
+}
+
 /**
  * Centralized Express Error Handling Middleware
  */

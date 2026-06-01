@@ -269,6 +269,27 @@ func _open_bid_panel(listing: Dictionary) -> void:
 	else:
 		countdown_timer = 300.0  # default 5 min if no data
 
+	# Dynamic Holographic Blueprint Preview
+	var bid_inner = bid_truck_lbl.get_parent()
+	var old_bp = bid_inner.get_node_or_null("AuctionBlueprint")
+	if old_bp:
+		old_bp.queue_free()
+		bid_inner.remove_child(old_bp)
+
+	var blueprint = VehicleBlueprint.new()
+	blueprint.name = "AuctionBlueprint"
+	blueprint.manufacturer = truck.get("manufacturer", "SCARFIA")
+	blueprint.cab_type = truck.get("cabType", "STANDARD")
+	blueprint.payload_type = truck.get("payloadType", "DRY")
+	blueprint.tuning_tier = truck.get("tuningTier", "STOCK")
+	blueprint.health_pct = int(truck.get("engineHealth", 100))
+	blueprint.custom_minimum_size = Vector2(280, 110) # Compact, sleek blueprint size
+	blueprint.size = blueprint.custom_minimum_size
+	
+	bid_inner.add_child(blueprint)
+	var timer_idx = bid_timer_lbl.get_index()
+	bid_inner.move_child(blueprint, timer_idx + 1)
+
 	bid_input.text = "%.0f" % (current_bid + 100.0)
 	bid_input.placeholder_text = "Enter bid amount..."
 
@@ -442,7 +463,7 @@ func _log(text: String, color: Color) -> void:
 	console_lbl.add_theme_color_override("font_color", color)
 
 func _on_back() -> void:
-	get_tree().change_scene_to_file("res://scenes/game_map/GameMap.tscn")
+	SceneTransition.change_scene_to_file("res://scenes/game_map/GameMap.tscn")
 
 func _apply_theme() -> void:
 	pass

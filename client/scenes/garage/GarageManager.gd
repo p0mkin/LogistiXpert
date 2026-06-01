@@ -41,6 +41,86 @@ var market_prices: Dictionary = {
 	"ADBLUE": { "price": 0.85, "prev_price": 0.85 },
 	"CO2_ALLOWANCE": { "price": 85.0, "prev_price": 85.0 }
 }
+var price_histories: Dictionary = {
+	"DIESEL": [],
+	"ELECTRICITY": [],
+	"ADBLUE": [],
+	"CO2_ALLOWANCE": []
+}
+
+# Programmatically Nested Custom Gauges & Graph Renderers
+class ArcGauge extends Control:
+	var value: float = 0.0
+	var max_value: float = 100.0
+	var label_unit: String = "L"
+	
+	func _draw() -> void:
+		var center = size * 0.5
+		var radius = min(size.x, size.y) * 0.4
+		var width = 12.0
+		
+		# Draw grey backdrop arc from -PI * 0.8 to PI * 0.8
+		var start_angle = -PI * 0.8
+		var end_angle = PI * 0.8
+		draw_arc(center, radius, start_angle, end_angle, 64, Color(0.12, 0.12, 0.16, 1.0), width, true)
+		
+		# Draw active colored arc based on value / max_value
+		var fill_ratio = clamp(value / max_value, 0.0, 1.0)
+		var fill_end_angle = start_angle + (end_angle - start_angle) * fill_ratio
+		
+		var color = Color(0.2, 0.8, 1.0, 1.0) # neon cyan
+		if label_unit == "kWh": color = Color(0.65, 0.45, 1.0, 1.0) # EV violet
+		elif label_unit == "L" and max_value < 1000.0: color = Color(0.2, 0.9, 0.5, 1.0) # adblue green
+		
+		if fill_ratio > 0.0:
+			draw_arc(center, radius, start_angle, fill_end_angle, 64, color, width, true)
+
+class LineGraph extends Control:
+	var points: Array = []
+	var min_val: float = 0.0
+	var max_val: float = 100.0
+	var graph_color: Color = Color(0.925, 0.607, 0.141, 1.0) # amber
+	
+	func _draw() -> void:
+		if points.size() < 2:
+			return
+			
+		# Draw a light grid background
+		var grid_color = Color(0.1, 0.1, 0.14, 0.5)
+		for i in range(4):
+			var y_line = (size.y / 3.0) * i
+			draw_line(Vector2(0, y_line), Vector2(size.x, y_line), grid_color, 1.0)
+		for j in range(6):
+			var x_line = (size.x / 5.0) * j
+			draw_line(Vector2(x_line, 0), Vector2(x_line, size.y), grid_color, 1.0)
+			
+		# Map points onto the Control's coordinate space
+		var mapped_points: Array = []
+		var range_val = max(max_val - min_val, 0.01)
+		
+		for i in range(points.size()):
+			var val = points[i]
+			var x = (float(i) / (points.size() - 1)) * size.x
+			# Invert Y coordinate because Godot runs 0 top, height bottom
+			var y = size.y - ((val - min_val) / range_val) * size.y
+			mapped_points.append(Vector2(x, y))
+			
+		# Draw lines connecting mapped coordinates
+		for i in range(mapped_points.size() - 1):
+			draw_line(mapped_points[i], mapped_points[i + 1], graph_color, 2.5, true)
+			
+		# Draw circle markers at each point
+		for i in range(mapped_points.size()):
+			var p = mapped_points[i]
+			var val = points[i]
+			
+			# Determine marker color: green if lower half, red if high peak
+			var ratio = (val - min_val) / range_val
+			var marker_col = Color(0.18, 0.8, 0.44) if ratio < 0.5 else Color(0.9, 0.3, 0.2)
+			
+			draw_circle(p, 4.0, marker_col)
+			# Outer glow ring
+			draw_circle(p, 6.0, Color(marker_col.r, marker_col.g, marker_col.b, 0.35))
 
 
 func _ready() -> void:
@@ -69,6 +149,7 @@ func _ready() -> void:
 	action_btn_3.hide()
 	
 	# Dynamic Commodity Panel Setup
+	_prepopulate_price_histories()
 	_setup_commodity_panel()
 	_fetch_initial_commodity_prices()
 	
@@ -622,6 +703,16 @@ func _select_truck(truck: Dictionary) -> void:
 	for child in detail_body.get_children():
 		child.queue_free()
 
+	# Dynamic Programmatic Vector Blueprint
+	var blueprint = VehicleBlueprint.new()
+	blueprint.manufacturer = truck.get("manufacturer", "SCARFIA")
+	blueprint.cab_type = truck.get("cabType", "STANDARD")
+	blueprint.payload_type = truck.get("payloadType", "DRY")
+	blueprint.tuning_tier = truck.get("tuningTier", "STOCK")
+	blueprint.health_pct = int(truck.get("engineHealth", 100))
+	blueprint.custom_minimum_size = Vector2(380, 140) # Compact size for detail panel
+	detail_body.add_child(blueprint)
+
 	var info_lines = [
 		"VIN: " + truck.get("vin", "???"),
 		"Engine Health: %d%%" % engine,
@@ -845,7 +936,7 @@ func _log(text: String, color: Color) -> void:
 	console_lbl.add_theme_color_override("font_color", color)
 
 func _on_back_pressed() -> void:
-	get_tree().change_scene_to_file("res://scenes/game_map/GameMap.tscn")
+	SceneTransition.change_scene_to_file("res://scenes/game_map/GameMap.tscn")
 
 func _apply_theme() -> void:
 	var style_bg = StyleBoxFlat.new()
@@ -910,6 +1001,12 @@ func _on_market_prices_updated(payload: Dictionary) -> void:
 			if market_prices.has(type):
 				market_prices[type]["prev_price"] = market_prices[type]["price"]
 				market_prices[type]["price"] = new_price
+				
+				# Maintain rolling price history of 15 elements
+				if price_histories.has(type):
+					price_histories[type].append(new_price)
+					if price_histories[type].size() > 15:
+						price_histories[type].remove_at(0)
 		_render_commodity_panel()
 		_log("⚡ Market prices fluctuated (co-op trading updated).", Color(0.925, 0.607, 0.141))
 
@@ -1063,6 +1160,27 @@ func _render_commodity_item(comm: Dictionary, garage_id: String) -> void:
 		var fill_pct = int((comm.current / comm.max) * 100.0)
 		item_vbox.add_child(_build_health_bar("RESERVES", fill_pct))
 		
+	# Operations button right under the reserves bar
+	var ops_btn = Button.new()
+	ops_btn.text = "⛽  DEPOT REFUEL OPERATIONS ➔" if comm.type != "CO2_ALLOWANCE" else "🌱  CO2 ALLOWANCE OPERATIONS ➔"
+	ops_btn.add_theme_font_size_override("font_size", 10)
+	ops_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	
+	var ops_style = StyleBoxFlat.new()
+	var ops_color = Color(0.2, 0.8, 1.0) # cyan
+	if comm.type == "CO2_ALLOWANCE":
+		ops_color = Color(0.180, 0.803, 0.443) # emerald green
+	
+	ops_style.bg_color = Color(ops_color.r, ops_color.g, ops_color.b, 0.08)
+	ops_style.border_color = Color(ops_color.r, ops_color.g, ops_color.b, 0.35)
+	ops_style.border_width_bottom = 1
+	ops_style.set_corner_radius_all(4)
+	ops_btn.add_theme_stylebox_override("normal", ops_style)
+	ops_btn.add_theme_color_override("font_color", ops_color)
+	
+	ops_btn.pressed.connect(func(): _open_commodity_refill_modal(comm, garage_id))
+	item_vbox.add_child(ops_btn)
+		
 	# Chart telemetry bar (displays where the price sits relative to its min/max bounds)
 	# This represents a beautiful spatial mini-chart that visualizes live volatility trends
 	var price_range = comm.max_price - comm.min_price
@@ -1162,4 +1280,389 @@ func _on_commodity_buy_response(result: int, response_code: int, headers: Packed
 		if data and data is Dictionary and data.has("message"):
 			err_msg = data.message
 		_log("⛔ Refill failed: " + err_msg, Color(0.901, 0.298, 0.235))
+
+
+# ==========================================
+# REFILL OPERATIONS MODAL & STORAGE UPGRADES
+# ==========================================
+func _prepopulate_price_histories() -> void:
+	# Prepopulate price histories with 15 slightly random-walk-drifted price values
+	# Diesel: $1.30–$1.80, start around 1.50
+	var d_price = 1.50
+	# Electricity: $0.15–$0.35, start around 0.22
+	var e_price = 0.22
+	# AdBlue: $0.60–$1.20, start around 0.85
+	var a_price = 0.85
+	# CO2_ALLOWANCE: $65.0–$115.0, start around 85.0
+	var c_price = 85.0
+	
+	for i in range(15):
+		d_price = clamp(d_price + randf_range(-0.04, 0.04), 1.30, 1.80)
+		e_price = clamp(e_price + randf_range(-0.015, 0.015), 0.15, 0.35)
+		a_price = clamp(a_price + randf_range(-0.03, 0.03), 0.60, 1.20)
+		c_price = clamp(c_price + randf_range(-2.5, 2.5), 65.0, 115.0)
+		
+		price_histories["DIESEL"].append(d_price)
+		price_histories["ELECTRICITY"].append(e_price)
+		price_histories["ADBLUE"].append(a_price)
+		price_histories["CO2_ALLOWANCE"].append(c_price)
+
+func _open_commodity_refill_modal(comm: Dictionary, garage_id: String) -> void:
+	var modal_overlay = Control.new()
+	modal_overlay.name = "RefillModalOverlay"
+	modal_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	
+	# Backdrop shadow block
+	var backdrop = PanelContainer.new()
+	backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var backdrop_style = StyleBoxFlat.new()
+	backdrop_style.bg_color = Color(0.04, 0.04, 0.06, 0.82)
+	backdrop.add_theme_stylebox_override("panel", backdrop_style)
+	modal_overlay.add_child(backdrop)
+	
+	# Centered Modal Frame
+	var dialog = PanelContainer.new()
+	dialog.custom_minimum_size = Vector2(850, 480)
+	dialog.anchor_left = 0.5
+	dialog.anchor_top = 0.5
+	dialog.anchor_right = 0.5
+	dialog.anchor_bottom = 0.5
+	dialog.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	dialog.grow_vertical = Control.GROW_DIRECTION_BOTH
+	dialog.offset_left = -425
+	dialog.offset_top = -240
+	dialog.offset_right = 425
+	dialog.offset_bottom = 240
+	
+	var dialog_style = StyleBoxFlat.new()
+	dialog_style.bg_color = Color(0.055, 0.063, 0.078, 1.0)
+	dialog_style.border_color = Color(0.925, 0.607, 0.141, 0.35) # Amber Neon
+	dialog_style.border_width_left = 2
+	dialog_style.border_width_right = 2
+	dialog_style.border_width_top = 2
+	dialog_style.border_width_bottom = 2
+	dialog_style.set_corner_radius_all(8)
+	dialog_style.content_margin_left = 24
+	dialog_style.content_margin_right = 24
+	dialog_style.content_margin_top = 20
+	dialog_style.content_margin_bottom = 20
+	dialog.add_theme_stylebox_override("panel", dialog_style)
+	modal_overlay.add_child(dialog)
+	
+	var main_vbox = VBoxContainer.new()
+	main_vbox.add_theme_constant_override("separation", 16)
+	dialog.add_child(main_vbox)
+	
+	# Header
+	var header_hbox = HBoxContainer.new()
+	main_vbox.add_child(header_hbox)
+	
+	var title_label = Label.new()
+	title_label.text = "◈ %s STORAGE & REFUEL OPERATIONS" % comm.name
+	title_label.add_theme_font_size_override("font_size", 15)
+	title_label.add_theme_color_override("font_color", Color(0.925, 0.607, 0.141)) # Amber
+	header_hbox.add_child(title_label)
+	
+	var header_spacer = Control.new()
+	header_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header_hbox.add_child(header_spacer)
+	
+	var close_btn = Button.new()
+	close_btn.text = " ✕ "
+	close_btn.add_theme_font_size_override("font_size", 14)
+	close_btn.add_theme_color_override("font_color", Color(0.901, 0.298, 0.235))
+	close_btn.flat = true
+	close_btn.pressed.connect(func(): modal_overlay.queue_free())
+	header_hbox.add_child(close_btn)
+	
+	var modal_sep = HSeparator.new()
+	modal_sep.modulate = Color(1, 1, 1, 0.2)
+	main_vbox.add_child(modal_sep)
+	
+	# Splits Left (ArcGauge, Expansion) and Right (Graph, Slider, Cost)
+	var columns_hbox = HBoxContainer.new()
+	columns_hbox.add_theme_constant_override("separation", 32)
+	columns_hbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	main_vbox.add_child(columns_hbox)
+	
+	# Left Panel
+	var left_vbox = VBoxContainer.new()
+	left_vbox.custom_minimum_size.x = 280
+	left_vbox.add_theme_constant_override("separation", 16)
+	left_vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	columns_hbox.add_child(left_vbox)
+	
+	var gauge_label = Label.new()
+	gauge_label.text = "SILO STOCK LEVEL"
+	gauge_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	gauge_label.add_theme_font_size_override("font_size", 11)
+	gauge_label.add_theme_color_override("font_color", Color(0.709, 0.768, 0.843, 0.5))
+	left_vbox.add_child(gauge_label)
+	
+	var arc_gauge = ArcGauge.new()
+	arc_gauge.custom_minimum_size = Vector2(160, 160)
+	arc_gauge.value = comm.current
+	arc_gauge.max_value = comm.max if comm.max > 0 else 100.0
+	arc_gauge.label_unit = comm.unit
+	left_vbox.add_child(arc_gauge)
+	
+	var value_lbl = Label.new()
+	if comm.max > 0:
+		var pct = int((comm.current / comm.max) * 100.0)
+		value_lbl.text = "%.1f / %.0f %s (%d%%)" % [comm.current, comm.max, comm.unit, pct]
+	else:
+		value_lbl.text = "%.4f %s" % [comm.current, comm.unit]
+	value_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	value_lbl.add_theme_font_size_override("font_size", 12)
+	value_lbl.add_theme_color_override("font_color", Color(1, 1, 1, 0.95))
+	left_vbox.add_child(value_lbl)
+	
+	var upgrade_btn = Button.new()
+	upgrade_btn.custom_minimum_size.y = 40
+	upgrade_btn.add_theme_font_size_override("font_size", 11)
+	left_vbox.add_child(upgrade_btn)
+	
+	if comm.max <= 0:
+		upgrade_btn.text = "ELECTRONIC COMMODITY\n(No Storage Limits)"
+		upgrade_btn.disabled = true
+	else:
+		_update_capacity_button_state(comm.type, comm.max, upgrade_btn, garage_id, arc_gauge, value_lbl, comm)
+		
+	# Right Panel
+	var right_vbox = VBoxContainer.new()
+	right_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	right_vbox.add_theme_constant_override("separation", 14)
+	columns_hbox.add_child(right_vbox)
+	
+	var chart_lbl = Label.new()
+	chart_lbl.text = "HISTORICAL PRICE VOLATILITY (LAST 15 TRADING HOURS)"
+	chart_lbl.add_theme_font_size_override("font_size", 11)
+	chart_lbl.add_theme_color_override("font_color", Color(0.709, 0.768, 0.843, 0.5))
+	right_vbox.add_child(chart_lbl)
+	
+	var line_graph = LineGraph.new()
+	line_graph.custom_minimum_size = Vector2(400, 150)
+	line_graph.points = price_histories.get(comm.type, [])
+	line_graph.min_val = comm.min_price
+	line_graph.max_val = comm.max_price
+	line_graph.graph_color = Color(0.925, 0.607, 0.141, 1.0)
+	right_vbox.add_child(line_graph)
+	
+	var slider_label = Label.new()
+	slider_label.text = "SELECT AMOUNT TO PURCHASE"
+	slider_label.add_theme_font_size_override("font_size", 11)
+	slider_label.add_theme_color_override("font_color", Color(0.709, 0.768, 0.843, 0.5))
+	right_vbox.add_child(slider_label)
+	
+	var slider_hbox = HBoxContainer.new()
+	slider_hbox.add_theme_constant_override("separation", 12)
+	right_vbox.add_child(slider_hbox)
+	
+	var amt_slider = HSlider.new()
+	amt_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	
+	var remaining_space = comm.max - comm.current if comm.max > 0 else 100.0
+	if remaining_space < 0: remaining_space = 0.0
+	
+	amt_slider.min_value = 0.0
+	if comm.max > 0:
+		amt_slider.max_value = remaining_space
+	else:
+		var affordable_co2 = GameState.legal_balance / market_prices[comm.type]["price"]
+		amt_slider.max_value = min(100.0, max(0.0, affordable_co2))
+		
+	if comm.type == "DIESEL":
+		amt_slider.step = 10.0
+	elif comm.type == "ELECTRICITY":
+		amt_slider.step = 5.0
+	elif comm.type == "ADBLUE":
+		amt_slider.step = 5.0
+	else:
+		amt_slider.step = 0.1
+		
+	amt_slider.value = 0.0
+	slider_hbox.add_child(amt_slider)
+	
+	var slider_val_lbl = Label.new()
+	slider_val_lbl.text = "0 %s" % comm.unit
+	slider_val_lbl.custom_minimum_size.x = 80
+	slider_val_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	slider_val_lbl.add_theme_font_size_override("font_size", 12)
+	slider_val_lbl.add_theme_color_override("font_color", Color(0.925, 0.607, 0.141))
+	slider_hbox.add_child(slider_val_lbl)
+	
+	var invoice_lbl = Label.new()
+	invoice_lbl.text = "Total cost: $0.00  |  Remaining Cash: $%s" % _fmt_cash(GameState.legal_balance)
+	invoice_lbl.add_theme_font_size_override("font_size", 12)
+	invoice_lbl.add_theme_color_override("font_color", Color(0.709, 0.768, 0.843, 0.85))
+	right_vbox.add_child(invoice_lbl)
+	
+	var purchase_btn = Button.new()
+	purchase_btn.text = "💳  EXECUTE REFILL ORDER"
+	purchase_btn.custom_minimum_size.y = 42
+	purchase_btn.add_theme_font_size_override("font_size", 13)
+	purchase_btn.disabled = true
+	right_vbox.add_child(purchase_btn)
+	
+	amt_slider.value_changed.connect(func(val):
+		var unit_label = "Tons" if comm.type == "CO2_ALLOWANCE" else comm.unit
+		slider_val_lbl.text = "%.1f %s" % [val, unit_label] if comm.type == "CO2_ALLOWANCE" else "%.0f %s" % [val, unit_label]
+		
+		var unit_price = market_prices[comm.type]["price"]
+		var cost = val * unit_price
+		var remaining_cash = GameState.legal_balance - cost
+		
+		if cost > 0:
+			invoice_lbl.text = "Total Cost: $%.2f  |  Remaining Cash: $%s" % [cost, _fmt_cash(remaining_cash)]
+		else:
+			invoice_lbl.text = "Total Cost: $0.00  |  Remaining Cash: $%s" % _fmt_cash(GameState.legal_balance)
+			
+		if cost > GameState.legal_balance:
+			invoice_lbl.add_theme_color_override("font_color", Color(0.901, 0.298, 0.235))
+			purchase_btn.disabled = true
+			purchase_btn.text = "⛔ INSUFFICIENT LEGAL CASH"
+		else:
+			invoice_lbl.add_theme_color_override("font_color", Color(0.709, 0.768, 0.843, 0.85))
+			if val > 0:
+				purchase_btn.disabled = false
+				purchase_btn.text = "💳  EXECUTE REFILL ORDER ($%.2f)" % cost
+				purchase_btn.add_theme_color_override("font_color", Color(0.180, 0.803, 0.443))
+			else:
+				purchase_btn.disabled = true
+				purchase_btn.text = "💳  EXECUTE REFILL ORDER"
+				purchase_btn.remove_theme_color_override("font_color")
+	)
+	
+	purchase_btn.pressed.connect(func():
+		var val = amt_slider.value
+		if val > 0:
+			purchase_btn.disabled = true
+			amt_slider.editable = false
+			_buy_commodity_via_modal(garage_id, comm.type, val, modal_overlay, purchase_btn, amt_slider)
+	)
+	
+	add_child(modal_overlay)
+
+func _update_capacity_button_state(type: String, current_max: float, btn: Button, garage_id: String, arc_gauge: ArcGauge, value_lbl: Label, comm: Dictionary) -> void:
+	var cost = 0
+	var increment = 0
+	var max_allowed = 0
+	
+	if type == "DIESEL":
+		cost = 12500
+		increment = 1000
+		max_allowed = 20000
+	elif type == "ELECTRICITY":
+		cost = 8000
+		increment = 500
+		max_allowed = 10000
+	elif type == "ADBLUE":
+		cost = 5000
+		increment = 250
+		max_allowed = 5000
+		
+	if current_max >= max_allowed:
+		btn.text = "🏬 MAX CAPACITY REACHED\n(Limit: %.0f %s)" % [max_allowed, comm.unit]
+		btn.disabled = true
+		btn.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5, 1.0))
+	else:
+		btn.text = "▲ UPGRADE CAPACITY (+%.0f %s)\nCost: $%s Clean Cash" % [increment, comm.unit, _fmt_cash(cost)]
+		if GameState.legal_balance < cost:
+			btn.disabled = true
+			btn.add_theme_color_override("font_color", Color(0.901, 0.298, 0.235, 0.8))
+		else:
+			btn.disabled = false
+			btn.add_theme_color_override("font_color", Color(0.180, 0.803, 0.443))
+			
+			for conn in btn.pressed.get_connections():
+				btn.pressed.disconnect(conn.callable)
+				
+			btn.pressed.connect(func():
+				_upgrade_storage(garage_id, type, cost, increment, max_allowed, btn, arc_gauge, value_lbl, comm)
+			)
+
+func _upgrade_storage(garage_id: String, commodity_type: String, cost: float, increment: float, max_allowed: float, btn: Button, arc_gauge: ArcGauge, value_lbl: Label, comm: Dictionary) -> void:
+	_log("Processing storage capacity upgrade...", Color(0.925, 0.607, 0.141))
+	btn.disabled = true
+	
+	var http = HTTPRequest.new()
+	add_child(http)
+	http.request_completed.connect(func(result, response_code, headers, body):
+		http.queue_free()
+		var data = JSON.parse_string(body.get_string_from_utf8())
+		if response_code == 200:
+			GameState.update_balances(-cost, 0.0)
+			_log("✓ Silo storage capacity upgraded successfully!", Color(0.180, 0.803, 0.443))
+			
+			if not GameState.garages.is_empty():
+				for g in GameState.garages:
+					if g.get("id", "") == garage_id:
+						if commodity_type == "DIESEL":
+							g["maxDiesel"] = float(g.get("maxDiesel", 5000.0)) + increment
+						elif commodity_type == "ELECTRICITY":
+							g["maxElectricity"] = float(g.get("maxElectricity", 1000.0)) + increment
+						elif commodity_type == "ADBLUE":
+							g["maxAdblue"] = float(g.get("maxAdblue", 500.0)) + increment
+						
+						comm.max = g["maxDiesel"] if commodity_type == "DIESEL" else (g["maxElectricity"] if commodity_type == "ELECTRICITY" else g["maxAdblue"])
+						break
+			
+			arc_gauge.max_value = comm.max
+			arc_gauge.queue_redraw()
+			
+			var pct = int((comm.current / comm.max) * 100.0)
+			value_lbl.text = "%.1f / %.0f %s (%d%%)" % [comm.current, comm.max, comm.unit, pct]
+			
+			_update_capacity_button_state(commodity_type, comm.max, btn, garage_id, arc_gauge, value_lbl, comm)
+			_render_commodity_panel()
+			_fetch_fleet()
+		else:
+			var err_msg = "Upgrade rejected by engineers."
+			if data and data is Dictionary and data.has("message"):
+				err_msg = data.message
+			_log("⛔ Upgrade failed: " + err_msg, Color(0.901, 0.298, 0.235))
+			btn.disabled = false
+	)
+	
+	var body = JSON.stringify({
+		"commodityType": commodity_type
+	})
+	http.request(
+		api_base + "/garage/" + garage_id + "/upgrade-storage",
+		["Authorization: Bearer " + NetworkManager.jwt_token, "Content-Type: application/json"],
+		HTTPClient.METHOD_POST,
+		body
+	)
+
+func _buy_commodity_via_modal(garage_id: String, commodity_type: String, amount: float, modal_overlay: Node, purchase_btn: Button, amt_slider: HSlider) -> void:
+	_log("Ordering stockpile refill from modal: %.0f %s..." % [amount, commodity_type], Color(0.925, 0.607, 0.141))
+	var http = HTTPRequest.new()
+	add_child(http)
+	http.request_completed.connect(func(result, response_code, headers, body):
+		http.queue_free()
+		var data = JSON.parse_string(body.get_string_from_utf8())
+		if response_code == 200:
+			var cost = float(data.get("totalCost", 0))
+			_log("✓ Stockpile refilled! Cost: $%.2f legal cash deducted." % cost, Color(0.180, 0.803, 0.443))
+			modal_overlay.queue_free()
+			_fetch_fleet()
+		else:
+			var err_msg = "Transaction rejected by market regulatory."
+			if data and data is Dictionary and data.has("message"):
+				err_msg = data.message
+			_log("⛔ Refill failed: " + err_msg, Color(0.901, 0.298, 0.235))
+			purchase_btn.disabled = false
+			amt_slider.editable = true
+	)
+	var body = JSON.stringify({
+		"garageId": garage_id,
+		"commodityType": commodity_type,
+		"amount": amount
+	})
+	http.request(
+		api_base + "/commodity/buy",
+		["Authorization: Bearer " + NetworkManager.jwt_token, "Content-Type: application/json"],
+		HTTPClient.METHOD_POST,
+		body
+	)
 

@@ -2,8 +2,30 @@ import { PrismaClient, CargoType, ContrabandClass } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-const CITIES_SCHENGEN = ['Tallinn', 'Riga', 'Vilnius', 'Kaunas', 'Warsaw', 'Bialystok', 'Krakow', 'Gdansk'];
+const CITIES_SCHENGEN = [
+  'Tallinn',
+  'Riga',
+  'Vilnius',
+  'Kaunas',
+  'Warsaw',
+  'Bialystok',
+  'Krakow',
+  'Gdansk',
+  'Siauliai',
+  'Klaipeda',
+  'Panevezys'
+];
 const CITIES_NON_SCHENGEN = ['Minsk', 'Brest', 'Grodno', 'Moscow', 'St. Petersburg', 'Kiev'];
+
+const HUB_SPOKE_CONNECTIONS = [
+  { hub: 'Siauliai', spoke: 'Kursenai', distance: 25 },
+  { hub: 'Siauliai', spoke: 'Telsiai', distance: 70 },
+  { hub: 'Siauliai', spoke: 'Mazeikiai', distance: 80 },
+  { hub: 'Klaipeda', spoke: 'Telsiai', distance: 90 },
+  { hub: 'Klaipeda', spoke: 'Mazeikiai', distance: 110 },
+  { hub: 'Vilnius', spoke: 'Elektrenai', distance: 50 },
+  { hub: 'Panevezys', spoke: 'Kursenai', distance: 90 }
+];
 
 const LEGAL_CARGO_TYPES = [
   CargoType.ELECTRONICS,
@@ -40,22 +62,56 @@ export class ContractService {
     this.refreshContracts();
   }
 
+  private static rollContractType(): { contractType: 'SPOT' | 'PERSISTENT' | 'LIMITED', remainingQuota: number | null, expiresAt: Date | null } {
+    const roll = Math.random();
+    if (roll < 0.75) {
+      return { contractType: 'SPOT', remainingQuota: null, expiresAt: null };
+    } else if (roll < 0.90) {
+      return { contractType: 'PERSISTENT', remainingQuota: null, expiresAt: null };
+    } else {
+      // LIMITED contract (runs for +30 minutes in future, global quota e.g. 50,000 kg to 150,000 kg)
+      const expiresAt = new Date(Date.now() + 30 * 60000);
+      const remainingQuota = Math.floor(Math.random() * 100000) + 50000; // 50k to 150k kg
+      return { contractType: 'LIMITED', remainingQuota, expiresAt };
+    }
+  }
+
   private static async refreshContracts() {
     // 1. Delete stale contracts that are NOT currently active on any truck route
     const now = new Date();
     const expiryThreshold = new Date(now.getTime() - 15 * 60000); // 15 mins old
 
+    // SPOT contracts decay by time. LIMITED contracts decay if expiresAt is passed.
+    // PERSISTENT contracts are retained on the board indefinitely.
     const deletedLegal = await prisma.legalContract.deleteMany({
       where: {
-        createdAt: { lt: expiryThreshold },
-        activeRoutes: { none: {} }
+        activeRoutes: { none: {} },
+        OR: [
+          {
+            contractType: 'SPOT',
+            createdAt: { lt: expiryThreshold }
+          },
+          {
+            contractType: 'LIMITED',
+            expiresAt: { lt: now }
+          }
+        ]
       }
     });
 
     const deletedContraband = await prisma.contrabandJob.deleteMany({
       where: {
-        createdAt: { lt: expiryThreshold },
-        activeRoutes: { none: {} }
+        activeRoutes: { none: {} },
+        OR: [
+          {
+            contractType: 'SPOT',
+            createdAt: { lt: expiryThreshold }
+          },
+          {
+            contractType: 'LIMITED',
+            expiresAt: { lt: now }
+          }
+        ]
       }
     });
 
@@ -84,23 +140,54 @@ export class ContractService {
   private static async generateLegalContracts(count: number) {
     const newContracts = [];
     for (let i = 0; i < count; i++) {
-      const origin = this.getRandomItem(CITIES_SCHENGEN);
-      let destination = this.getRandomItem(CITIES_SCHENGEN);
-      while (destination === origin) destination = this.getRandomItem(CITIES_SCHENGEN);
-      
-      const distanceKm = Math.floor(Math.random() * 400) + 100; // 100-500km
-      const basePayout = distanceKm * 15; // ~$15 per km
-      const variance = 1.0 + (Math.random() * 0.4 - 0.2); // +/- 20%
-      const payoutLegal = Math.floor(basePayout * variance);
-      
-      newContracts.push({
-        cargoType: this.getRandomItem(LEGAL_CARGO_TYPES),
-        origin,
-        destination,
-        distanceKm,
-        payoutLegal,
-        deadlineHours: Math.floor(Math.random() * 24) + 12
-      });
+      const { contractType, remainingQuota, expiresAt } = this.rollContractType();
+
+      // 35% probability of generating a Hub-and-Spoke local connection
+      if (Math.random() < 0.35 && HUB_SPOKE_CONNECTIONS.length > 0) {
+        const conn = this.getRandomItem(HUB_SPOKE_CONNECTIONS);
+        // Decide direction: Hub -> Spoke or Spoke -> Hub
+        const isHubToSpoke = Math.random() > 0.5;
+        const origin = isHubToSpoke ? conn.hub : conn.spoke;
+        const destination = isHubToSpoke ? conn.spoke : conn.hub;
+        
+        const distanceKm = conn.distance;
+        const basePayout = distanceKm * 30; // Premium local rate of $30/km
+        const variance = 1.0 + (Math.random() * 0.4 - 0.2); // +/- 20%
+        const payoutLegal = Math.floor(basePayout * variance);
+
+        newContracts.push({
+          cargoType: this.getRandomItem(LEGAL_CARGO_TYPES),
+          origin,
+          destination,
+          distanceKm,
+          payoutLegal,
+          deadlineHours: Math.floor(Math.random() * 12) + 6, // Local feed routes have shorter deadlines
+          contractType,
+          remainingQuota,
+          expiresAt
+        });
+      } else {
+        const origin = this.getRandomItem(CITIES_SCHENGEN);
+        let destination = this.getRandomItem(CITIES_SCHENGEN);
+        while (destination === origin) destination = this.getRandomItem(CITIES_SCHENGEN);
+        
+        const distanceKm = Math.floor(Math.random() * 400) + 100; // 100-500km
+        const basePayout = distanceKm * 15; // ~$15 per km
+        const variance = 1.0 + (Math.random() * 0.4 - 0.2); // +/- 20%
+        const payoutLegal = Math.floor(basePayout * variance);
+        
+        newContracts.push({
+          cargoType: this.getRandomItem(LEGAL_CARGO_TYPES),
+          origin,
+          destination,
+          distanceKm,
+          payoutLegal,
+          deadlineHours: Math.floor(Math.random() * 24) + 12,
+          contractType,
+          remainingQuota,
+          expiresAt
+        });
+      }
     }
 
     await prisma.legalContract.createMany({ data: newContracts });
@@ -112,6 +199,8 @@ export class ContractService {
     const classes = [ContrabandClass.CLASS_A, ContrabandClass.CLASS_B, ContrabandClass.CLASS_C];
     
     for (let i = 0; i < count; i++) {
+      const { contractType, remainingQuota, expiresAt } = this.rollContractType();
+
       const isImport = Math.random() > 0.5;
       const origin = isImport ? this.getRandomItem(CITIES_NON_SCHENGEN) : this.getRandomItem(CITIES_SCHENGEN);
       const destination = isImport ? this.getRandomItem(CITIES_SCHENGEN) : this.getRandomItem(CITIES_NON_SCHENGEN);
@@ -139,7 +228,10 @@ export class ContractService {
         destination,
         riskMultiplier: parseFloat(riskMultiplier.toFixed(2)),
         payoutBlack: Math.floor(baseBlackPayout),
-        payoutLegal: baseLegalPayout
+        payoutLegal: baseLegalPayout,
+        contractType,
+        remainingQuota,
+        expiresAt
       });
     }
 

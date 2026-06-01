@@ -1,0 +1,26 @@
+[gd_scene load_steps=2 format=3 uid="uid://finance_market_scene"]
+
+[ext_resource type="Script" path="res://scenes/finance/FinanceMarket.gd" id="1_finance"]
+
+[node name="FinanceMarket" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_finance")
+
+[node name="CanvasLayer" type="CanvasLayer" parent="."]
+
+[node name="ValHTTPRequest" type="HTTPRequest" parent="."]
+
+[node name="IpoHTTPRequest" type="HTTPRequest" parent="."]
+
+[node name="MarketHTTPRequest" type="HTTPRequest" parent="."]
+
+[node name="TradeHTTPRequest" type="HTTPRequest" parent="."]
+
+[node name="CreditHTTPRequest" type="HTTPRequest" parent="."]
+
+[node name="ActionHTTPRequest" type="HTTPRequest" parent="."]

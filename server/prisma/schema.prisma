@@ -30,6 +30,7 @@ model Clan {
   createdAt  DateTime @default(now())
 
   companies Company[]
+  clanContracts ClanContract[]
 }
 
 model Company {
@@ -40,6 +41,28 @@ model Company {
   reputationScore    Int      @default(0) // Underworld rep
   policeHeat         Int      @default(0) // Heat scale (0-100)
   clanId             String?
+  isPublic           Boolean  @default(false) // IPO Status
+  totalShares        Int      @default(1000000) // Total issued shares
+  goldStock          Float    @default(0.0) // Gold stockpiles in ounces
+  jurisdiction       Jurisdiction @default(BALTICS) // Starting HQ Perks & Taxes
+
+  // Marketing Campaigns & Loan Debts
+  marketingRepBoost  Int      @default(0) // Temporary rep boost from active ads
+  marketingExpiresAt DateTime? // Ad campaign expiry
+  activeDebtPrincipal Decimal  @default(0.00) @db.Decimal(18, 2) // Outstanding loan principal
+  activeDebtInterest  Float    @default(0.0) // Current active interest rate (A.P.R.)
+  warningInsolventAt DateTime? // Timestamp when dynamic insolvency limit was breached
+
+  // Research & Development Tech Tree
+  resTerminalLogistics Int      @default(0) // +10% loading speed per level (Max 3)
+  resAerodynamics     Int      @default(0) // -4% fuel/elec drag per level (Max 3)
+  resAdvancedPacking   Int      @default(0) // +5% cargo capacity volume (Max 3)
+  resECURemapping      Int      @default(0) // Unlocks Performance+/Economy+ tuning (Max 2)
+  resCoopCapacity      Int      @default(0) // +1 co-op company member capacity per level (Max 2)
+  resBrandPartnership  String   @default("NONE") // Brand partner for -15% factory purchase cost
+
+  clanContractContributions ClanContractContribution[]
+
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
@@ -50,11 +73,17 @@ model Company {
   drivers      Driver[]
   activeRoutes ActiveRoute[]
   fronts       FrontBusiness[]
+  dailyReports         DailyPerformanceReport[]
+  terminalDailyReports TerminalDailyReport[]
 
   // Auctions (Companies bid and sell, not individual users)
   listings    AuctionListing[] @relation("SellerAuctions")
   highestBids AuctionListing[] @relation("HighestBidderAuctions")
   bidLogs     AuctionBidLog[]
+
+  // Stock Market Portfolios
+  sharesIssued CompanyShare[]   @relation("SharesIssued")
+  sharesOwned  CompanyShare[]   @relation("SharesOwned")
 
   @@index([clanId])
 }
@@ -94,6 +123,13 @@ model Garage {
   maxAdblue          Float @default(500.0)
   co2Allowances      Float @default(0.0) // Tons
 
+  // Warehouse Terminal Upgrades
+  terminalLevel       Int   @default(1) // Worker speed levels (1 to 5)
+  contrabandStorageA  Float @default(0.0) // Class A stashed (units)
+  contrabandStorageB  Float @default(0.0) // Class B stashed (units)
+  contrabandStorageC  Float @default(0.0) // Class C stashed (units)
+  maxContrabandStash  Float @default(100.0) // Max stashed contraband volume
+
   createdAt DateTime @default(now())
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -106,16 +142,27 @@ model Truck {
   id               String      @id @default(cuid())
   companyId        String
   garageId         String
-  model            String // e.g., "Scania R500", "Volvo FH16"
+  model            String // e.g., "Moose FH16", "Scarfia R500"
   vin              String      @unique
   mileage          Float       @default(0.0)
   engineHealth     Int         @default(100) // Percent (0-100)
   tireWear         Int         @default(100) // Percent (0-100)
+  cosmeticHealth   Int         @default(100) // Percent (0-100)
   fuelCapacity     Float       @default(400.0) // Liters
+
   fuelTankMod      FuelTankMod @default(STOCK)
   scannerShielding Int         @default(0) // Level of lead shielding (0-5)
   isImpounded      Boolean     @default(false)
   impoundReleaseAt DateTime?
+
+  // Factory Specs & Customizations
+  manufacturer     String      @default("Moose") // Moose, Scarfia, Guy, Lion, Myrcedez, TesIo, Drasia
+  tier             String      @default("Heavy Rigid Cab") // VAN, RIGID_MEDIUM, RIGID_HEAVY, ARTICULATED, SUPER_HEAVY
+  cabType          String      @default("STANDARD") // STANDARD, EXTENDED, SUPER_LONG
+  payloadType      String      @default("DRY") // DRY, REEFER, CONSTRUCTION, AUTOMOTIVE, HAZARDOUS, LOGGING, ULTRA_HEAVY
+  tuningTier       String      @default("STOCK") // STOCK, PERFORMANCE, ECONOMY, RELIABLE
+  isVanCUpgrade    Boolean     @default(false) // Minivan C-class upgrade flag
+
   createdAt        DateTime    @default(now())
 
   company         Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -168,15 +215,18 @@ model Driver {
 // 4. THE CONTRACTS & SMUGGLING WORKFLOW
 // ==========================================
 model LegalContract {
-  id            String        @id @default(cuid())
-  cargoType     CargoType
-  origin        String
-  destination   String
-  deadlineHours Int           @default(24)
-  payoutLegal   Decimal       @db.Decimal(18, 2)
-  distanceKm    Float
-  createdAt     DateTime      @default(now())
-  activeRoutes  ActiveRoute[]
+  id             String        @id @default(cuid())
+  cargoType      CargoType
+  origin         String
+  destination    String
+  deadlineHours  Int           @default(24)
+  payoutLegal    Decimal       @db.Decimal(18, 2)
+  distanceKm     Float
+  contractType   ContractType  @default(SPOT)
+  remainingQuota Float?
+  expiresAt      DateTime?
+  createdAt      DateTime      @default(now())
+  activeRoutes   ActiveRoute[]
 }
 
 model ContrabandJob {
@@ -187,6 +237,9 @@ model ContrabandJob {
   payoutLegal    Decimal         @default(0.00) @db.Decimal(18, 2) // laundered payout if any
   origin         String
   destination    String
+  contractType   ContractType    @default(SPOT)
+  remainingQuota Float?
+  expiresAt      DateTime?
   createdAt      DateTime        @default(now())
   activeRoutes   ActiveRoute[]
 }
@@ -198,22 +251,30 @@ model ActiveRoute {
   driverId           String
   legalContractId    String?
   contrabandJobId    String?
+  clanContractId     String?
   progressPct        Float    @default(0.0) // 0.0 to 100.0
   departedAt         DateTime @default(now())
   eta                DateTime
   currentCity        String
   isUnderBorderCheck Boolean  @default(false)
   isPaused           Boolean  @default(false)
+  isFerryTransit     Boolean  @default(false) // Active route is crossing water on a ferry
+  stage              RouteStage @default(LOADING) // LOADING, TRANSIT, UNLOADING
+  
+  autopilotPolicy    AutopilotPolicy @default(SAFE)
+  currentWeather     String          @default("CLEAR") // CLEAR, ICE_STORM, THICK_FOG
 
   company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
   truck         Truck          @relation(fields: [truckId], references: [id], onDelete: Restrict)
   driver        Driver         @relation(fields: [driverId], references: [id], onDelete: Restrict)
   legalContract LegalContract? @relation(fields: [legalContractId], references: [id], onDelete: SetNull)
   contrabandJob ContrabandJob? @relation(fields: [contrabandJobId], references: [id], onDelete: SetNull)
+  clanContract  ClanContract?  @relation(fields: [clanContractId], references: [id], onDelete: SetNull)
 
   @@index([companyId])
   @@index([truckId])
 }
+
 
 // ==========================================
 // 5. THE BIDDING ECONOMY (AUCTION HOUSE)
@@ -226,6 +287,8 @@ model AuctionListing {
   currentBid             Decimal       @db.Decimal(18, 2)
   highestBidderCompanyId String?
   reservePrice           Decimal?      @db.Decimal(18, 2)
+  buyoutPrice            Decimal?      @db.Decimal(18, 2) // Buyout price (typically close to retail price)
+  isForeclosed           Boolean       @default(false) // Marked true if this is a bank foreclosure auction
   expiresAt              DateTime
   status                 AuctionStatus @default(ACTIVE)
   createdAt              DateTime      @default(now())
@@ -283,6 +346,19 @@ enum CommodityType {
   CO2_ALLOWANCE
 }
 
+enum ContractType {
+  SPOT
+  PERSISTENT
+  LIMITED
+}
+
+enum AutopilotPolicy {
+  SAFE
+  AVERAGE
+  GREEDY
+}
+
+
 enum FuelTankMod {
   STOCK
   FALSE_BOTTOM // Hides 50L capacity, holds Class A or B
@@ -337,3 +413,126 @@ model FrontBusiness {
 
   @@index([companyId])
 }
+
+// ==========================================
+// 9. RESTRUCTURING: STOCK DEALS & JURISDICTIONS
+// ==========================================
+model CompanyShare {
+  id               String   @id @default(cuid())
+  companyId        String   // The company whose shares these are
+  ownerCompanyId   String   // The corporate investor owning these shares
+  shares           Int      @default(0)
+  avgPurchasePrice Decimal  @db.Decimal(18, 2)
+  purchasedAt      DateTime @default(now()) // To verify Short vs Long term Capital Gains Tax
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  company      Company @relation("SharesIssued", fields: [companyId], references: [id], onDelete: Cascade)
+  ownerCompany Company @relation("SharesOwned", fields: [ownerCompanyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, ownerCompanyId])
+  @@index([companyId])
+  @@index([ownerCompanyId])
+}
+
+enum Jurisdiction {
+  SCANDINAVIA
+  GERMANY
+  BALTICS
+  BELARUS
+}
+
+enum RouteStage {
+  LOADING
+  TRANSIT
+  UNLOADING
+}
+
+model ClanContract {
+  id              String   @id @default(cuid())
+  title           String
+  cargoType       CargoType?
+  cargoClass      ContrabandClass?
+  origin          String
+  destination     String
+  distanceKm      Float
+  totalVolume     Float    @default(1000.0)
+  volumeDelivered Float    @default(0.0)
+  payoutLegal     Decimal  @default(0.00) @db.Decimal(18, 2)
+  payoutBlack     Decimal  @default(0.00) @db.Decimal(18, 2)
+  clanId          String
+  status          String   @default("ACTIVE") // ACTIVE, COMPLETED
+  createdAt       DateTime @default(now())
+
+  clan          Clan                         @relation(fields: [clanId], references: [id], onDelete: Cascade)
+  contributions ClanContractContribution[]
+  activeRoutes  ActiveRoute[]
+}
+
+model ClanContractContribution {
+  id              String   @id @default(cuid())
+  clanContractId  String
+  companyId       String
+  volumeDelivered Float    @default(0.0)
+
+  clanContract    ClanContract @relation(fields: [clanContractId], references: [id], onDelete: Cascade)
+  company         Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([clanContractId, companyId])
+}
+
+model DailyPerformanceReport {
+  id                    String   @id @default(cuid())
+  companyId             String
+  dateStr               String   // YYYY-MM-DD
+  revenueLegal          Decimal  @db.Decimal(18, 2) @default(0.00)
+  revenueBlack          Decimal  @db.Decimal(18, 2) @default(0.00)
+  expenseFuel           Decimal  @db.Decimal(18, 2) @default(0.00)
+  expenseRepairs        Decimal  @db.Decimal(18, 2) @default(0.00)
+  expenseInterest       Decimal  @db.Decimal(18, 2) @default(0.00)
+  expenseBribesFines    Decimal  @db.Decimal(18, 2) @default(0.00)
+  routesDispatchedCount Int      @default(0)
+  routesCompletedCount  Int      @default(0)
+  tonnageDeliveredKg    Float    @default(0.0)
+  createdAt             DateTime @default(now())
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, dateStr])
+  @@index([companyId])
+  @@index([dateStr])
+}
+
+model TerminalDailyReport {
+  id                   String   @id @default(cuid())
+  companyId            String
+  garageId             String
+  city                 String
+  dateStr              String   // YYYY-MM-DD
+  revenueLegal         Decimal  @db.Decimal(18, 2) @default(0.00)
+  revenueBlack         Decimal  @db.Decimal(18, 2) @default(0.00)
+  routesCompletedCount Int      @default(0)
+  tonnageDeliveredKg   Float    @default(0.0)
+  createdAt            DateTime @default(now())
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([garageId, dateStr])
+  @@index([companyId])
+  @@index([garageId])
+  @@index([dateStr])
+}
+
+model CityDailyFreight {
+  id        String   @id @default(cuid())
+  city      String
+  dateStr   String   // YYYY-MM-DD
+  shippedKg Float    @default(0.0)
+  createdAt DateTime @default(now())
+
+  @@unique([city, dateStr])
+  @@index([city])
+  @@index([dateStr])
+}
+
+

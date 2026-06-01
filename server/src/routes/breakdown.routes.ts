@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticateJWT, AuthRequest } from '../middleware/auth';
+import { AnalyticsService } from '../services/analytics.service';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -120,7 +121,7 @@ router.post('/roadside-repair', authenticateJWT, async (req: AuthRequest, res: R
     const result = await prisma.$transaction(async (tx) => {
       const truck = await tx.truck.findUnique({
         where: { id: truckId },
-        include: { company: true, activeRoute: true },
+        include: { company: true, activeRoute: true, garage: true },
       });
 
       if (!truck || truck.companyId !== req.user!.companyId) {
@@ -164,6 +165,16 @@ router.post('/roadside-repair', authenticateJWT, async (req: AuthRequest, res: R
           legalBalance: { decrement: totalCharge },
         },
       });
+
+      // Record roadside repairs expense
+      await AnalyticsService.recordTransaction(
+        tx,
+        req.user!.companyId,
+        truck.garageId,
+        truck.garage.city,
+        'EXPENSE_REPAIRS',
+        totalCharge
+      );
 
       // Log the event
       const repairDesc = [];
@@ -215,7 +226,7 @@ router.post('/garage-repair', authenticateJWT, async (req: AuthRequest, res: Res
     const result = await prisma.$transaction(async (tx) => {
       const truck = await tx.truck.findUnique({
         where: { id: truckId },
-        include: { company: true, activeRoute: { include: { contrabandJob: true } } },
+        include: { company: true, garage: true, activeRoute: { include: { contrabandJob: true } } },
       });
 
       if (!truck || truck.companyId !== req.user!.companyId) {
@@ -256,6 +267,16 @@ router.post('/garage-repair', authenticateJWT, async (req: AuthRequest, res: Res
           legalBalance: { decrement: totalCharge },
         },
       });
+
+      // Record garage repairs expense
+      await AnalyticsService.recordTransaction(
+        tx,
+        req.user!.companyId,
+        truck.garageId,
+        truck.garage.city,
+        'EXPENSE_REPAIRS',
+        totalCharge
+      );
 
       // If there was an active route, cancel it — cargo lost or returned
       let routeCanceled = false;
@@ -363,7 +384,7 @@ router.post('/release-impound/:truckId', authenticateJWT, async (req: AuthReques
     const result = await prisma.$transaction(async (tx) => {
       const truck = await tx.truck.findUnique({
         where: { id: truckId },
-        include: { company: true },
+        include: { company: true, garage: true },
       });
 
       if (!truck || truck.companyId !== req.user!.companyId) {
@@ -398,6 +419,16 @@ router.post('/release-impound/:truckId', authenticateJWT, async (req: AuthReques
         where: { id: req.user!.companyId },
         data: { legalBalance: { decrement: earlyReleaseFee } },
       });
+
+      // Record impound release fine
+      await AnalyticsService.recordTransaction(
+        tx,
+        req.user!.companyId,
+        truck.garageId,
+        truck.garage.city,
+        'EXPENSE_BRIBES_FINES',
+        earlyReleaseFee
+      );
 
       await tx.truck.update({
         where: { id: truckId },

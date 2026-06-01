@@ -202,4 +202,25 @@ export class GameWebSocketServer {
       });
     });
   }
+
+  /**
+   * Broadcast message to all companies belonging to a clan
+   */
+  public static async broadcastToClan(clanId: string, type: string, payload: any) {
+    const { PrismaClient } = require('@prisma/client');
+    const localPrisma = new PrismaClient();
+    try {
+      const companies = await localPrisma.company.findMany({
+        where: { clanId },
+        select: { id: true },
+      });
+      for (const comp of companies) {
+        this.sendToCompany(comp.id, type, payload);
+      }
+    } catch (err) {
+      console.error('[WS] Error in broadcastToClan:', err);
+    } finally {
+      await localPrisma.$disconnect();
+    }
+  }
 }
