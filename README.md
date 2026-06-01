@@ -6,6 +6,10 @@
 
 ---
 
+<img width="1300" height="771" alt="image" src="https://github.com/user-attachments/assets/bce43129-5b33-4cd8-a622-7ef5e1215f48" />
+
+
+
 ## 🎮 Game Architecture Overview
 
 LogistiXpert is a persistent, real-time multiplayer logistics tycoon and smuggling simulator set in Eastern Europe's Schengen highway network. Players establish legitimate cargo fleets by day, laundering clean funds, and transport contraband across highly contested borders by night, making critical tactical inspection-evasion decisions.
