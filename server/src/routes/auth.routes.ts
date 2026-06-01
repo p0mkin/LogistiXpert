@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { CONFIG } from '../config';
+import { seedDatabase } from '../seed';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -146,6 +147,21 @@ router.post('/login', async (req: Request, res: Response) => {
 
   } catch (error) {
     res.status(500).json({ error: 'SERVER_ERROR', message: 'Failed to authenticate.' });
+  }
+});
+
+// 3. FORCE SEED SYSTEM DATABASE (SECURE DEVELOPMENT ENDPOINT)
+router.post('/force-seed', async (req: Request, res: Response) => {
+  const { secretKey } = req.body;
+  if (secretKey !== 'super-secret-force-seed-key-1337') {
+    return res.status(403).json({ error: 'FORBIDDEN', message: 'Invalid secret key.' });
+  }
+
+  try {
+    await seedDatabase(prisma);
+    res.json({ message: 'Database successfully forced to re-seed!' });
+  } catch (error: any) {
+    res.status(500).json({ error: 'SERVER_ERROR', message: error.message || 'Seeding failed.' });
   }
 });
 

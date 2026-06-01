@@ -127,7 +127,7 @@ export async function seedDatabase(prisma: PrismaClient) {
 
   // 4. GENERATE A SHADY DEFAULTS ADMINISTRATOR SYSTEM OWNER
   console.log('[Seed] Seeding a test administrator account...');
-  const adminHash = '$2b$10$w0M89iZk4Vb9F3C6sVp.ZOVQ4g/uC7u1.k1qgZJbL1hW1pYf2YwG.';
+  const adminHash = '$2b$10$a0UNFk7a04gGGyXLY5TgOeAX31ce73nRu6P8GgTs3vXRnWbKsWeBO';
   
   const adminUser = await prisma.user.create({
     data: {
