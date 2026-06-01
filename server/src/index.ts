@@ -25,6 +25,7 @@ import { DispatchSimulationService } from './services/dispatch.service';
 import { ContractService } from './services/contract.service';
 import { CommodityMarketService } from './services/commodity.service';
 import { FinanceService } from './services/finance.service';
+import { seedDatabase } from './seed';
 
 const app = express();
 const server = http.createServer(app);
@@ -156,6 +157,13 @@ async function main() {
     // 1. Establish database connection check
     await prisma.$connect();
     console.log('[System] Connected securely to PostgreSQL Database.');
+
+    // 1.2. Run automatic database seeding if fresh DB
+    const userCount = await prisma.user.count();
+    if (userCount === 0) {
+      console.log('[System] Fresh database detected. Auto-seeding starting data...');
+      await seedDatabase(prisma);
+    }
 
     // 1.5. Seed and start global commodity market
     await CommodityMarketService.seedMarketPrices();
