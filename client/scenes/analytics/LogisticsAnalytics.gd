@@ -514,7 +514,7 @@ func _render_routes_tab(parent: Node) -> void:
 			payout_text = "$%s Black Cash" % _fmt_cash(_safe_float(route.contrabandJob.payoutBlack))
 
 		var path_lbl = Label.new()
-		path_lbl.text = "📍 %s  ➔  %s" % [origin.toUpperCase(), dest.toUpperCase()]
+		path_lbl.text = "📍 %s  ➔  %s" % [origin.to_upper(), dest.to_upper()]
 		path_lbl.add_theme_font_size_override("font_size", 15)
 		path_lbl.add_theme_color_override("font_color", Color.WHITE)
 		path_lbl.position = Vector2(25, 15)
@@ -600,7 +600,7 @@ func _render_terminals_tab(parent: Node) -> void:
 
 		# Title
 		var title = Label.new()
-		title.text = "🏬  %s DEPOT STATION — TERMINAL LEVEL %d / 4" % [city.toUpperCase(), level]
+		title.text = "🏬  %s DEPOT STATION — TERMINAL LEVEL %d / 4" % [city.to_upper(), level]
 		title.add_theme_font_size_override("font_size", 16)
 		title.add_theme_color_override("font_color", Color.WHITE)
 		title.position = Vector2(25, 20)

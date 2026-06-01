@@ -246,7 +246,7 @@ func _on_fleet_response(_r, code, _h, body) -> void:
 				var on_road = t.get("activeRoute", null) != null
 				var impounded = t.get("isImpounded", false)
 				var suffix = " [ON ROAD]" if on_road else (" [IMPOUNDED]" if impounded else "")
-				ts.add_item("%s — %s%s" % [t.get("model", "?"), t.get("vin", "?")[:8], suffix])
+				ts.add_item("%s — %s%s" % [t.get("model", "?"), t.get("vin", "?").left(8), suffix])
 			# Auto-select first truck
 			if player_trucks.size() > 0:
 				selected_truck_id = player_trucks[0].get("id", "")

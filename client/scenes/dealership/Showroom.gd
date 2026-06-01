@@ -240,7 +240,7 @@ func _render_catalog_list() -> void:
 		title_lbl.add_theme_font_size_override("font_size", 12)
 		
 		# Highlight matched brand partnership
-		if active_partnership.toUpperCase() == brand.toUpperCase():
+		if active_partnership.to_upper() == brand.to_upper():
 			title_lbl.add_theme_color_override("font_color", Color(0.2, 0.85, 0.45))
 			title_lbl.text += " [SPONSOR]"
 		else:
@@ -568,7 +568,7 @@ func _update_customizer_panel() -> void:
 	if selected_tuning_tier == "RELIABLE": surcharge += 6000
 
 	var subtotal = base_price + surcharge
-	var partner_match = active_partnership.toUpperCase() == brand.toUpperCase()
+	var partner_match = active_partnership.to_upper() == brand.to_upper()
 	var final_cost = float(subtotal)
 	if partner_match:
 		final_cost *= 0.85 # 15% discount
@@ -688,7 +688,7 @@ func _execute_purchase_trade(brand: String, tier_name: String, cost: float) -> v
 	var token = GameState.auth_token
 	var headers = ["Content-Type: application/json", "Authorization: Bearer " + token]
 	var body = JSON.stringify({
-		"manufacturer": brand.toUpperCase(),
+		"manufacturer": brand.to_upper(),
 		"tier": tier_name,
 		"cabType": selected_cab_type,
 		"payloadType": selected_payload_type,

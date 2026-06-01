@@ -193,7 +193,7 @@ func _make_fleet_row(truck: Dictionary) -> Control:
 
 	# Model + VIN
 	var model_lbl = Label.new()
-	model_lbl.text = truck.get("model", "?") + "\n" + truck.get("vin", "")[:8] + "..."
+	model_lbl.text = truck.get("model", "?") + "\n" + truck.get("vin", "").left(8) + "..."
 	model_lbl.add_theme_font_size_override("font_size", 11)
 	model_lbl.add_theme_color_override("font_color", Color(0.85, 0.8, 0.95, 1.0))
 	model_lbl.position = Vector2(8, 8)
@@ -324,7 +324,7 @@ func _render_action_panel(truck: Dictionary) -> void:
 	p.add_child(title)
 
 	var vin = Label.new()
-	vin.text = "VIN " + truck.get("vin", "—")[:12] + "   |   " + truck.get("currentCity", "?")
+	vin.text = "VIN " + truck.get("vin", "—").left(12) + "   |   " + truck.get("currentCity", "?")
 	vin.add_theme_font_size_override("font_size", 10)
 	vin.add_theme_color_override("font_color", Color(0.4, 0.38, 0.5, 1.0))
 	vin.position = Vector2(14, 34)
