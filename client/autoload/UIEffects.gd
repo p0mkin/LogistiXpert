@@ -99,6 +99,28 @@ func _on_btn_pressed(btn: Button) -> void:
 # We use an AudioStreamGenerator to mathematically generate simple UI sounds
 # without needing any external .wav asset dependencies.
 
+# --- Premium Audio Presets ---
+func play_click() -> void:
+	_play_synth_sound(600.0, 0.08, 0.0)
+
+func play_error() -> void:
+	_play_custom_synth_sweep(180.0, 60.0, 0.25, -2.0, "SAW")
+
+func play_success() -> void:
+	_play_synth_sound(440.0, 0.06, 0.0)
+	await get_tree().create_timer(0.06).timeout
+	_play_synth_sound(880.0, 0.14, 0.0)
+
+func play_smuggle() -> void:
+	_play_custom_synth_sweep(350.0, 700.0, 0.3, -3.0, "TRIANGLE")
+
+func play_refuel() -> void:
+	# Simulates bubbling/refilling fuel tones
+	for i in range(3):
+		_play_synth_sound(300.0 + i * 140.0, 0.05, -5.0)
+		await get_tree().create_timer(0.045).timeout
+
+# --- Low-Level Generators ---
 func _play_synth_sound(hz: float, duration: float, volume_db: float = 0.0) -> void:
 	var player: AudioStreamPlayer = audio_players[next_player_idx]
 	next_player_idx = (next_player_idx + 1) % MAX_AUDIO_PLAYERS
@@ -120,12 +142,51 @@ func _fill_audio_buffer(playback: AudioStreamGeneratorPlayback, hz: float, durat
 	var phase = 0.0
 	var phase_inc = hz / mix_rate
 	
-	# Simple envelope for a percussive "blip"
 	var frames_written = 0
 	while frames_written < total_frames and playback.can_push_buffer(1):
 		var env = 1.0 - (float(frames_written) / float(total_frames))
-		# Sine wave
 		var sample = sin(phase * TAU) * env * 0.2
+		playback.push_frame(Vector2(sample, sample))
+		phase = fmod(phase + phase_inc, 1.0)
+		frames_written += 1
+
+func _play_custom_synth_sweep(start_hz: float, end_hz: float, duration: float, volume_db: float = 0.0, type: String = "SINE") -> void:
+	var player: AudioStreamPlayer = audio_players[next_player_idx]
+	next_player_idx = (next_player_idx + 1) % MAX_AUDIO_PLAYERS
+	
+	var stream = AudioStreamGenerator.new()
+	stream.mix_rate = 44100
+	stream.buffer_length = duration
+	
+	player.stream = stream
+	player.volume_db = volume_db
+	player.play()
+	
+	var playback: AudioStreamGeneratorPlayback = player.get_stream_playback()
+	_fill_custom_audio_buffer(playback, start_hz, end_hz, duration, type)
+
+func _fill_custom_audio_buffer(playback: AudioStreamGeneratorPlayback, start_hz: float, end_hz: float, duration: float, type: String) -> void:
+	var mix_rate = 44100.0
+	var total_frames = int(mix_rate * duration)
+	var phase = 0.0
+	
+	var frames_written = 0
+	while frames_written < total_frames and playback.can_push_buffer(1):
+		var t = float(frames_written) / float(total_frames)
+		var env = 1.0 - t
+		
+		# Pitch sweep calculation
+		var current_hz = lerp(start_hz, end_hz, t)
+		var phase_inc = current_hz / mix_rate
+		
+		var sample = 0.0
+		if type == "SAW":
+			sample = (phase * 2.0 - 1.0) * env * 0.15
+		elif type == "TRIANGLE":
+			sample = (abs(phase * 2.0 - 1.0) * 2.0 - 1.0) * env * 0.18
+		else: # SINE
+			sample = sin(phase * TAU) * env * 0.2
+			
 		playback.push_frame(Vector2(sample, sample))
 		phase = fmod(phase + phase_inc, 1.0)
 		frames_written += 1

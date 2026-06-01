@@ -9,6 +9,7 @@ extends Control
 func _ready() -> void:
 	# Build sleek custom styling entirely in code to avoid heavy binary assets
 	_apply_visual_theme()
+	_setup_graphics_toggle_ui()
 	
 	# Connect local button signals
 	login_btn.pressed.connect(_on_login_pressed)
@@ -123,3 +124,72 @@ func _toggle_inputs(enabled: bool) -> void:
 	pass_edit.editable = enabled
 	login_btn.disabled = not enabled
 	register_btn.disabled = not enabled
+
+# --- Graphics Settings UI Setup ---
+var graphics_btn: Button = null
+
+func _setup_graphics_toggle_ui() -> void:
+	graphics_btn = Button.new()
+	graphics_btn.text = "GRAPHICS: STANDARD"
+	if GameState.graphics_quality == "ULTRA_HD":
+		graphics_btn.text = "GRAPHICS: ULTRA_HD (NEON)"
+		
+	# Float top right
+	graphics_btn.position = Vector2(size.x - 220, 20)
+	graphics_btn.size = Vector2(200, 36)
+	add_child(graphics_btn)
+	
+	# Connect button signal
+	graphics_btn.pressed.connect(_on_graphics_toggle_pressed)
+	_apply_graphics_btn_style()
+
+func _on_graphics_toggle_pressed() -> void:
+	if GameState.graphics_quality == "STANDARD":
+		GameState.set_graphics_quality("ULTRA_HD")
+		graphics_btn.text = "GRAPHICS: ULTRA_HD (NEON)"
+		# Arpeggio success preset blip!
+		if has_node("/root/UIEffects"):
+			get_node("/root/UIEffects").play_success()
+	else:
+		GameState.set_graphics_quality("STANDARD")
+		graphics_btn.text = "GRAPHICS: STANDARD"
+		# Standard selection blip!
+		if has_node("/root/UIEffects"):
+			get_node("/root/UIEffects").play_click()
+			
+	_apply_graphics_btn_style()
+
+func _apply_graphics_btn_style() -> void:
+	var style_normal = StyleBoxFlat.new()
+	var style_hover = StyleBoxFlat.new()
+	
+	if GameState.graphics_quality == "ULTRA_HD":
+		style_normal.bg_color = Color(0.2, 0.9, 0.7, 0.15) # Cyber Cyan translucent
+		style_normal.border_color = Color(0.2, 0.9, 0.7, 0.8) # Cyber Cyan border
+		style_normal.border_width_all = 1
+		style_normal.set_corner_radius_all(18)
+		
+		style_hover.bg_color = Color(0.2, 0.9, 0.7, 0.3)
+		style_hover.border_color = Color(0.2, 0.9, 0.7, 1.0)
+		style_hover.border_width_all = 1
+		style_hover.set_corner_radius_all(18)
+		
+		graphics_btn.add_theme_color_override("font_color", Color(0.2, 0.9, 0.7))
+		graphics_btn.add_theme_color_override("font_hover_color", Color.WHITE)
+	else:
+		style_normal.bg_color = Color(0.08, 0.1, 0.12, 0.6) # Dark slate
+		style_normal.border_color = Color(0.709, 0.768, 0.843, 0.25)
+		style_normal.border_width_all = 1
+		style_normal.set_corner_radius_all(18)
+		
+		style_hover.bg_color = Color(0.12, 0.15, 0.18, 0.8)
+		style_hover.border_color = Color(0.709, 0.768, 0.843, 0.5)
+		style_hover.border_width_all = 1
+		style_hover.set_corner_radius_all(18)
+		
+		graphics_btn.add_theme_color_override("font_color", Color(0.709, 0.768, 0.843, 0.8))
+		graphics_btn.add_theme_color_override("font_hover_color", Color.WHITE)
+		
+	graphics_btn.add_theme_stylebox_override("normal", style_normal)
+	graphics_btn.add_theme_stylebox_override("hover", style_hover)
+	graphics_btn.add_theme_stylebox_override("pressed", style_normal)
