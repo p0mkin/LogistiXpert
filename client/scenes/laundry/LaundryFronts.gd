@@ -195,9 +195,11 @@ func _on_upgrade_response(result: int, code: int, headers: PackedStringArray, bo
 		var front = data.get("front", {})
 		GameState.update_balances(-_get_upgrade_cost(int(front.get("upgradeLevel", 1)) - 1), 0.0)
 		_log("Upgraded to Level %d! Rate: $%s/cycle" % [int(front.get("upgradeLevel", 1)), _format_cash(float(front.get("laundryRate", 0)))], Color(0.607, 0.349, 0.713))
+		UIEffects.play_smuggle()
 		_fetch_fronts()
 	else:
 		_log("Upgrade failed: " + data.get("message", "Error"), Color(0.901, 0.298, 0.235))
+		UIEffects.play_error()
 
 func _on_bribe_response(result: int, code: int, headers: PackedStringArray, body: PackedByteArray, http: HTTPRequest) -> void:
 	http.queue_free()
@@ -206,13 +208,16 @@ func _on_bribe_response(result: int, code: int, headers: PackedStringArray, body
 		if data.get("success", false):
 			GameState.update_balances(-15000.0, 0.0)
 			_log("✓ Bribe accepted! Front back in business.", Color(0.18, 0.803, 0.443))
+			UIEffects.play_smuggle()
 		else:
 			GameState.update_balances(-15000.0, 0.0)
 			GameState.police_heat = min(GameState.police_heat + 10, 100)
 			_log("💸 Bribe rejected! Cash taken, audit extended.", Color(0.901, 0.298, 0.235))
+			UIEffects.play_error()
 		_fetch_fronts()
 	else:
 		_log("Bribe failed: " + data.get("message", "Error"), Color(0.901, 0.298, 0.235))
+		UIEffects.play_error()
 
 func _get_upgrade_cost(current_level: int) -> float:
 	var costs = {1: 25000.0, 2: 55000.0, 3: 110000.0, 4: 220000.0}

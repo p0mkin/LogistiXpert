@@ -330,9 +330,11 @@ func _on_repair_response(result: int, response_code: int, headers: PackedStringA
 	var data = JSON.parse_string(body.get_string_from_utf8())
 	if response_code == 200:
 		_log("Repair complete: " + data.get("message", "OK"), Color(0.180, 0.803, 0.443))
+		UIEffects.play_success()
 		_fetch_fleet()
 	else:
 		_log("Repair failed: " + data.get("message", "Error"), Color(0.901, 0.298, 0.235))
+		UIEffects.play_error()
 
 func _on_roadside_response(result: int, response_code: int, headers: PackedStringArray, body: PackedByteArray, http: HTTPRequest) -> void:
 	http.queue_free()
@@ -341,9 +343,11 @@ func _on_roadside_response(result: int, response_code: int, headers: PackedStrin
 		var charge = float(data.get("totalCharge", 0))
 		GameState.update_balances(-charge, 0.0)
 		_log("✓ Roadside repair complete! Cost: $%.0f (emergency surcharge applied)." % charge, Color(0.180, 0.803, 0.443))
+		UIEffects.play_success()
 		_fetch_fleet()
 	else:
 		_log("Roadside repair failed: " + data.get("message", "Error"), Color(0.901, 0.298, 0.235))
+		UIEffects.play_error()
 
 func _on_impound_response(result: int, response_code: int, headers: PackedStringArray, body: PackedByteArray, http: HTTPRequest) -> void:
 	http.queue_free()
@@ -355,6 +359,7 @@ func _on_impound_response(result: int, response_code: int, headers: PackedString
 			_log("✓ Truck released from impound. Fee paid: $%.0f" % fee, Color(0.180, 0.803, 0.443))
 		else:
 			_log("✓ Truck released from impound (lockdown expired).", Color(0.180, 0.803, 0.443))
+		UIEffects.play_success()
 		_fetch_fleet()
 	else:
 		var required = float(data.get("required", 0))
@@ -362,24 +367,29 @@ func _on_impound_response(result: int, response_code: int, headers: PackedString
 			_log("⛔ Insufficient funds for impound release. Need: $%.0f" % required, Color(0.901, 0.298, 0.235))
 		else:
 			_log("Release failed: " + data.get("error", "Error"), Color(0.901, 0.298, 0.235))
+		UIEffects.play_error()
 
 func _on_stimulant_response(result: int, response_code: int, headers: PackedStringArray, body: PackedByteArray, http: HTTPRequest) -> void:
 	http.queue_free()
 	var data = JSON.parse_string(body.get_string_from_utf8())
 	if response_code == 200:
 		_log(data.get("message", "Stimulant administered."), Color(0.607, 0.349, 0.713))
+		UIEffects.play_smuggle()
 		_fetch_drivers()
 	else:
 		_log("Refused: " + data.get("message", "Error"), Color(0.901, 0.298, 0.235))
+		UIEffects.play_error()
 
 func _on_rest_response(result: int, response_code: int, headers: PackedStringArray, body: PackedByteArray, http: HTTPRequest) -> void:
 	http.queue_free()
 	var data = JSON.parse_string(body.get_string_from_utf8())
 	if response_code == 200:
 		_log("Rest rotation complete. Fatigue cleared.", Color(0.180, 0.803, 0.443))
+		UIEffects.play_success()
 		_fetch_drivers()
 	else:
 		_log("Rest failed: " + data.get("message", "Error"), Color(0.901, 0.298, 0.235))
+		UIEffects.play_error()
 
 func _on_hire_response(result: int, response_code: int, headers: PackedStringArray, body: PackedByteArray, http: HTTPRequest) -> void:
 	http.queue_free()
@@ -388,19 +398,23 @@ func _on_hire_response(result: int, response_code: int, headers: PackedStringArr
 		var d = data.get("driver", {})
 		_log("Recruited: %s (%s) — Loyalty: %d" % [d.get("name","?"), d.get("trait","?"), d.get("loyalty", 0)], Color(0.180, 0.803, 0.443))
 		GameState.update_balances(-2500.0, 0.0)
+		UIEffects.play_success()
 		_fetch_drivers()
 	else:
 		_log("Hire failed: " + data.get("message", "Error"), Color(0.901, 0.298, 0.235))
+		UIEffects.play_error()
 
 func _on_assign_response(result: int, response_code: int, headers: PackedStringArray, body: PackedByteArray, http: HTTPRequest) -> void:
 	http.queue_free()
 	var data = JSON.parse_string(body.get_string_from_utf8())
 	if response_code == 200:
 		_log(data.get("message", "Driver assignment updated."), Color(0.180, 0.803, 0.443))
+		UIEffects.play_success()
 		_fetch_drivers()
 		_fetch_fleet()
 	else:
 		_log("Assignment failed: " + data.get("message", "Error"), Color(0.901, 0.298, 0.235))
+		UIEffects.play_error()
 
 func _on_spoof_response(result: int, response_code: int, headers: PackedStringArray, body: PackedByteArray, http: HTTPRequest) -> void:
 	http.queue_free()
@@ -408,9 +422,11 @@ func _on_spoof_response(result: int, response_code: int, headers: PackedStringAr
 	if response_code == 200:
 		GameState.update_balances(0.0, -3500.0)
 		_log("Tacho Spoof installed. Tachograph reads 0.0h — forged compliance active.", Color(0.607, 0.349, 0.713))
+		UIEffects.play_smuggle()
 		_fetch_drivers()
 	else:
 		_log("Spoof failed: " + data.get("message", "Error"), Color(0.901, 0.298, 0.235))
+		UIEffects.play_error()
 
 # ==========================================
 # RENDERING FLEET AND DRIVER LISTS
@@ -1273,6 +1289,7 @@ func _on_commodity_buy_response(result: int, response_code: int, headers: Packed
 	if response_code == 200:
 		var cost = float(data.get("totalCost", 0))
 		_log("✓ Stockpile refilled! Cost: $%.2f legal cash deducted." % cost, Color(0.180, 0.803, 0.443))
+		UIEffects.play_refuel()
 		# Re-fetch fleet, which will naturally update local stock levels in GameState and redraw
 		_fetch_fleet()
 	else:
@@ -1280,6 +1297,7 @@ func _on_commodity_buy_response(result: int, response_code: int, headers: Packed
 		if data and data is Dictionary and data.has("message"):
 			err_msg = data.message
 		_log("⛔ Refill failed: " + err_msg, Color(0.901, 0.298, 0.235))
+		UIEffects.play_error()
 
 
 # ==========================================
@@ -1644,6 +1662,7 @@ func _buy_commodity_via_modal(garage_id: String, commodity_type: String, amount:
 		if response_code == 200:
 			var cost = float(data.get("totalCost", 0))
 			_log("✓ Stockpile refilled! Cost: $%.2f legal cash deducted." % cost, Color(0.180, 0.803, 0.443))
+			UIEffects.play_refuel()
 			modal_overlay.queue_free()
 			_fetch_fleet()
 		else:
@@ -1651,6 +1670,7 @@ func _buy_commodity_via_modal(garage_id: String, commodity_type: String, amount:
 			if data and data is Dictionary and data.has("message"):
 				err_msg = data.message
 			_log("⛔ Refill failed: " + err_msg, Color(0.901, 0.298, 0.235))
+			UIEffects.play_error()
 			purchase_btn.disabled = false
 			amt_slider.editable = true
 	)

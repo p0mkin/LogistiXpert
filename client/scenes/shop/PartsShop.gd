@@ -693,6 +693,7 @@ func _on_purchase_response(_r, code, _h, body) -> void:
 	var parsed = JSON.parse_string(body.get_string_from_utf8())
 	if code == 200:
 		_show_toast("✔ " + selected_item.name + " installed successfully!", Color(0.2, 1.0, 0.5, 1.0))
+		UIEffects.play_success()
 		# Refresh truck display with updated data
 		if parsed and parsed.has("truck"):
 			_render_truck_blueprint(parsed.truck)
@@ -710,6 +711,7 @@ func _on_purchase_response(_r, code, _h, body) -> void:
 			"MAX_SHIELDING": "Already at max shielding level (5).",
 		}
 		_show_toast("✕ " + msg_map.get(err, err), Color(1.0, 0.3, 0.3, 1.0))
+		UIEffects.play_error()
 
 # ====================================================
 # REPAIR ESTIMATE POPUP
