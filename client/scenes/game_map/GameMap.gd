@@ -23,11 +23,14 @@ extends Control
 @onready var research_btn: Button = %ResearchBtn
 @onready var dealership_btn: Button = %DealershipBtn
 
+var clock_lbl: Label = null
+
+
 # Camera Pan & Zoom controls
 @onready var camera: Camera2D = $MapContainer/ViewportWrapper/Camera if has_node("MapContainer/ViewportWrapper/Camera") else %Camera
 @onready var map_drawer: Node2D = $MapContainer/ViewportWrapper/VectorMapDrawer if has_node("MapContainer/ViewportWrapper/VectorMapDrawer") else %VectorMapDrawer
 @onready var map_container: Control = $MapContainer if has_node("MapContainer") else %MapContainer
-@onready var console_box: ColorRect = $HUD/SidePanel/Margin/VBox/ConsoleBox if has_node("HUD/SidePanel/Margin/VBox/ConsoleBox") else %ConsoleBox
+@onready var console_box: ColorRect = %ConsoleBox
 
 var is_dragging: bool = false
 var drag_start: Vector2 = Vector2.ZERO
@@ -276,6 +279,15 @@ func _ready() -> void:
 	# Set up visual telemetry theme overrides
 	_apply_hud_theme()
 	
+	clock_lbl = Label.new()
+	clock_lbl.name = "ClockLabel"
+	clock_lbl.add_theme_font_size_override("font_size", 12)
+	clock_lbl.add_theme_color_override("font_color", Color(0.180, 0.803, 0.443, 0.85)) # Emerald Green
+	if player_name_lbl and is_instance_valid(player_name_lbl) and player_name_lbl.get_parent():
+		player_name_lbl.get_parent().add_child(clock_lbl)
+		clock_lbl.position = player_name_lbl.position + Vector2(250, 0)
+
+	
 	# Load and project the Baltic route network
 	_load_map_data()
 	
@@ -379,6 +391,9 @@ func _process(delta: float) -> void:
 	time_passed += delta
 	if map_drawer:
 		map_drawer.queue_redraw()
+	if clock_lbl and is_instance_valid(clock_lbl):
+		clock_lbl.text = "📅 " + GameState.get_simulated_time_string()
+
 
 func _pos_to_coords(pos: Vector2) -> Vector2:
 	var avg_lat = (map_min_lat + map_max_lat) * 0.5
@@ -530,6 +545,22 @@ func _draw_vector_map() -> void:
 	var font_size = 10
 	var text_color = Color(0.2, 0.45, 0.55, 0.4)
 	
+	# Determine current zoom and active visible viewport boundaries
+	var viewport_size = map_drawer.get_viewport_rect().size
+	var zoom = camera.zoom.x
+	var visible_min = camera.position - (viewport_size / zoom) * 0.5
+	var visible_max = camera.position + (viewport_size / zoom) * 0.5
+	
+	# Unobscured viewport boundaries accounting for HUD TopBar (56px) and SidePanel (300px)
+	var visible_left = visible_min.x
+	var visible_right = visible_max.x - (300.0 / zoom)
+	var visible_top = visible_min.y + (56.0 / zoom)
+	var visible_bottom = visible_max.y
+	
+	# Ensure boundaries are sanely separated to prevent divide-by-zero or overlap bugs
+	visible_right = max(visible_right, visible_left + 1.0)
+	visible_top = min(visible_top, visible_bottom - 1.0)
+	
 	# A. DRAW GEOGRAPHIC COASTLINES WITH TRIPLE WAVE RIPPLE (Concentric Parallel Coastlines)
 	for ripple_idx in range(3):
 		var alpha = 0.35
@@ -555,7 +586,16 @@ func _draw_vector_map() -> void:
 			var coast_projected_points = []
 			for pt in coast:
 				coast_projected_points.append(_coords_to_pos(pt) + offset)
-			_draw_polyline(coast_projected_points, ripple_color, ripple_width)
+			_draw_polyline(coast_projected_points, ripple_color, ripple_width / zoom)
+			
+		# Next-Gen ULTRA_HD Neon Coastline Vector Glow
+		if ripple_idx == 0 and GameState.graphics_quality == "ULTRA_HD":
+			for coast in coastlines:
+				var coast_projected_points = []
+				for pt in coast:
+					coast_projected_points.append(_coords_to_pos(pt))
+				_draw_polyline(coast_projected_points, Color(0.12, 0.45, 0.70, 0.05), 8.0 / zoom)
+				_draw_polyline(coast_projected_points, Color(0.12, 0.45, 0.70, 0.15), 4.0 / zoom)
 		
 	# B. DRAW STYLIZED COUNTRY BORDERS
 	for border in borders:
@@ -566,61 +606,163 @@ func _draw_vector_map() -> void:
 		if border.is_schengen:
 			# Subtle dashed grey-green Schengen border
 			var schengen_border_color = Color(0.18, 0.80, 0.44, 0.18)
-			_draw_dashed_polyline(border_projected_points, schengen_border_color, 1.5, 5.0, 4.0)
+			if GameState.graphics_quality == "ULTRA_HD":
+				var schengen_glow_color = Color(0.18, 0.80, 0.44, 0.05)
+				_draw_dashed_polyline(border_projected_points, schengen_glow_color, 4.5 / zoom, 5.0 / zoom, 4.0 / zoom)
+			_draw_dashed_polyline(border_projected_points, schengen_border_color, 1.5 / zoom, 5.0 / zoom, 4.0 / zoom)
 		else:
 			# Highly visible glowing dashed orange-amber external border
 			var external_border_color = Color(0.925, 0.607, 0.141, 0.65)
 			var glow_color = Color(0.925, 0.607, 0.141, 0.12)
-			_draw_dashed_polyline(border_projected_points, glow_color, 4.5, 5.0, 4.0)
-			_draw_dashed_polyline(border_projected_points, external_border_color, 2.5, 5.0, 4.0)
+			if GameState.graphics_quality == "ULTRA_HD":
+				var extra_glow = Color(0.925, 0.607, 0.141, 0.05)
+				_draw_dashed_polyline(border_projected_points, extra_glow, 8.0 / zoom, 5.0 / zoom, 4.0 / zoom)
+			_draw_dashed_polyline(border_projected_points, glow_color, 4.5 / zoom, 5.0 / zoom, 4.0 / zoom)
+			_draw_dashed_polyline(border_projected_points, external_border_color, 2.5 / zoom, 5.0 / zoom, 4.0 / zoom)
 	
 	# 1. DRAW COORDINATE GRID LINES
-	# Horizontal lines
-	for h_y in range(int(view_offset.y), int(view_offset.y + view_size.y) + 1, 80):
-		map_drawer.draw_line(Vector2(view_offset.x - 50, h_y), Vector2(view_offset.x + view_size.x + 50, h_y), Color(0.1, 0.3, 0.4, 0.12), 1.0)
-		var h_coord = _pos_to_coords(Vector2(view_offset.x, h_y))
-		var h_txt = "%.1f° N" % h_coord.x
-		map_drawer.draw_string(font, Vector2(view_offset.x - 45, h_y + 4), h_txt, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, text_color)
+	var step_deg: float = 1.0
+	if zoom <= 0.35:
+		step_deg = 4.0
+	elif zoom <= 0.8:
+		step_deg = 2.0
+	elif zoom <= 1.5:
+		step_deg = 1.0
+	elif zoom <= 3.0:
+		step_deg = 0.5
+	else:
+		step_deg = 0.2
 		
-	# Vertical lines
-	for v_x in range(int(view_offset.x), int(view_offset.x + view_size.x) + 1, 100):
-		map_drawer.draw_line(Vector2(v_x, view_offset.y - 50), Vector2(v_x, view_offset.y + view_size.y + 50), Color(0.1, 0.3, 0.4, 0.12), 1.0)
-		var v_coord = _pos_to_coords(Vector2(v_x, view_offset.y))
-		var v_txt = "%.1f° E" % v_coord.y
-		map_drawer.draw_string(font, Vector2(v_x - 20, view_offset.y - 10), v_txt, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, text_color)
+	var coord_bottom_left = _pos_to_coords(Vector2(visible_left, visible_bottom))
+	var coord_top_right = _pos_to_coords(Vector2(visible_right, visible_top))
+	
+	var min_visible_lat = max(coord_bottom_left.x, -85.0)
+	var max_visible_lat = min(coord_top_right.x, 85.0)
+	var min_visible_lon = max(coord_bottom_left.y, -180.0)
+	var max_visible_lon = min(coord_top_right.y, 180.0)
+	
+	var start_lat = floor(min_visible_lat / step_deg) * step_deg
+	var start_lon = floor(min_visible_lon / step_deg) * step_deg
+	
+	# Horizontal lines (Latitude)
+	var lat = start_lat
+	while lat <= max_visible_lat + 0.01:
+		if lat >= -85.01 and lat <= 85.01:
+			var pos_y = _coords_to_pos(Vector2(lat, min_visible_lon)).y
+			map_drawer.draw_line(Vector2(visible_left, pos_y), Vector2(visible_right, pos_y), Color(0.1, 0.3, 0.4, 0.12), 1.0 / zoom)
+			
+			var lat_txt = "%.1f° N" % lat
+			var label_x = visible_left + 15.0 / zoom
+			var label_y = pos_y + 4.0 / zoom
+			
+			var draw_font_size = clamp(int(10.0 / zoom), 5, 32)
+			var text_sz = font.get_string_size(lat_txt, HORIZONTAL_ALIGNMENT_LEFT, -1, draw_font_size)
+			map_drawer.draw_rect(Rect2(Vector2(label_x - 4.0 / zoom, label_y - 10.0 / zoom), text_sz + Vector2(8.0 / zoom, 4.0 / zoom)), Color(0.04, 0.04, 0.06, 0.65), true)
+			map_drawer.draw_string(font, Vector2(label_x, label_y), lat_txt, HORIZONTAL_ALIGNMENT_LEFT, -1, draw_font_size, text_color)
+		lat += step_deg
+		
+	# Vertical lines (Longitude)
+	var lon = start_lon
+	while lon <= max_visible_lon + 0.01:
+		if lon >= -180.01 and lon <= 180.01:
+			var pos_x = _coords_to_pos(Vector2(min_visible_lat, lon)).x
+			map_drawer.draw_line(Vector2(pos_x, visible_top), Vector2(pos_x, visible_bottom), Color(0.1, 0.3, 0.4, 0.12), 1.0 / zoom)
+			
+			var lon_txt = "%.1f° E" % lon
+			var label_x = pos_x - 20.0 / zoom
+			var label_y = visible_top + 16.0 / zoom
+			
+			var draw_font_size = clamp(int(10.0 / zoom), 5, 32)
+			var text_sz = font.get_string_size(lon_txt, HORIZONTAL_ALIGNMENT_LEFT, -1, draw_font_size)
+			map_drawer.draw_rect(Rect2(Vector2(label_x - 4.0 / zoom, label_y - 10.0 / zoom), text_sz + Vector2(8.0 / zoom, 4.0 / zoom)), Color(0.04, 0.04, 0.06, 0.65), true)
+			map_drawer.draw_string(font, Vector2(label_x, label_y), lon_txt, HORIZONTAL_ALIGNMENT_LEFT, -1, draw_font_size, text_color)
+		lon += step_deg
  
 	# 2. DRAW VIEWPORT CORNER TICKS
-	var corners = [
-		view_offset,
-		Vector2(view_offset.x + view_size.x, view_offset.y),
-		view_offset + view_size,
-		Vector2(view_offset.x, view_offset.y + view_size.y)
+	var active_corners = [
+		Vector2(visible_left, visible_top),
+		Vector2(visible_right, visible_top),
+		Vector2(visible_right, visible_bottom),
+		Vector2(visible_left, visible_bottom)
 	]
-	var tick_size = 15.0
+	var tick_size = 15.0 / zoom
 	var tick_color = Color(0.2, 0.8, 1.0, 0.4)
 	
-	# Top-Left
-	map_drawer.draw_line(corners[0], corners[0] + Vector2(tick_size, 0), tick_color, 2.0)
-	map_drawer.draw_line(corners[0], corners[0] + Vector2(0, tick_size), tick_color, 2.0)
-	# Top-Right
-	map_drawer.draw_line(corners[1], corners[1] + Vector2(-tick_size, 0), tick_color, 2.0)
-	map_drawer.draw_line(corners[1], corners[1] + Vector2(0, tick_size), tick_color, 2.0)
-	# Bottom-Right
-	map_drawer.draw_line(corners[2], corners[2] + Vector2(-tick_size, 0), tick_color, 2.0)
-	map_drawer.draw_line(corners[2], corners[2] + Vector2(0, -tick_size), tick_color, 2.0)
-	# Bottom-Left
-	map_drawer.draw_line(corners[3], corners[3] + Vector2(tick_size, 0), tick_color, 2.0)
-	map_drawer.draw_line(corners[3], corners[3] + Vector2(0, -tick_size), tick_color, 2.0)
+	# Top-Left Corner
+	map_drawer.draw_line(active_corners[0], active_corners[0] + Vector2(tick_size, 0), tick_color, 2.0 / zoom)
+	map_drawer.draw_line(active_corners[0], active_corners[0] + Vector2(0, tick_size), tick_color, 2.0 / zoom)
+	# Top-Right Corner
+	map_drawer.draw_line(active_corners[1], active_corners[1] + Vector2(-tick_size, 0), tick_color, 2.0 / zoom)
+	map_drawer.draw_line(active_corners[1], active_corners[1] + Vector2(0, tick_size), tick_color, 2.0 / zoom)
+	# Bottom-Right Corner
+	map_drawer.draw_line(active_corners[2], active_corners[2] + Vector2(-tick_size, 0), tick_color, 2.0 / zoom)
+	map_drawer.draw_line(active_corners[2], active_corners[2] + Vector2(0, -tick_size), tick_color, 2.0 / zoom)
+	# Bottom-Left Corner
+	map_drawer.draw_line(active_corners[3], active_corners[3] + Vector2(tick_size, 0), tick_color, 2.0 / zoom)
+	map_drawer.draw_line(active_corners[3], active_corners[3] + Vector2(0, -tick_size), tick_color, 2.0 / zoom)
  
 	# 3. DRAW SCALE BAR
-	var scale_pos = Vector2(view_offset.x, view_offset.y + view_size.y + 35)
-	var scale_width = 150.0
-	map_drawer.draw_line(scale_pos, scale_pos + Vector2(scale_width, 0), Color(0.2, 0.8, 1.0, 0.6), 2.0)
-	map_drawer.draw_line(scale_pos, scale_pos + Vector2(0, -8), Color(0.2, 0.8, 1.0, 0.6), 2.0)
-	map_drawer.draw_line(scale_pos + Vector2(scale_width, 0), scale_pos + Vector2(scale_width, -8), Color(0.2, 0.8, 1.0, 0.6), 2.0)
-	map_drawer.draw_line(scale_pos + Vector2(scale_width / 2.0, 0), scale_pos + Vector2(scale_width / 2.0, -5), Color(0.2, 0.8, 1.0, 0.6), 1.5)
-	map_drawer.draw_string(font, scale_pos + Vector2(10, -12), "TACTICAL SCALE: 100 KM", HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Color(0.2, 0.8, 1.0, 0.7))
+	var scale_pos = Vector2(visible_left + 20.0 / zoom, visible_bottom - 25.0 / zoom)
+	var scale_width = 150.0 / zoom
+	var scale_km = int(100.0 / zoom)
+	var scale_text = "TACTICAL SCALE: %d KM" % scale_km
+	
+	map_drawer.draw_line(scale_pos, scale_pos + Vector2(scale_width, 0), Color(0.2, 0.8, 1.0, 0.6), 2.0 / zoom)
+	map_drawer.draw_line(scale_pos, scale_pos + Vector2(0, -8.0 / zoom), Color(0.2, 0.8, 1.0, 0.6), 2.0 / zoom)
+	map_drawer.draw_line(scale_pos + Vector2(scale_width, 0), scale_pos + Vector2(scale_width, -8.0 / zoom), Color(0.2, 0.8, 1.0, 0.6), 2.0 / zoom)
+	map_drawer.draw_line(scale_pos + Vector2(scale_width / 2.0, 0), scale_pos + Vector2(scale_width / 2.0, -5.0 / zoom), Color(0.2, 0.8, 1.0, 0.6), 1.5 / zoom)
+	map_drawer.draw_string(font, scale_pos + Vector2(10.0 / zoom, -12.0 / zoom), scale_text, HORIZONTAL_ALIGNMENT_LEFT, -1, clamp(int(9.0 / zoom), 5, 24), Color(0.2, 0.8, 1.0, 0.7))
  
+	# Next-Gen ULTRA_HD Graphics Mode features
+	if GameState.graphics_quality == "ULTRA_HD":
+		# A. Holographic vertical scanning sweep line
+		var sweep_y_pct = fmod(time_passed * 0.15, 1.0)
+		var sweep_y = visible_top + (visible_bottom - visible_top) * sweep_y_pct
+		var sweep_color = Color(0.2, 0.9, 0.7, 0.15 * (1.0 - sin(time_passed * 10.0) * 0.05))
+		map_drawer.draw_line(Vector2(visible_left, sweep_y), Vector2(visible_right, sweep_y), sweep_color, 2.0 / zoom)
+		
+		# Trailing gradient scanner glows
+		var trail_height = 40.0 / zoom
+		var trail_steps = 4
+		for i in range(trail_steps):
+			var step_y = sweep_y - (float(i) * trail_height / float(trail_steps))
+			if step_y >= visible_top:
+				var step_alpha = 0.08 * (1.0 - float(i) / float(trail_steps))
+				map_drawer.draw_line(Vector2(visible_left, step_y), Vector2(visible_right, step_y), Color(0.2, 0.9, 0.7, step_alpha), 1.0 / zoom)
+				
+		# B. Flickering simulated satellite telemetry in corner readouts
+		var signal_strength = 95.0 + sin(time_passed * 4.3) * 3.0 + (randf() - 0.5) * 1.5
+		signal_strength = clamp(signal_strength, 0.0, 100.0)
+		
+		var telemetry_alpha = 0.65
+		if fmod(time_passed * 0.8, 5.0) < 0.1:
+			telemetry_alpha = 0.25 # occasional rapid signal flicker
+			
+		var tel_font_size = clamp(int(7.0 / zoom), 5, 24)
+		var tel_color = Color(0.2, 0.9, 0.7, telemetry_alpha)
+		var tel_y_spacing = 11.0 / zoom
+		
+		var lines_tr = [
+			"SATELLITE DOWNLINK: SECURE",
+			"SIGNAL STRENGTH: %.2f%%" % signal_strength,
+			"GRID STATUS: OPTIMAL",
+			"MATRIX SYSTEM: ACTIVE"
+		]
+		for i in range(lines_tr.size()):
+			var text_y = visible_top + 16.0 / zoom + (i * tel_y_spacing)
+			var text_x = visible_right - 140.0 / zoom
+			map_drawer.draw_string(font, Vector2(text_x, text_y), lines_tr[i], HORIZONTAL_ALIGNMENT_LEFT, -1, tel_font_size, tel_color)
+			
+		var lines_bl = [
+			"SECURE BACKLINK: //LOGISTIXPERT.NET",
+			"SYS_SEC_LOCK: AES_256",
+			"LOC_TIME: " + Time.get_time_string_from_system()
+		]
+		for i in range(lines_bl.size()):
+			var text_y = scale_pos.y - 35.0 / zoom - (i * tel_y_spacing)
+			var text_x = visible_left + 20.0 / zoom
+			map_drawer.draw_string(font, Vector2(text_x, text_y), lines_bl[i], HORIZONTAL_ALIGNMENT_LEFT, -1, tel_font_size, Color(0.18, 0.80, 0.44, telemetry_alpha * 0.7))
+
 	# 4. DRAW CONNECTION ROUTES (Flowing network pipelines)
 	for city_id in cities_data:
 		var city = cities_data[city_id]
@@ -641,11 +783,11 @@ func _draw_vector_map() -> void:
 					
 					# 1. Translucent wider solid pipeline backing
 					var backing_color = Color(0.607, 0.349, 0.713, 0.12) if is_smuggle else Color(0.180, 0.803, 0.443, 0.12)
-					map_drawer.draw_line(start_pos, end_pos, backing_color, 8.0, true)
+					map_drawer.draw_line(start_pos, end_pos, backing_color, 8.0 / zoom, true)
 					
 					# 2. Solid base line
 					var base_line_color = Color(0.607, 0.349, 0.713, 0.4) if is_smuggle else Color(0.180, 0.803, 0.443, 0.4)
-					map_drawer.draw_line(start_pos, end_pos, base_line_color, 1.5, true)
+					map_drawer.draw_line(start_pos, end_pos, base_line_color, 1.5 / zoom, true)
 					
 					# 3. Flowing dashed animation core (respects travel direction!)
 					var origin = ""
@@ -664,14 +806,14 @@ func _draw_vector_map() -> void:
 						flow_to = start_pos
 						
 					var flow_color = Color(0.75, 0.45, 1.0, 0.95) if is_smuggle else Color(0.2, 0.95, 0.5, 0.95)
-					_draw_dashed_line(flow_from, flow_to, flow_color, 2.0, 8.0, 6.0, time_passed * 42.0)
+					_draw_dashed_line(flow_from, flow_to, flow_color, 2.0 / zoom, 8.0 / zoom, 6.0 / zoom, time_passed * 42.0)
 					
 				else:
 					var line_color = Color(0.12, 0.16, 0.20, 0.3)
-					var route_width = 1.5
+					var route_width = 1.5 / zoom
 					if is_selected_conn:
 						line_color = Color(0.65, 0.45, 1.0, 0.45)
-						route_width = 2.0
+						route_width = 2.0 / zoom
 					else:
 						if conn.get("is_border_crossing", false):
 							line_color = Color(0.5, 0.35, 0.15, 0.2)
@@ -722,8 +864,8 @@ func _draw_vector_map() -> void:
 					elif pulse_conn.get("is_border_crossing", false):
 						pulse_color = Color(1.0, 0.6, 0.1, 0.9)
 						
-					map_drawer.draw_circle(pulse_pos, 4.0, pulse_color)
-					map_drawer.draw_arc(pulse_pos, 6.0 + sin(time_passed * 8.0) * 1.5, 0.0, TAU, 8, Color(pulse_color.r, pulse_color.g, pulse_color.b, 0.35), 1.5)
+					map_drawer.draw_circle(pulse_pos, 4.0 / zoom, pulse_color)
+					map_drawer.draw_arc(pulse_pos, (6.0 + sin(time_passed * 8.0) * 1.5) / zoom, 0.0, TAU, 8, Color(pulse_color.r, pulse_color.g, pulse_color.b, 0.35), 1.5 / zoom)
  
 	# 6. DRAW ROTATING RADAR SWEEP
 	var sweep_center = Vector2.ZERO
@@ -736,22 +878,22 @@ func _draw_vector_map() -> void:
 		has_sweep = true
 		
 	if has_sweep:
-		var radar_radius = 70.0
+		var radar_radius = 70.0 / zoom
 		var sweep_angle = time_passed * 1.8
 		
 		# Draw outer fading circle
-		map_drawer.draw_arc(sweep_center, radar_radius, 0.0, TAU, 32, Color(0.65, 0.45, 1.0, 0.25), 1.0)
+		map_drawer.draw_arc(sweep_center, radar_radius, 0.0, TAU, 32, Color(0.65, 0.45, 1.0, 0.25), 1.0 / zoom)
 		
 		# Draw sweeping arm
 		var sweep_dir = Vector2(cos(sweep_angle), sin(sweep_angle))
-		map_drawer.draw_line(sweep_center, sweep_center + sweep_dir * radar_radius, Color(0.65, 0.45, 1.0, 0.7), 1.5)
+		map_drawer.draw_line(sweep_center, sweep_center + sweep_dir * radar_radius, Color(0.65, 0.45, 1.0, 0.7), 1.5 / zoom)
 		
 		# Draw rotating sweeps trail
 		for i in range(5):
 			var angle_offset = -float(i) * 0.12
 			var sector_dir = Vector2(cos(sweep_angle + angle_offset), sin(sweep_angle + angle_offset))
 			var alpha_trail = 0.45 * (1.0 - float(i) / 5.0)
-			map_drawer.draw_line(sweep_center, sweep_center + sector_dir * radar_radius, Color(0.65, 0.45, 1.0, alpha_trail), 1.0)
+			map_drawer.draw_line(sweep_center, sweep_center + sector_dir * radar_radius, Color(0.65, 0.45, 1.0, alpha_trail), 1.0 / zoom)
  
 	# 7. DRAW CITY NODES (On top of routes/grid)
 	for node_city_id in cities_data:
@@ -767,42 +909,42 @@ func _draw_vector_map() -> void:
 			
 		# Subtle ambient glow pulsers for all nodes
 		var pulse = sin(time_passed * 4.0 + hash(node_city_id)) * 1.5
-		map_drawer.draw_circle(pos, radius + 4.0 + pulse, Color(outer_color.r, outer_color.g, outer_color.b, 0.15))
+		map_drawer.draw_circle(pos, (radius + 4.0 + pulse) / zoom, Color(outer_color.r, outer_color.g, outer_color.b, 0.15))
 		
 		# Thin elegant rotating cyber-rings for all nodes
 		var r_ring_angle = time_passed * 0.8 + hash(node_city_id)
 		var ring_color = Color(outer_color.r, outer_color.g, outer_color.b, 0.25)
-		map_drawer.draw_arc(pos, radius + 5.0, r_ring_angle, r_ring_angle + PI * 0.3, 8, ring_color, 1.0)
-		map_drawer.draw_arc(pos, radius + 5.0, r_ring_angle + PI, r_ring_angle + PI * 1.3, 8, ring_color, 1.0)
+		map_drawer.draw_arc(pos, (radius + 5.0) / zoom, r_ring_angle, r_ring_angle + PI * 0.3, 8, ring_color, 1.0 / zoom)
+		map_drawer.draw_arc(pos, (radius + 5.0) / zoom, r_ring_angle + PI, r_ring_angle + PI * 1.3, 8, ring_color, 1.0 / zoom)
 		
 		if node_city_id == hovered_city_id:
 			radius = 11.0
 			outer_color = Color(0.2, 0.9, 0.7, 1.0)
 			
 			# Draw spinning HUD dashed outer octagon for hover
-			var oct_rad = 18.0
+			var oct_rad = 18.0 / zoom
 			var rot_offset = time_passed * 1.5
 			for i in range(8):
 				var angle_start = rot_offset + (PI / 4.0) * i
 				var angle_end = angle_start + (PI / 8.0)
-				map_drawer.draw_arc(pos, oct_rad, angle_start, angle_end, 3, Color(0.2, 0.9, 0.7, 0.65), 1.0)
+				map_drawer.draw_arc(pos, oct_rad, angle_start, angle_end, 3, Color(0.2, 0.9, 0.7, 0.65), 1.0 / zoom)
 				
 			# Draw corner HUD brackets around hover
-			var b_sz = 5.0
-			var b_offset = 15.0
+			var b_sz = 5.0 / zoom
+			var b_offset = 15.0 / zoom
 			var b_color = Color(0.2, 0.9, 0.7, 0.8)
 			# Top-left corner bracket
-			map_drawer.draw_line(pos + Vector2(-b_offset, -b_offset), pos + Vector2(-b_offset + b_sz, -b_offset), b_color, 1.0)
-			map_drawer.draw_line(pos + Vector2(-b_offset, -b_offset), pos + Vector2(-b_offset, -b_offset + b_sz), b_color, 1.0)
+			map_drawer.draw_line(pos + Vector2(-b_offset, -b_offset), pos + Vector2(-b_offset + b_sz, -b_offset), b_color, 1.0 / zoom)
+			map_drawer.draw_line(pos + Vector2(-b_offset, -b_offset), pos + Vector2(-b_offset, -b_offset + b_sz), b_color, 1.0 / zoom)
 			# Top-right
-			map_drawer.draw_line(pos + Vector2(b_offset, -b_offset), pos + Vector2(b_offset - b_sz, -b_offset), b_color, 1.0)
-			map_drawer.draw_line(pos + Vector2(b_offset, -b_offset), pos + Vector2(b_offset, -b_offset + b_sz), b_color, 1.0)
+			map_drawer.draw_line(pos + Vector2(b_offset, -b_offset), pos + Vector2(b_offset - b_sz, -b_offset), b_color, 1.0 / zoom)
+			map_drawer.draw_line(pos + Vector2(b_offset, -b_offset), pos + Vector2(b_offset, -b_offset + b_sz), b_color, 1.0 / zoom)
 			# Bottom-left
-			map_drawer.draw_line(pos + Vector2(-b_offset, b_offset), pos + Vector2(-b_offset + b_sz, b_offset), b_color, 1.0)
-			map_drawer.draw_line(pos + Vector2(-b_offset, b_offset), pos + Vector2(-b_offset, b_offset - b_sz), b_color, 1.0)
+			map_drawer.draw_line(pos + Vector2(-b_offset, b_offset), pos + Vector2(-b_offset + b_sz, b_offset), b_color, 1.0 / zoom)
+			map_drawer.draw_line(pos + Vector2(-b_offset, b_offset), pos + Vector2(-b_offset, b_offset - b_sz), b_color, 1.0 / zoom)
 			# Bottom-right
-			map_drawer.draw_line(pos + Vector2(b_offset, b_offset), pos + Vector2(b_offset - b_sz, b_offset), b_color, 1.0)
-			map_drawer.draw_line(pos + Vector2(b_offset, b_offset), pos + Vector2(b_offset, b_offset - b_sz), b_color, 1.0)
+			map_drawer.draw_line(pos + Vector2(b_offset, b_offset), pos + Vector2(b_offset - b_sz, b_offset), b_color, 1.0 / zoom)
+			map_drawer.draw_line(pos + Vector2(b_offset, b_offset), pos + Vector2(b_offset, b_offset - b_sz), b_color, 1.0 / zoom)
 			
 		elif node_city_id == selected_city_id:
 			radius = 10.0
@@ -810,22 +952,22 @@ func _draw_vector_map() -> void:
 			
 			# Selected crosshair targeting reticle lines
 			var ret_color = Color(0.65, 0.45, 1.0, 0.5)
-			map_drawer.draw_line(pos + Vector2(-22, 0), pos + Vector2(-12, 0), ret_color, 1.0)
-			map_drawer.draw_line(pos + Vector2(12, 0), pos + Vector2(22, 0), ret_color, 1.0)
-			map_drawer.draw_line(pos + Vector2(0, -22), pos + Vector2(0, -12), ret_color, 1.0)
-			map_drawer.draw_line(pos + Vector2(0, 12), pos + Vector2(0, 22), ret_color, 1.0)
+			map_drawer.draw_line(pos + Vector2(-22.0 / zoom, 0.0), pos + Vector2(-12.0 / zoom, 0.0), ret_color, 1.0 / zoom)
+			map_drawer.draw_line(pos + Vector2(12.0 / zoom, 0.0), pos + Vector2(22.0 / zoom, 0.0), ret_color, 1.0 / zoom)
+			map_drawer.draw_line(pos + Vector2(0.0, -22.0 / zoom), pos + Vector2(0.0, -12.0 / zoom), ret_color, 1.0 / zoom)
+			map_drawer.draw_line(pos + Vector2(0.0, 12.0 / zoom), pos + Vector2(0.0, 22.0 / zoom), ret_color, 1.0 / zoom)
 			
 			# Rotating outer brackets
 			var r_sel_angle = -time_passed * 2.0
-			map_drawer.draw_arc(pos, 16.0, r_sel_angle, r_sel_angle + PI * 0.4, 12, Color(0.65, 0.45, 1.0, 0.8), 1.5)
-			map_drawer.draw_arc(pos, 16.0, r_sel_angle + PI, r_sel_angle + PI * 1.4, 12, Color(0.65, 0.45, 1.0, 0.8), 1.5)
+			map_drawer.draw_arc(pos, 16.0 / zoom, r_sel_angle, r_sel_angle + PI * 0.4, 12, Color(0.65, 0.45, 1.0, 0.8), 1.5 / zoom)
+			map_drawer.draw_arc(pos, 16.0 / zoom, r_sel_angle + PI, r_sel_angle + PI * 1.4, 12, Color(0.65, 0.45, 1.0, 0.8), 1.5 / zoom)
 			
 		# Draw layered vector circles
-		map_drawer.draw_circle(pos, radius + 2.0, outer_color)
-		map_drawer.draw_circle(pos, radius - 2.0, inner_color)
+		map_drawer.draw_circle(pos, (radius + 2.0) / zoom, outer_color)
+		map_drawer.draw_circle(pos, (radius - 2.0) / zoom, inner_color)
 		
 		# --- DIRECT MAP TEXT LABELING ---
-		# Draw city names + code next to each coordinate node using clean tiny styling
+		# Draw city names + code next to each coordinate node using clean tiny styling (zoom & scale-aware)
 		var node_label_font = get_theme_font("font")
 		if node_label_font:
 			var label_text = node_city.name.to_upper()
@@ -843,42 +985,51 @@ func _draw_vector_map() -> void:
 				label_text += zone_code
 				label_col = Color(0.180, 0.803, 0.443, 0.65) if node_city.is_schengen else Color(0.925, 0.607, 0.141, 0.65)
 			
-			var text_pos = pos + Vector2(14, 4)
-			map_drawer.draw_rect(Rect2(text_pos + Vector2(-2, -10), Vector2(100, 14)), label_bg_col, true)
-			map_drawer.draw_string(node_label_font, text_pos, label_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, label_col)
+			var draw_city_font_size = clamp(int(8.0 / zoom), 6, 24)
+			var text_sz = node_label_font.get_string_size(label_text, HORIZONTAL_ALIGNMENT_LEFT, -1, draw_city_font_size)
+			
+			var text_offset = Vector2(14.0 / zoom, 4.0 / zoom)
+			var text_pos = pos + text_offset
+			
+			# Draw background box scaled to text size
+			map_drawer.draw_rect(Rect2(text_pos + Vector2(-2.0 / zoom, -draw_city_font_size * 1.25), text_sz + Vector2(4.0 / zoom, 2.0 / zoom)), label_bg_col, true)
+			map_drawer.draw_string(node_label_font, text_pos, label_text, HORIZONTAL_ALIGNMENT_LEFT, -1, draw_city_font_size, label_col)
  
 	# 8. CURSOR TELEMETRY HUD CROSSHAIRS AND COORDINATES
 	var mouse_pos = map_drawer.get_local_mouse_position()
-	var inside_viewport = mouse_pos.x >= view_offset.x and mouse_pos.x <= view_offset.x + view_size.x and mouse_pos.y >= view_offset.y and mouse_pos.y <= view_offset.y + view_size.y
+	var inside_viewport = mouse_pos.x >= visible_left and mouse_pos.x <= visible_right and mouse_pos.y >= visible_top and mouse_pos.y <= visible_bottom
 	if inside_viewport:
 		var tel_cross_col = Color(0.2, 0.9, 0.7, 0.16)
 		# Draw horizontal dashed crosshair line
-		_draw_dashed_line(Vector2(view_offset.x, mouse_pos.y), Vector2(view_offset.x + view_size.x, mouse_pos.y), tel_cross_col, 1.0, 4.0, 4.0)
+		_draw_dashed_line(Vector2(visible_left, mouse_pos.y), Vector2(visible_right, mouse_pos.y), tel_cross_col, 1.0 / zoom, 4.0 / zoom, 4.0 / zoom)
 		# Draw vertical dashed crosshair line
-		_draw_dashed_line(Vector2(mouse_pos.x, view_offset.y), Vector2(mouse_pos.x, view_offset.y + view_size.y), tel_cross_col, 1.0, 4.0, 4.0)
+		_draw_dashed_line(Vector2(mouse_pos.x, visible_top), Vector2(mouse_pos.x, visible_bottom), tel_cross_col, 1.0 / zoom, 4.0 / zoom, 4.0 / zoom)
 		
 		# Get Geographic coordinates at cursor
 		var geo_coord = _pos_to_coords(mouse_pos)
 		
 		var cursor_label_font = get_theme_font("font")
 		if cursor_label_font:
+			var draw_cursor_font_size = clamp(int(7.0 / zoom), 5, 24)
 			# Left Margin Lat Box
 			var lat_text = "%.3f° N" % geo_coord.x
-			map_drawer.draw_rect(Rect2(Vector2(view_offset.x - 55, mouse_pos.y - 8), Vector2(50, 15)), Color(0.04, 0.04, 0.06, 0.85), true)
-			map_drawer.draw_rect(Rect2(Vector2(view_offset.x - 55, mouse_pos.y - 8), Vector2(50, 15)), Color(0.2, 0.9, 0.7, 0.3), false, 1.0)
-			map_drawer.draw_string(cursor_label_font, Vector2(view_offset.x - 51, mouse_pos.y + 3), lat_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 7, Color(0.2, 0.9, 0.7, 0.85))
+			var lat_box_pos = Vector2(visible_left + 15.0 / zoom, mouse_pos.y)
+			map_drawer.draw_rect(Rect2(lat_box_pos + Vector2(-4.0 / zoom, -8.0 / zoom), Vector2(50.0 / zoom, 15.0 / zoom)), Color(0.04, 0.04, 0.06, 0.85), true)
+			map_drawer.draw_rect(Rect2(lat_box_pos + Vector2(-4.0 / zoom, -8.0 / zoom), Vector2(50.0 / zoom, 15.0 / zoom)), Color(0.2, 0.9, 0.7, 0.3), false, 1.0 / zoom)
+			map_drawer.draw_string(cursor_label_font, lat_box_pos + Vector2(0.0, 3.0 / zoom), lat_text, HORIZONTAL_ALIGNMENT_LEFT, -1, draw_cursor_font_size, Color(0.2, 0.9, 0.7, 0.85))
 			
 			# Top Margin Lon Box
 			var lon_text = "%.3f° E" % geo_coord.y
-			map_drawer.draw_rect(Rect2(Vector2(mouse_pos.x - 26, view_offset.y - 20), Vector2(52, 15)), Color(0.04, 0.04, 0.06, 0.85), true)
-			map_drawer.draw_rect(Rect2(Vector2(mouse_pos.x - 26, view_offset.y - 20), Vector2(52, 15)), Color(0.2, 0.9, 0.7, 0.3), false, 1.0)
-			map_drawer.draw_string(cursor_label_font, Vector2(mouse_pos.x - 22, view_offset.y - 9), lon_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 7, Color(0.2, 0.9, 0.7, 0.85))
+			var lon_box_pos = Vector2(mouse_pos.x, visible_top + 16.0 / zoom)
+			map_drawer.draw_rect(Rect2(lon_box_pos + Vector2(-26.0 / zoom, -8.0 / zoom), Vector2(52.0 / zoom, 15.0 / zoom)), Color(0.04, 0.04, 0.06, 0.85), true)
+			map_drawer.draw_rect(Rect2(lon_box_pos + Vector2(-26.0 / zoom, -8.0 / zoom), Vector2(52.0 / zoom, 15.0 / zoom)), Color(0.2, 0.9, 0.7, 0.3), false, 1.0 / zoom)
+			map_drawer.draw_string(cursor_label_font, lon_box_pos + Vector2(-22.0 / zoom, 3.0 / zoom), lon_text, HORIZONTAL_ALIGNMENT_LEFT, -1, draw_cursor_font_size, Color(0.2, 0.9, 0.7, 0.85))
 			
 			# Box on the cursor itself
 			var cur_box_text = "[ LAT:%.4f N / LON:%.4f E ]" % [geo_coord.x, geo_coord.y]
-			map_drawer.draw_rect(Rect2(mouse_pos + Vector2(12, -22), Vector2(144, 14)), Color(0.04, 0.04, 0.06, 0.75), true)
-			map_drawer.draw_rect(Rect2(mouse_pos + Vector2(12, -22), Vector2(144, 14)), Color(0.2, 0.9, 0.7, 0.25), false, 1.0)
-			map_drawer.draw_string(cursor_label_font, mouse_pos + Vector2(16, -12), cur_box_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 7, Color(0.2, 0.9, 0.7, 0.75))
+			map_drawer.draw_rect(Rect2(mouse_pos + Vector2(12.0 / zoom, -22.0 / zoom), Vector2(144.0 / zoom, 14.0 / zoom)), Color(0.04, 0.04, 0.06, 0.75), true)
+			map_drawer.draw_rect(Rect2(mouse_pos + Vector2(12.0 / zoom, -22.0 / zoom), Vector2(144.0 / zoom, 14.0 / zoom)), Color(0.2, 0.9, 0.7, 0.25), false, 1.0 / zoom)
+			map_drawer.draw_string(cursor_label_font, mouse_pos + Vector2(16.0 / zoom, -12.0 / zoom), cur_box_text, HORIZONTAL_ALIGNMENT_LEFT, -1, draw_cursor_font_size, Color(0.2, 0.9, 0.7, 0.75))
 
 # ==========================================
 # INTERACTIVE DRAGS AND SCROLLS
@@ -1007,13 +1158,26 @@ func _on_balances_updated(legal_cash: float, dirty_cash: float) -> void:
 	black_balance_lbl.text = "$%s" % String.num(dirty_cash, 2)
 
 func _on_reputation_updated(score: int, heat: int) -> void:
-	rep_val_lbl.text = str(score)
+	# Convert reputation to a 0.0-10.0 rating scale (e.g. 150 -> 7.5) with premium star representation
+	var rep_rating = clamp(float(score) / 20.0, 0.0, 10.0)
+	rep_val_lbl.text = "⭐ %.1f / 10.0" % rep_rating
+	
+	# Display police heat percentage
 	heat_val_lbl.text = "%d%%" % heat
 	
-	if heat > 50:
-		heat_val_lbl.add_theme_color_override("font_color", Color(0.901, 0.298, 0.235)) # High Heat = red label alert
-	else:
-		heat_val_lbl.add_theme_color_override("font_color", Color(1, 1, 1))
+	# Smoothly interpolate color gradient towards neon warning red as heat value increases
+	var heat_ratio = clamp(float(heat) / 100.0, 0.0, 1.0)
+	var calm_color = Color(0.470588, 0.521569, 0.596078, 1.0) # Sleek grey-blue/slate
+	var alert_color = Color(0.95, 0.15, 0.15, 1.0) # Hot vibrant warning red
+	var current_color = calm_color.lerp(alert_color, heat_ratio)
+	
+	heat_val_lbl.add_theme_color_override("font_color", current_color)
+	
+	# Sync the matching 'POLICE HEAT:' text label color to match the percentage value gradient
+	if heat_val_lbl.has_node("../Symbol"):
+		var symbol_lbl = heat_val_lbl.get_node("../Symbol") as Label
+		if symbol_lbl:
+			symbol_lbl.add_theme_color_override("font_color", current_color)
 
 func _on_network_status_changed(connected: bool) -> void:
 	if connected:

@@ -55,7 +55,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/margin_left = 24
-theme_override_constants/margin_right = 24
+theme_override_constants/margin_right = 324
 
 [node name="HBox" type="HBoxContainer" parent="HUD/TopBar/Margin"]
 layout_mode = 2
@@ -78,51 +78,14 @@ theme_override_font_sizes/font_size = 14
 text = "OPERATOR_DEFAULTS"
 
 [node name="Divider" type="ColorRect" parent="HUD/TopBar/Margin/HBox"]
-custom_minimum_size = Vector2(1, 24)
 layout_mode = 2
+custom_minimum_size = Vector2(1, 24)
 size_flags_vertical = 4
 color = Color(1, 1, 1, 0.117647)
-
-[node name="LegalCash" type="HBoxContainer" parent="HUD/TopBar/Margin/HBox"]
-layout_mode = 2
-theme_override_constants/separation = 6
-
-[node name="Symbol" type="Label" parent="HUD/TopBar/Margin/HBox/LegalCash"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.180392, 0.803922, 0.443137, 1)
-text = "CLEAN CASH:"
-
-[node name="LegalBalance" type="Label" parent="HUD/TopBar/Margin/HBox/LegalCash"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_colors/font_color = Color(1, 1, 1, 1)
-theme_override_font_sizes/font_size = 14
-text = "$50,000.00"
-
-[node name="BlackCash" type="HBoxContainer" parent="HUD/TopBar/Margin/HBox"]
-layout_mode = 2
-theme_override_constants/separation = 6
-
-[node name="Symbol" type="Label" parent="HUD/TopBar/Margin/HBox/BlackCash"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.607843, 0.34902, 0.713726, 1)
-text = "DIRTY CASH:"
-
-[node name="BlackBalance" type="Label" parent="HUD/TopBar/Margin/HBox/BlackCash"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_colors/font_color = Color(1, 1, 1, 1)
-theme_override_font_sizes/font_size = 14
-text = "$0.00"
 
 [node name="RepSection" type="HBoxContainer" parent="HUD/TopBar/Margin/HBox"]
 layout_mode = 2
 theme_override_constants/separation = 6
-
-[node name="Symbol" type="Label" parent="HUD/TopBar/Margin/HBox/RepSection"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.92549, 0.607843, 0.141176, 1)
-text = "REP:"
 
 [node name="RepVal" type="Label" parent="HUD/TopBar/Margin/HBox/RepSection"]
 unique_name_in_owner = true
@@ -131,23 +94,76 @@ theme_override_colors/font_color = Color(1, 1, 1, 1)
 theme_override_font_sizes/font_size = 14
 text = "0"
 
+[node name="Divider2" type="ColorRect" parent="HUD/TopBar/Margin/HBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(1, 24)
+size_flags_vertical = 4
+color = Color(1, 1, 1, 0.117647)
+
 [node name="HeatSection" type="HBoxContainer" parent="HUD/TopBar/Margin/HBox"]
 layout_mode = 2
-size_flags_horizontal = 3
-alignment = 2
 theme_override_constants/separation = 6
 
 [node name="Symbol" type="Label" parent="HUD/TopBar/Margin/HBox/HeatSection"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.901961, 0.298039, 0.235294, 1)
-text = "POLICE HEAT:"
+theme_override_colors/font_color = Color(0.470588, 0.521569, 0.596078, 1)
+theme_override_font_sizes/font_size = 10
+text = "POLICE HEAT"
 
 [node name="HeatVal" type="Label" parent="HUD/TopBar/Margin/HBox/HeatSection"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 1, 1, 1)
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 16
 text = "0%"
+
+[node name="Divider3" type="ColorRect" parent="HUD/TopBar/Margin/HBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(1, 24)
+size_flags_vertical = 4
+color = Color(1, 1, 1, 0.117647)
+
+[node name="Spacer" type="Control" parent="HUD/TopBar/Margin/HBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="CashSection" type="VBoxContainer" parent="HUD/TopBar/Margin/HBox"]
+layout_mode = 2
+alignment = 1
+
+[node name="LegalCash" type="HBoxContainer" parent="HUD/TopBar/Margin/HBox/CashSection"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Symbol" type="Label" parent="HUD/TopBar/Margin/HBox/CashSection/LegalCash"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.180392, 0.803922, 0.443137, 1)
+theme_override_font_sizes/font_size = 10
+text = "CLEAN"
+
+[node name="LegalBalance" type="Label" parent="HUD/TopBar/Margin/HBox/CashSection/LegalCash"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 16
+text = "$50,000.00"
+
+[node name="BlackCash" type="HBoxContainer" parent="HUD/TopBar/Margin/HBox/CashSection"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Symbol" type="Label" parent="HUD/TopBar/Margin/HBox/CashSection/BlackCash"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.607843, 0.34902, 0.713726, 1)
+theme_override_font_sizes/font_size = 10
+text = "DIRTY"
+
+[node name="BlackBalance" type="Label" parent="HUD/TopBar/Margin/HBox/CashSection/BlackCash"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 16
+text = "$0.00"
 
 [node name="SidePanel" type="ColorRect" parent="HUD"]
 custom_minimum_size = Vector2(300, 0)
@@ -171,58 +187,63 @@ theme_override_constants/margin_top = 76
 theme_override_constants/margin_right = 20
 theme_override_constants/margin_bottom = 20
 
-[node name="VBox" type="VBoxContainer" parent="HUD/SidePanel/Margin"]
+[node name="ScrollContainer" type="ScrollContainer" parent="HUD/SidePanel/Margin"]
 layout_mode = 2
+horizontal_scroll_mode = 0
+
+[node name="VBox" type="VBoxContainer" parent="HUD/SidePanel/Margin/ScrollContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
 theme_override_constants/separation = 20
 
-[node name="HeaderBox" type="VBoxContainer" parent="HUD/SidePanel/Margin/VBox"]
+[node name="HeaderBox" type="VBoxContainer" parent="HUD/SidePanel/Margin/ScrollContainer/VBox"]
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="SectionLabel" type="Label" parent="HUD/SidePanel/Margin/VBox/HeaderBox"]
+[node name="SectionLabel" type="Label" parent="HUD/SidePanel/Margin/ScrollContainer/VBox/HeaderBox"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.92549, 0.607843, 0.141176, 1)
 theme_override_font_sizes/font_size = 11
 text = "ROUTE INFORMATION CONTROL"
 
-[node name="CityName" type="Label" parent="HUD/SidePanel/Margin/VBox/HeaderBox"]
+[node name="CityName" type="Label" parent="HUD/SidePanel/Margin/ScrollContainer/VBox/HeaderBox"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 1, 1, 1)
 theme_override_font_sizes/font_size = 20
 text = "Select a City Node..."
 
-[node name="SchengenVal" type="Label" parent="HUD/SidePanel/Margin/VBox/HeaderBox"]
+[node name="SchengenVal" type="Label" parent="HUD/SidePanel/Margin/ScrollContainer/VBox/HeaderBox"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.180392, 0.803922, 0.443137, 1)
 theme_override_font_sizes/font_size = 12
 text = "ZONE: ACTIVE"
 
-[node name="CityDivider" type="ColorRect" parent="HUD/SidePanel/Margin/VBox"]
+[node name="CityDivider" type="ColorRect" parent="HUD/SidePanel/Margin/ScrollContainer/VBox"]
 custom_minimum_size = Vector2(0, 1)
 layout_mode = 2
 color = Color(1, 1, 1, 0.0784314)
 
-[node name="ConnectionList" type="VBoxContainer" parent="HUD/SidePanel/Margin/VBox"]
+[node name="ConnectionList" type="VBoxContainer" parent="HUD/SidePanel/Margin/ScrollContainer/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_constants/separation = 12
 
-[node name="Label" type="Label" parent="HUD/SidePanel/Margin/VBox/ConnectionList"]
+[node name="Label" type="Label" parent="HUD/SidePanel/Margin/ScrollContainer/VBox/ConnectionList"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.470588, 0.521569, 0.596078, 1)
 theme_override_font_sizes/font_size = 12
 text = "LOGISTICS CONNECTIONS:"
 
-[node name="ConsoleBox" type="ColorRect" parent="HUD/SidePanel/Margin/VBox"]
+[node name="ConsoleBox" type="ColorRect" parent="HUD/SidePanel/Margin/ScrollContainer/VBox"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 120)
 layout_mode = 2
 color = Color(0.0470588, 0.0509804, 0.0588235, 1)
 
-[node name="Margin" type="MarginContainer" parent="HUD/SidePanel/Margin/VBox/ConsoleBox"]
+[node name="Margin" type="MarginContainer" parent="HUD/SidePanel/Margin/ScrollContainer/VBox/ConsoleBox"]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -234,7 +255,7 @@ theme_override_constants/margin_top = 12
 theme_override_constants/margin_right = 12
 theme_override_constants/margin_bottom = 12
 
-[node name="ConsoleLabel" type="Label" parent="HUD/SidePanel/Margin/VBox/ConsoleBox/Margin"]
+[node name="ConsoleLabel" type="Label" parent="HUD/SidePanel/Margin/ScrollContainer/VBox/ConsoleBox/Margin"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.180392, 0.803922, 0.443137, 1)
@@ -242,13 +263,13 @@ theme_override_font_sizes/font_size = 11
 text = "System Initialized. Logged in to logistics grid. Reconnection watchdog running."
 autowrap_mode = 3
 
-[node name="NavTitle" type="Label" parent="HUD/SidePanel/Margin/VBox"]
+[node name="NavTitle" type="Label" parent="HUD/SidePanel/Margin/ScrollContainer/VBox"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.92549, 0.607843, 0.141176, 1)
 theme_override_font_sizes/font_size = 11
 text = "COMMAND OPERATIONS"
 
-[node name="GarageBtn" type="Button" parent="HUD/SidePanel/Margin/VBox"]
+[node name="GarageBtn" type="Button" parent="HUD/SidePanel/Margin/ScrollContainer/VBox"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
@@ -256,7 +277,7 @@ text = "▦  GARAGE MANAGER"
 theme_override_colors/font_color = Color(0.180392, 0.803922, 0.443137, 1)
 theme_override_font_sizes/font_size = 12
 
-[node name="DispatchBtn" type="Button" parent="HUD/SidePanel/Margin/VBox"]
+[node name="DispatchBtn" type="Button" parent="HUD/SidePanel/Margin/ScrollContainer/VBox"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
@@ -264,7 +285,7 @@ text = "⚡  DISPATCH CENTER"
 theme_override_colors/font_color = Color(0.92549, 0.607843, 0.141176, 1)
 theme_override_font_sizes/font_size = 12
 
-[node name="AuctionBtn" type="Button" parent="HUD/SidePanel/Margin/VBox"]
+[node name="AuctionBtn" type="Button" parent="HUD/SidePanel/Margin/ScrollContainer/VBox"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
@@ -272,7 +293,7 @@ text = "🏷  AUCTION BLOCK"
 theme_override_colors/font_color = Color(0.925, 0.607, 0.141, 1)
 theme_override_font_sizes/font_size = 12
 
-[node name="LaundryBtn" type="Button" parent="HUD/SidePanel/Margin/VBox"]
+[node name="LaundryBtn" type="Button" parent="HUD/SidePanel/Margin/ScrollContainer/VBox"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
@@ -280,7 +301,7 @@ text = "⚗  LAUNDRY FRONTS"
 theme_override_colors/font_color = Color(0.607843, 0.34902, 0.713726, 1)
 theme_override_font_sizes/font_size = 12
 
-[node name="UnderworldBtn" type="Button" parent="HUD/SidePanel/Margin/VBox"]
+[node name="UnderworldBtn" type="Button" parent="HUD/SidePanel/Margin/ScrollContainer/VBox"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
@@ -288,7 +309,7 @@ text = "💀  UNDERWORLD MARKET"
 theme_override_colors/font_color = Color(0.75, 0.1, 1.0, 1)
 theme_override_font_sizes/font_size = 12
 
-[node name="ShopBtn" type="Button" parent="HUD/SidePanel/Margin/VBox"]
+[node name="ShopBtn" type="Button" parent="HUD/SidePanel/Margin/ScrollContainer/VBox"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
@@ -296,7 +317,7 @@ text = "🔧  PARTS & RIGGING SHOP"
 theme_override_colors/font_color = Color(0.3, 0.85, 1.0, 1)
 theme_override_font_sizes/font_size = 12
 
-[node name="BreakdownBtn" type="Button" parent="HUD/SidePanel/Margin/VBox"]
+[node name="BreakdownBtn" type="Button" parent="HUD/SidePanel/Margin/ScrollContainer/VBox"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
@@ -304,7 +325,7 @@ text = "🚨  EMERGENCY RECOVERY"
 theme_override_colors/font_color = Color(1.0, 0.6, 0.1, 1)
 theme_override_font_sizes/font_size = 12
 
-[node name="LeaderboardBtn" type="Button" parent="HUD/SidePanel/Margin/VBox"]
+[node name="LeaderboardBtn" type="Button" parent="HUD/SidePanel/Margin/ScrollContainer/VBox"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
@@ -312,7 +333,7 @@ text = "🏆  LEADERBOARDS"
 theme_override_colors/font_color = Color(0.92549, 0.76, 0.141176, 1)
 theme_override_font_sizes/font_size = 12
 
-[node name="AnalyticsBtn" type="Button" parent="HUD/SidePanel/Margin/VBox"]
+[node name="AnalyticsBtn" type="Button" parent="HUD/SidePanel/Margin/ScrollContainer/VBox"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
@@ -320,7 +341,7 @@ text = "📊  LOGISTICS & ANALYTICS"
 theme_override_colors/font_color = Color(0.2, 0.8, 1.0, 1)
 theme_override_font_sizes/font_size = 12
 
-[node name="ResearchBtn" type="Button" parent="HUD/SidePanel/Margin/VBox"]
+[node name="ResearchBtn" type="Button" parent="HUD/SidePanel/Margin/ScrollContainer/VBox"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
@@ -328,7 +349,7 @@ text = "🔬  R&D TECH TREE"
 theme_override_colors/font_color = Color(0.65, 0.45, 1.0, 1)
 theme_override_font_sizes/font_size = 12
 
-[node name="DealershipBtn" type="Button" parent="HUD/SidePanel/Margin/VBox"]
+[node name="DealershipBtn" type="Button" parent="HUD/SidePanel/Margin/ScrollContainer/VBox"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
@@ -336,12 +357,12 @@ text = "🏢  FACTORY SHOWROOM"
 theme_override_colors/font_color = Color(0.2, 0.9, 0.7, 1)
 theme_override_font_sizes/font_size = 12
 
-[node name="NavDivider" type="ColorRect" parent="HUD/SidePanel/Margin/VBox"]
+[node name="NavDivider" type="ColorRect" parent="HUD/SidePanel/Margin/ScrollContainer/VBox"]
 custom_minimum_size = Vector2(0, 1)
 layout_mode = 2
 color = Color(1, 1, 1, 0.0784314)
 
-[node name="BackMenuBtn" type="Button" parent="HUD/SidePanel/Margin/VBox"]
+[node name="BackMenuBtn" type="Button" parent="HUD/SidePanel/Margin/ScrollContainer/VBox"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 36)
 layout_mode = 2

@@ -14,6 +14,7 @@ func _ready() -> void:
 	_setup_graphics_toggle_ui()
 	_setup_remember_me_ui()
 	_setup_known_profiles_ui()
+	_setup_developer_bypass_ui()
 	
 	# Connect local button signals
 	login_btn.pressed.connect(_on_login_pressed)
@@ -272,6 +273,13 @@ func _setup_known_profiles_ui() -> void:
 	if config.has_section("profiles"):
 		profiles = config.get_section_keys("profiles")
 		
+	# Fallback: always ensure the 'dispatch_operator' dev profile is seeded for instant one-click testing
+	if not "dispatch_operator" in profiles:
+		_save_to_known_profiles("dispatch_operator", "admin123")
+		config.load("user://known_profiles.cfg")
+		if config.has_section("profiles"):
+			profiles = config.get_section_keys("profiles")
+			
 	if profiles.is_empty():
 		return
 		
@@ -343,3 +351,53 @@ func _setup_known_profiles_ui() -> void:
 	var btn_idx = parent_container.get_node("ButtonBox").get_index()
 	parent_container.add_child(profile_box)
 	parent_container.move_child(profile_box, btn_idx)
+
+func _setup_developer_bypass_ui() -> void:
+	var parent_container = user_edit.get_parent().get_parent() # This is FormContainer
+	
+	var bypass_btn = Button.new()
+	bypass_btn.name = "DevBypassBtn"
+	bypass_btn.text = "⚡ DEVELOPER COMMAND ACCESS (QUICK PLAY) ⚡"
+	bypass_btn.add_theme_font_size_override("font_size", 12)
+	
+	# Give it a gorgeous glowing gold/amber cyber-border style
+	var style_normal = StyleBoxFlat.new()
+	style_normal.bg_color = Color(0.925, 0.607, 0.141, 0.08) # Amber translucent
+	style_normal.border_color = Color(0.925, 0.607, 0.141, 0.8) # Full amber border
+	style_normal.border_width_left = 1
+	style_normal.border_width_top = 1
+	style_normal.border_width_right = 1
+	style_normal.border_width_bottom = 1
+	style_normal.set_corner_radius_all(6)
+	style_normal.content_margin_top = 10
+	style_normal.content_margin_bottom = 10
+	
+	var style_hover = StyleBoxFlat.new()
+	style_hover.bg_color = Color(0.925, 0.607, 0.141, 0.2) # Stronger gold
+	style_hover.border_color = Color(1.0, 0.75, 0.3, 1.0) # Bright gold border
+	style_hover.border_width_left = 2
+	style_hover.border_width_top = 2
+	style_hover.border_width_right = 2
+	style_hover.border_width_bottom = 2
+	style_hover.set_corner_radius_all(6)
+	style_hover.content_margin_top = 9
+	style_hover.content_margin_bottom = 9
+	
+	bypass_btn.add_theme_stylebox_override("normal", style_normal)
+	bypass_btn.add_theme_stylebox_override("hover", style_hover)
+	bypass_btn.add_theme_stylebox_override("pressed", style_normal)
+	bypass_btn.add_theme_color_override("font_color", Color(0.925, 0.607, 0.141))
+	bypass_btn.add_theme_color_override("font_hover_color", Color.WHITE)
+	
+	parent_container.add_child(bypass_btn)
+	# Put it at the very top of FormContainer
+	parent_container.move_child(bypass_btn, 0)
+	
+	bypass_btn.pressed.connect(func():
+		user_edit.text = "dispatch_operator"
+		pass_edit.text = "admin123"
+		if remember_check:
+			remember_check.button_pressed = true
+		_on_login_pressed()
+	)
+

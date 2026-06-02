@@ -63,4 +63,24 @@ func set_graphics_quality(quality: String) -> void:
 		graphics_quality = quality
 		graphics_settings_changed.emit(graphics_quality)
 
+# Simulated Game Clock & Calendar Scale (5 real seconds = 1 simulated hour)
+var simulated_time_unix: float = 1780272000.0 # Starts June 1, 2026 00:00:00
+const TIME_SPEED_MULTIPLIER: float = 720.0 # 1 real second = 720 simulated seconds (12 mins)
 
+func _process(delta: float) -> void:
+	simulated_time_unix += delta * TIME_SPEED_MULTIPLIER
+
+func get_simulated_time_string() -> String:
+	var dt = Time.get_datetime_dict_from_unix_time(int(simulated_time_unix))
+	var months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
+	var month_str = months[dt.month - 1] if dt.month >= 1 and dt.month <= 12 else "UNK"
+	var weekday_names = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"]
+	var weekday_str = weekday_names[dt.weekday] if dt.weekday >= 0 and dt.weekday < 7 else "UNK"
+	return "%s, %02d %s %d  %02d:%02d" % [
+		weekday_str,
+		dt.day,
+		month_str,
+		dt.year,
+		dt.hour,
+		dt.minute
+	]

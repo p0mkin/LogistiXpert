@@ -1131,12 +1131,12 @@ func _style_btn(btn: Button, accent_col: Color, is_selected: bool = false) -> vo
 		
 	sb_pressed.bg_color = Color(accent_col.r * 0.3, accent_col.g * 0.3, accent_col.b * 0.3, 1.0)
 	sb_pressed.border_color = accent_col
-	sb_pressed.border_width_all(2)
+	sb_pressed.set_border_width_all(2)
 	sb_pressed.set_corner_radius_all(4)
 	
 	sb_disabled.bg_color = Color(0.04, 0.04, 0.05, 0.3)
 	sb_disabled.border_color = Color(0.1, 0.1, 0.12, 0.2)
-	sb_disabled.border_width_all(1)
+	sb_disabled.set_border_width_all(1)
 	sb_disabled.set_corner_radius_all(4)
 	
 	btn.add_theme_stylebox_override("normal", sb_normal)

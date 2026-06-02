@@ -238,12 +238,22 @@ export class DispatchSimulationService {
         }
 
         // 2. Compute fuel/elec/adblue/co2 needs
-        let initialStep = 10.0;
-        if (driver.trait === 'LEAD_FOOT') initialStep += 2.0;
-        if (driver.isStimulated) initialStep += 3.5;
+        let totalDistance = 350.0;
+        if (route.legalContract) {
+          totalDistance = route.legalContract.distanceKm;
+        } else if (route.clanContract) {
+          totalDistance = route.clanContract.distanceKm;
+        } else if (route.contrabandJob) {
+          totalDistance = 350.0;
+        }
 
-        const totalDistance = route.legalContract ? route.legalContract.distanceKm : 350.0;
-        const distanceThisTick = (initialStep / 100.0) * totalDistance;
+        let truck_speed_kmh = 80.0;
+        if (driver.trait === 'LEAD_FOOT') truck_speed_kmh *= 1.15;
+        if (driver.isStimulated) truck_speed_kmh *= 1.20;
+
+        const tick_distance = 0.6 * truck_speed_kmh;
+        const distanceThisTick = tick_distance;
+
 
         // Apply R&D aerodynamics buff (-4% drag/consumption per level, up to -12%)
         const aerodynamicsBuff = 1.0 - (company.resAerodynamics * 0.04);
@@ -531,9 +541,8 @@ export class DispatchSimulationService {
         }
 
         // 7. Progress Increment calculations
-        let progressStep = 10.0;
-        if (driver.trait === 'LEAD_FOOT') progressStep += 2.0;
-        if (driver.isStimulated) progressStep += 3.5;
+        let progressStep = Math.max(0.1, Math.min(100.0, (tick_distance / totalDistance) * 100.0));
+
 
         // Apply Weather Hazard & Autopilot Policies on Speed & Cosmetic Wear
         let cosmeticDamage = 0;

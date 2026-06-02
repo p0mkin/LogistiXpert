@@ -36,11 +36,20 @@ var tacho_anim_time: float = 0.0
 var live_progress: float = 0.0  # 0.0 - 1.0
 
 var autopilot_policy_box: OptionButton = null
+var clock_lbl: Label = null
 
 func _ready() -> void:
 	_apply_theme()
 	player_lbl.text = GameState.username.to_upper()
 	_refresh_header()
+	
+	clock_lbl = Label.new()
+	clock_lbl.name = "ClockLabel"
+	clock_lbl.add_theme_font_size_override("font_size", 12)
+	clock_lbl.add_theme_color_override("font_color", Color(0.180, 0.803, 0.443, 0.85))
+	if player_lbl and player_lbl.get_parent():
+		player_lbl.get_parent().add_child(clock_lbl)
+		clock_lbl.position = player_lbl.position + Vector2(250, 0)
 	
 	GameState.balance_updated.connect(_on_balances_updated)
 	GameState.reputation_updated.connect(_on_reputation_updated)
@@ -82,6 +91,8 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	tacho_anim_time += delta
+	if clock_lbl and is_instance_valid(clock_lbl):
+		clock_lbl.text = "📅 " + GameState.get_simulated_time_string()
 	queue_redraw()  # For tachograph arc animation
 
 func _draw() -> void:
@@ -250,13 +261,14 @@ func _on_trucks_response(result: int, code: int, headers: PackedStringArray, bod
 			for garage in data:
 				if garage.has("trucks"):
 					for truck in garage.trucks:
-						if not truck.get("isImpounded", false) and not truck.has("activeRoute"):
+						if not truck.get("isImpounded", false) and truck.get("activeRoute", null) == null:
+							truck["currentCity"] = garage.get("city", "Unknown")
 							available_trucks.append(truck)
 		
 		truck_select_box.clear()
 		for i in range(available_trucks.size()):
 			var t = available_trucks[i]
-			truck_select_box.add_item("%s (E:%d%%)" % [t.get("model","?"), int(t.get("engineHealth",0))], i)
+			truck_select_box.add_item("[%s] %s (E:%d%%)" % [t.get("currentCity", "?").to_upper(), t.get("model","?"), int(t.get("engineHealth",0))], i)
 		
 		if available_trucks.is_empty():
 			_log("No trucks available for dispatch.", Color(0.901, 0.298, 0.235))
@@ -499,7 +511,7 @@ func _build_route_card(route: Dictionary) -> PanelContainer:
 		elif weather == "ICE_STORM":
 			w_style.bg_color = Color(0.0, 0.3, 0.5, 0.3)
 			w_style.border_color = Color(0.0, 0.7, 1.0, 0.6)
-		w_style.border_width_all = 1
+		w_style.set_border_width_all(1)
 		w_style.set_corner_radius_all(4)
 		w_style.content_margin_left = 10
 		w_style.content_margin_right = 10
@@ -770,7 +782,7 @@ func _on_border_inspection(payload: Dictionary) -> void:
 	var style = StyleBoxFlat.new()
 	style.bg_color = Color(0.08, 0.05, 0.05, 0.95)
 	style.border_color = Color(0.9, 0.2, 0.2, 1.0)
-	style.border_width_all = 3
+	style.set_border_width_all(3)
 	style.set_corner_radius_all(10)
 	box.add_theme_stylebox_override("panel", style)
 	overlay.add_child(box)
@@ -831,7 +843,7 @@ func _create_badge_capsule(text: String, bg_color: Color, border_color: Color) -
 	var style = StyleBoxFlat.new()
 	style.bg_color = bg_color
 	style.border_color = border_color
-	style.border_width_all = 1
+	style.set_border_width_all(1)
 	style.set_corner_radius_all(10) # Rounded capsule
 	style.content_margin_left = 8
 	style.content_margin_right = 8

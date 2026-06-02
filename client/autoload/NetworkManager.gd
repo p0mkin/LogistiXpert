@@ -433,7 +433,7 @@ func _parse_and_route_message(json_str: String) -> void:
 # GLOBAL EMERGENCY ALERT OVERLAY
 # Injects a red-flash critical alert banner into the current scene
 # ==========================================
-var _alert_overlay: Control = null
+var _alert_overlay: Node = null
 
 func _show_emergency_alert(title: String, message: String, color: Color) -> void:
 	# Remove any existing alert

@@ -40,6 +40,7 @@ var selected_job: Dictionary = {}
 var active_dealer: Dictionary = {}
 var player_truck_id: String = ""
 var player_trucks: Array = []
+var clock_lbl: Label = null
 
 # UI node references
 @onready var scene_root = $CanvasLayer
@@ -52,6 +53,12 @@ func _ready() -> void:
 	if hire_http:
 		hire_http.request_completed.connect(_on_accept_response)
 	_fetch_garage_data()
+	set_process(true)
+
+func _process(_delta: float) -> void:
+	if clock_lbl and is_instance_valid(clock_lbl):
+		clock_lbl.text = "📅 " + GameState.get_simulated_time_string()
+
 
 # ====================================================
 # BUILD THE FULL UI PROCEDURALLY
@@ -83,6 +90,16 @@ func _build_ui() -> void:
 	heat_label.position = Vector2(980, 22)
 	heat_label.name = "HeatLabel"
 	header.add_child(heat_label)
+
+	# Simulated clock label in header
+	clock_lbl = Label.new()
+	clock_lbl.name = "ClockLabel"
+	clock_lbl.add_theme_font_size_override("font_size", 14)
+	clock_lbl.add_theme_color_override("font_color", Color(0.180, 0.803, 0.443, 0.85)) # Emerald Green
+	clock_lbl.position = Vector2(700, 22)
+	clock_lbl.text = "📅 " + GameState.get_simulated_time_string()
+	header.add_child(clock_lbl)
+
 
 	var back_btn = _make_button("◀  HUB", Vector2(1170, 12), Vector2(90, 40))
 	_style_btn(back_btn, Color(1.0, 0.25, 0.25)) # Crimson Warnings for exit
@@ -143,7 +160,8 @@ func _build_dealer_card(parent: Control) -> void:
 	var savatar = StyleBoxFlat.new()
 	savatar.bg_color = active_dealer.avatar_color
 	savatar.border_color = Color(0.65, 0.45, 1.0, 0.4)
-	savatar.border_width_all(2)
+	savatar.set_border_width_all(2)
+
 	savatar.set_corner_radius_all(50) # Circle!
 	avatar.add_theme_stylebox_override("panel", savatar)
 	parent.add_child(avatar)
@@ -287,7 +305,34 @@ func _fetch_garage_data() -> void:
 		["Authorization: Bearer " + NetworkManager.jwt_token],
 		HTTPClient.METHOD_GET
 	)
-	_populate_truck_selector()
+
+	# Fetch latest garages/fleet state from server in parallel
+	var garage_req = HTTPRequest.new()
+	add_child(garage_req)
+	garage_req.request_completed.connect(_on_garage_response.bind(garage_req))
+	garage_req.request(
+		BASE_URL + "/api/garage",
+		["Authorization: Bearer " + NetworkManager.jwt_token],
+		HTTPClient.METHOD_GET
+	)
+
+func _on_garage_response(result: int, code: int, headers: PackedStringArray, body: PackedByteArray, garage_req: HTTPRequest) -> void:
+	garage_req.queue_free()
+	if code == 200:
+		var data = JSON.parse_string(body.get_string_from_utf8())
+		if data and data is Dictionary:
+			if data.has("garages") and data["garages"] is Array:
+				GameState.garages = data["garages"]
+			
+			var merged_fleet: Array = []
+			for g in GameState.garages:
+				if g.has("trucks") and g["trucks"] is Array:
+					for t in g["trucks"]:
+						t["garageCity"] = g.get("city", "Unknown")
+						merged_fleet.append(t)
+			GameState.fleet = merged_fleet
+			_populate_truck_selector()
+
 
 func _on_jobs_response(result: int, code: int, headers: PackedStringArray, body: PackedByteArray, http_req: HTTPRequest) -> void:
 	http_req.queue_free()
@@ -386,6 +431,12 @@ func _populate_truck_selector() -> void:
 			int(truck.get("tireWear", 0))
 		])
 	player_trucks = dispatch_ready
+	if not player_trucks.is_empty():
+		if player_truck_id.is_empty():
+			player_truck_id = player_trucks[0].get("id", "")
+			if not selected_job.is_empty():
+				_render_job_detail(selected_job)
+
 
 func _find_node_recursive(node: Node, target_name: String) -> Node:
 	if node.name == target_name:
@@ -544,7 +595,8 @@ func _render_job_detail(job: Dictionary) -> void:
 	var sbg = StyleBoxFlat.new()
 	sbg.bg_color = Color(0.04, 0.04, 0.06, 0.8)
 	sbg.border_color = Color(1.0, 0.25, 0.25, 0.2)
-	sbg.border_width_all(1)
+	sbg.set_border_width_all(1)
+
 	sbg.set_corner_radius_all(3)
 	risk_bg.add_theme_stylebox_override("panel", sbg)
 	panel.add_child(risk_bg)
@@ -564,7 +616,42 @@ func _render_job_detail(job: Dictionary) -> void:
 	risk_fill.add_theme_stylebox_override("panel", sfill)
 	panel.add_child(risk_fill)
 
-	y_offset += 30
+	y_offset += 24
+
+	# Dispatch vehicle details row
+	var selected_truck: Dictionary = {}
+	for t in player_trucks:
+		if t.get("id", "") == player_truck_id:
+			selected_truck = t
+			break
+
+	var dispatch_header = Label.new()
+	dispatch_header.text = "DISPATCH VEHICLE"
+	dispatch_header.add_theme_font_size_override("font_size", 11)
+	dispatch_header.add_theme_color_override("font_color", Color(0.65, 0.45, 1.0, 1.0))
+	dispatch_header.position = Vector2(12, y_offset)
+	panel.add_child(dispatch_header)
+
+	y_offset += 16
+
+	var truck_lbl = Label.new()
+	if not selected_truck.is_empty():
+		var d_name = "No Driver"
+		var driver = selected_truck.get("driver", null)
+		if driver and driver is Dictionary:
+			d_name = driver.get("name", "Unknown Driver")
+		truck_lbl.text = "🚚 %s\n👤 %s" % [selected_truck.get("model", "Unknown"), d_name]
+		truck_lbl.add_theme_color_override("font_color", Color(0.85, 0.8, 1.0, 1.0))
+	else:
+		truck_lbl.text = "🚚 None Selected (Select in center panel)"
+		truck_lbl.add_theme_color_override("font_color", Color(1.0, 0.25, 0.25, 1.0))
+	
+	truck_lbl.add_theme_font_size_override("font_size", 11)
+	truck_lbl.position = Vector2(12, y_offset)
+	truck_lbl.size = Vector2(276, 32)
+	panel.add_child(truck_lbl)
+
+	y_offset += 38
 
 	# ACCEPT BUTTON
 	var accept_btn = Button.new()
@@ -575,6 +662,7 @@ func _render_job_detail(job: Dictionary) -> void:
 	_style_btn(accept_btn, Color(0.18, 0.803, 0.443))
 	accept_btn.pressed.connect(_accept_job)
 	panel.add_child(accept_btn)
+
 
 	y_offset += 52
 
@@ -605,8 +693,9 @@ func _accept_job() -> void:
 			_show_toast("⚠ No trucks available! Buy a truck first.")
 			return
 		var idx = ts.get_selected()
-		if idx >= 0 and idx < GameState.fleet.size():
-			player_truck_id = GameState.fleet[idx].get("id", "")
+		if idx >= 0 and idx < player_trucks.size():
+			player_truck_id = player_trucks[idx].get("id", "")
+
 
 	if player_truck_id.is_empty():
 		_show_toast("⚠ Select a truck for this contract!")
@@ -659,6 +748,9 @@ func _filter_jobs(cargo_class: String) -> void:
 func _on_truck_selected(idx: int) -> void:
 	if idx >= 0 and idx < player_trucks.size():
 		player_truck_id = player_trucks[idx].get("id", "")
+		if not selected_job.is_empty():
+			_render_job_detail(selected_job)
+
 
 func _go_back() -> void:
 	SceneTransition.change_scene_to_file("res://scenes/game_map/GameMap.tscn")
@@ -771,13 +863,14 @@ func _style_btn(btn: Button, accent_col: Color, is_selected: bool = false) -> vo
 		
 	sb_pressed.bg_color = Color(accent_col.r * 0.3, accent_col.g * 0.3, accent_col.b * 0.3, 1.0)
 	sb_pressed.border_color = accent_col
-	sb_pressed.border_width_all(2)
+	sb_pressed.set_border_width_all(2)
 	sb_pressed.set_corner_radius_all(4)
 	
 	sb_disabled.bg_color = Color(0.04, 0.04, 0.05, 0.3)
 	sb_disabled.border_color = Color(0.1, 0.1, 0.12, 0.2)
-	sb_disabled.border_width_all(1)
+	sb_disabled.set_border_width_all(1)
 	sb_disabled.set_corner_radius_all(4)
+
 	
 	btn.add_theme_stylebox_override("normal", sb_normal)
 	btn.add_theme_stylebox_override("hover", sb_hover)

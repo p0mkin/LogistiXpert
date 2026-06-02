@@ -626,19 +626,19 @@ func _update_customizer_panel() -> void:
 	if can_buy:
 		sb_buy_normal.bg_color = Color(0.04, 0.22, 0.12, 0.75) # neon green backing
 		sb_buy_normal.border_color = Color(0.2, 0.85, 0.45, 0.8)
-		sb_buy_normal.border_width_all(2)
+		sb_buy_normal.set_border_width_all(2)
 		
 		sb_buy_hover.bg_color = Color(0.06, 0.3, 0.16, 0.85)
 		sb_buy_hover.border_color = Color(0.2, 0.85, 0.45, 1.0)
-		sb_buy_hover.border_width_all(2)
+		sb_buy_hover.set_border_width_all(2)
 		
 		sb_buy_pressed.bg_color = Color(0.1, 0.45, 0.24, 1.0)
 		sb_buy_pressed.border_color = Color(0.2, 0.85, 0.45, 1.0)
-		sb_buy_pressed.border_width_all(2)
+		sb_buy_pressed.set_border_width_all(2)
 	else:
 		sb_buy_disabled.bg_color = Color(0.12, 0.05, 0.05, 0.5)
 		sb_buy_disabled.border_color = Color(0.8, 0.25, 0.25, 0.3)
-		sb_buy_disabled.border_width_all(1)
+		sb_buy_disabled.set_border_width_all(1)
 		
 	for sb in [sb_buy_normal, sb_buy_hover, sb_buy_pressed, sb_buy_disabled]:
 		sb.set_corner_radius_all(6)
@@ -744,13 +744,13 @@ func _btn(txt: String, pos: Vector2, sz: Vector2) -> Button:
 	var sb_normal = StyleBoxFlat.new()
 	sb_normal.bg_color = Color(0.12, 0.05, 0.05, 0.5)
 	sb_normal.border_color = Color(0.95, 0.35, 0.35, 0.4)
-	sb_normal.border_width_all(1)
+	sb_normal.set_border_width_all(1)
 	sb_normal.set_corner_radius_all(4)
 	
 	var sb_hover = StyleBoxFlat.new()
 	sb_hover.bg_color = Color(0.18, 0.08, 0.08, 0.75)
 	sb_hover.border_color = Color(0.95, 0.35, 0.35, 0.8)
-	sb_hover.border_width_all(1)
+	sb_hover.set_border_width_all(1)
 	sb_hover.set_corner_radius_all(4)
 	
 	b.add_theme_stylebox_override("normal", sb_normal)
@@ -792,12 +792,12 @@ func _style_customizer_btn(btn: Button, is_selected: bool, accent_col: Color = C
 		
 	sb_pressed.bg_color = Color(accent_col.r * 0.3, accent_col.g * 0.3, accent_col.b * 0.3, 1.0)
 	sb_pressed.border_color = accent_col
-	sb_pressed.border_width_all(2)
+	sb_pressed.set_border_width_all(2)
 	sb_pressed.set_corner_radius_all(4)
 	
 	sb_disabled.bg_color = Color(0.04, 0.04, 0.05, 0.3)
 	sb_disabled.border_color = Color(0.1, 0.1, 0.12, 0.2)
-	sb_disabled.border_width_all(1)
+	sb_disabled.set_border_width_all(1)
 	sb_disabled.set_corner_radius_all(4)
 	
 	btn.add_theme_stylebox_override("normal", sb_normal)

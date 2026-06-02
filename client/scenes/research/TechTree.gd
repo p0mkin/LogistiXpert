@@ -110,13 +110,13 @@ func _build_ui() -> void:
 	var sb_back_normal = StyleBoxFlat.new()
 	sb_back_normal.bg_color = Color(0.12, 0.05, 0.05, 0.5)
 	sb_back_normal.border_color = Color(1.0, 0.25, 0.25, 0.4)
-	sb_back_normal.border_width_all(1)
+	sb_back_normal.set_border_width_all(1)
 	sb_back_normal.set_corner_radius_all(4)
 	
 	var sb_back_hover = StyleBoxFlat.new()
 	sb_back_hover.bg_color = Color(0.18, 0.08, 0.08, 0.75)
 	sb_back_hover.border_color = Color(1.0, 0.25, 0.25, 0.8)
-	sb_back_hover.border_width_all(1)
+	sb_back_hover.set_border_width_all(1)
 	sb_back_hover.set_corner_radius_all(4)
 	
 	back_btn.add_theme_stylebox_override("normal", sb_back_normal)
@@ -532,13 +532,13 @@ func _btn(txt: String, pos: Vector2, sz: Vector2) -> Button:
 	var sb_normal = StyleBoxFlat.new()
 	sb_normal.bg_color = Color(0.06, 0.05, 0.08, 0.6)
 	sb_normal.border_color = Color(0.65, 0.45, 1.0, 0.3)
-	sb_normal.border_width_all(1)
+	sb_normal.set_border_width_all(1)
 	sb_normal.set_corner_radius_all(4)
 	
 	var sb_hover = StyleBoxFlat.new()
 	sb_hover.bg_color = Color(0.1, 0.08, 0.14, 0.8)
 	sb_hover.border_color = Color(0.65, 0.45, 1.0, 0.6)
-	sb_hover.border_width_all(1)
+	sb_hover.set_border_width_all(1)
 	sb_hover.set_corner_radius_all(4)
 	
 	b.add_theme_stylebox_override("normal", sb_normal)
@@ -554,31 +554,31 @@ func _style_customizer_btn(btn: Button, is_selected: bool, accent_col: Color = C
 	if is_selected:
 		sb_normal.bg_color = Color(accent_col.r * 0.15, accent_col.g * 0.15, accent_col.b * 0.15, 0.8)
 		sb_normal.border_color = accent_col
-		sb_normal.border_width_all(2)
+		sb_normal.set_border_width_all(2)
 		
 		sb_hover.bg_color = Color(accent_col.r * 0.25, accent_col.g * 0.25, accent_col.b * 0.25, 0.9)
 		sb_hover.border_color = accent_col
-		sb_hover.border_width_all(2)
+		sb_hover.set_border_width_all(2)
 	else:
 		sb_normal.bg_color = Color(0.06, 0.06, 0.08, 0.6)
 		sb_normal.border_color = Color(0.15, 0.2, 0.28, 0.4)
-		sb_normal.border_width_all(1)
+		sb_normal.set_border_width_all(1)
 		
 		sb_hover.bg_color = Color(0.08, 0.09, 0.12, 0.8)
 		sb_hover.border_color = Color(accent_col.r, accent_col.g, accent_col.b, 0.5)
-		sb_hover.border_width_all(1)
+		sb_hover.set_border_width_all(1)
 		
 	for sb in [sb_normal, sb_hover, sb_pressed]:
 		sb.set_corner_radius_all(4)
 		
 	sb_pressed.bg_color = Color(accent_col.r * 0.3, accent_col.g * 0.3, accent_col.b * 0.3, 1.0)
 	sb_pressed.border_color = accent_col
-	sb_pressed.border_width_all(2)
+	sb_pressed.set_border_width_all(2)
 	sb_pressed.set_corner_radius_all(4)
 	
 	sb_disabled.bg_color = Color(0.04, 0.04, 0.05, 0.3)
 	sb_disabled.border_color = Color(0.1, 0.1, 0.12, 0.2)
-	sb_disabled.border_width_all(1)
+	sb_disabled.set_border_width_all(1)
 	sb_disabled.set_corner_radius_all(4)
 	
 	btn.add_theme_stylebox_override("normal", sb_normal)
