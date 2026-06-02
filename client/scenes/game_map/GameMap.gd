@@ -31,6 +31,19 @@ extends Control
 @onready var telemetry_panel: PanelContainer = %TelemetryPanel
 @onready var tachograph_draw: Control = %TachographDraw
 
+# Interactive Shader Calibration & System Preset Controls
+@onready var close_support_btn: Button = %CloseSupportBtn
+@onready var vignette_slider: HSlider = %VignetteSlider
+@onready var scanline_slider: HSlider = %ScanlineSlider
+@onready var curvature_slider: HSlider = %CurvatureSlider
+@onready var density_slider: HSlider = %DensitySlider
+@onready var vignette_val_lbl: Label = %VignetteValue
+@onready var scanline_val_lbl: Label = %ScanlineValue
+@onready var curvature_val_lbl: Label = %CurvatureValue
+@onready var density_val_lbl: Label = %DensityValue
+@onready var quality_preset_btn: Button = %QualityPresetBtn
+@onready var shader_overlay: ColorRect = $ShaderOverlayLayer/ShaderOverlay if has_node("ShaderOverlayLayer/ShaderOverlay") else null
+
 var clock_lbl: Label = null
 
 
@@ -327,17 +340,104 @@ func _ready() -> void:
 	underworld_btn.pressed.connect(func(): SceneTransition.change_scene_to_file("res://scenes/underworld/UnderworldDealer.tscn"))
 	analytics_btn.pressed.connect(func(): SceneTransition.change_scene_to_file("res://scenes/analytics/LogisticsAnalytics.tscn"))
 	
-	# Concurrent HUD overlays & custom dropdown toggling
-	garage_dropdown.visible = true # show initially for screenshots
-	support_dropdown.visible = true # show initially for screenshots
+	# Concurrent HUD overlays & custom dropdown toggling (hidden initially for a clean map view)
+	garage_dropdown.visible = false
+	support_dropdown.visible = false
 	
 	garage_btn.pressed.connect(func():
 		garage_dropdown.visible = not garage_dropdown.visible
+		if garage_dropdown.visible:
+			support_dropdown.visible = false # hide the other to prevent clutter
 	)
 	
 	support_btn.pressed.connect(func():
 		support_dropdown.visible = not support_dropdown.visible
+		if support_dropdown.visible:
+			garage_dropdown.visible = false # hide the other to prevent clutter
 	)
+	
+	# Wire up Interactive Shader Sliders & Graphics Calibration
+	if is_instance_valid(shader_overlay) and shader_overlay.material is ShaderMaterial:
+		var mat = shader_overlay.material as ShaderMaterial
+		
+		# Read starting states
+		var vig_val = mat.get_shader_parameter("vignette_intensity")
+		if vignette_slider:
+			vignette_slider.value = vig_val
+		if vignette_val_lbl:
+			vignette_val_lbl.text = "%.2f" % vig_val
+			
+		var scan_val = mat.get_shader_parameter("scanline_alpha")
+		if scanline_slider:
+			scanline_slider.value = scan_val
+		if scanline_val_lbl:
+			scanline_val_lbl.text = "%.2f" % scan_val
+			
+		var curv_val = mat.get_shader_parameter("curvature")
+		if curvature_slider:
+			curvature_slider.value = curv_val
+		if curvature_val_lbl:
+			curvature_val_lbl.text = "%.1f" % curv_val
+			
+		var dens_val = mat.get_shader_parameter("scanline_count")
+		if density_slider:
+			density_slider.value = dens_val
+		if density_val_lbl:
+			density_val_lbl.text = "%d px" % int(dens_val)
+			
+		# Slider change connections
+		if vignette_slider:
+			vignette_slider.value_changed.connect(func(val):
+				mat.set_shader_parameter("vignette_intensity", val)
+				if vignette_val_lbl:
+					vignette_val_lbl.text = "%.2f" % val
+			)
+			
+		if scanline_slider:
+			scanline_slider.value_changed.connect(func(val):
+				mat.set_shader_parameter("scanline_alpha", val)
+				if scanline_val_lbl:
+					scanline_val_lbl.text = "%.2f" % val
+			)
+			
+		if curvature_slider:
+			curvature_slider.value_changed.connect(func(val):
+				mat.set_shader_parameter("curvature", val)
+				if curvature_val_lbl:
+					curvature_val_lbl.text = "%.1f" % val
+			)
+			
+		if density_slider:
+			density_slider.value_changed.connect(func(val):
+				mat.set_shader_parameter("scanline_count", val)
+				if density_val_lbl:
+					density_val_lbl.text = "%d px" % int(val)
+			)
+			
+		# Preset buttons
+		if quality_preset_btn:
+			quality_preset_btn.text = GameState.graphics_quality
+			quality_preset_btn.pressed.connect(func():
+				if GameState.graphics_quality == "STANDARD":
+					GameState.set_graphics_quality("ULTRA_HD")
+					quality_preset_btn.text = "ULTRA_HD"
+					if vignette_slider: vignette_slider.value = 1.4
+					if scanline_slider: scanline_slider.value = 0.5
+					if curvature_slider: curvature_slider.value = 4.5
+					if density_slider: density_slider.value = 480.0
+				else:
+					GameState.set_graphics_quality("STANDARD")
+					quality_preset_btn.text = "STANDARD"
+					if vignette_slider: vignette_slider.value = 1.2
+					if scanline_slider: scanline_slider.value = 0.35
+					if curvature_slider: curvature_slider.value = 6.0
+					if density_slider: density_slider.value = 360.0
+			)
+			
+	if close_support_btn:
+		close_support_btn.pressed.connect(func():
+			support_dropdown.visible = false
+		)
 	
 	# Sub-button connections
 	garage_manager_btn.pressed.connect(func():
