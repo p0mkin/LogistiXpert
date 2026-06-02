@@ -3,6 +3,10 @@ import { PrismaClient, Jurisdiction } from '@prisma/client';
 import { authenticateJWT, AuthRequest } from '../middleware/auth';
 import { FinanceService, currentGoldPrice, currentC500Index } from '../services/finance.service';
 import { LockService } from '../services/lock.service';
+import { PrismaUnitOfWork } from '../infrastructure/persistence/PrismaUnitOfWork';
+import { BorrowLoanCommandHandler } from '../application/commands/BorrowLoanCommand';
+import { RepayLoanCommandHandler } from '../application/commands/RepayLoanCommand';
+import { TradeSharesCommandHandler } from '../application/commands/TradeSharesCommand';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -41,7 +45,9 @@ router.get('/valuation', async (req: AuthRequest, res: Response) => {
       activeDebtPrincipal: parseFloat(Number(company.activeDebtPrincipal).toFixed(2)),
     });
   } catch (error: any) {
-    res.status(500).json({ error: 'SERVER_ERROR', message: error.message });
+    const statusCode = error.statusCode || 500;
+    const errorCode = error.code || 'SERVER_ERROR';
+    res.status(statusCode).json({ error: errorCode, message: error.message });
   }
 });
 
@@ -107,7 +113,9 @@ router.post('/ipo', async (req: AuthRequest, res: Response) => {
       });
     });
   } catch (error: any) {
-    res.status(500).json({ error: 'SERVER_ERROR', message: error.message });
+    const statusCode = error.statusCode || 500;
+    const errorCode = error.code || 'SERVER_ERROR';
+    res.status(statusCode).json({ error: errorCode, message: error.message });
   }
 });
 
@@ -145,13 +153,16 @@ router.get('/market', async (req: AuthRequest, res: Response) => {
       listings,
     });
   } catch (error: any) {
-    res.status(500).json({ error: 'SERVER_ERROR', message: error.message });
+    const statusCode = error.statusCode || 500;
+    const errorCode = error.code || 'SERVER_ERROR';
+    res.status(statusCode).json({ error: errorCode, message: error.message });
   }
 });
 
 /**
  * POST /api/finance/trade
  * Buy or Sell shares of a public competitor
+ * REFACTORED: Decoupled controller delegating execution to TradeSharesCommandHandler
  */
 router.post('/trade', async (req: AuthRequest, res: Response) => {
   const buyerCompanyId = req.user!.companyId;
@@ -165,154 +176,34 @@ router.post('/trade', async (req: AuthRequest, res: Response) => {
 
   try {
     await LockService.withLock(lockKey, async () => {
-      const targetCompany = await prisma.company.findUnique({
-        where: { id: targetCompanyId },
+      const uow = new PrismaUnitOfWork(prisma);
+      const handler = new TradeSharesCommandHandler(uow);
+
+      const result = await handler.handle({
+        buyerCompanyId,
+        targetCompanyId,
+        action: action.toUpperCase() as 'BUY' | 'SELL',
+        sharesAmount,
       });
 
-      const buyerCompany = await prisma.company.findUnique({
-        where: { id: buyerCompanyId },
-      });
-
-      if (!targetCompany || !buyerCompany) {
-        res.status(404).json({ error: 'COMPANY_NOT_FOUND', message: 'Buyer or target company not found.' });
-        return;
-      }
-
-      if (!targetCompany.isPublic) {
-        res.status(400).json({ error: 'NOT_PUBLIC', message: 'Target company is not publicly traded.' });
-        return;
-      }
-
-      const targetValuation = await FinanceService.calculateCompanyValuation(targetCompanyId);
-      const sharePrice = targetValuation / targetCompany.totalShares;
-      const totalCost = sharePrice * sharesAmount;
-
-      // Anti-Manipulation check: Sibling Clan wash-trading penalty
-      const sameClan = buyerCompany.clanId && buyerCompany.clanId === targetCompany.clanId;
-      const taxRateMultiplier = sameClan ? 1.50 : 1.00; // 50% extra tax on intra-clan trades
-
-      if (action.toUpperCase() === 'BUY') {
-        // Ownership Limit cap: No company can own > 49% of another company's shares
-        const existingHolding = await prisma.companyShare.findUnique({
-          where: { companyId_ownerCompanyId: { companyId: targetCompanyId, ownerCompanyId: buyerCompanyId } },
-        });
-
-        const currentSharesOwned = existingHolding ? existingHolding.shares : 0;
-        const newSharesOwned = currentSharesOwned + sharesAmount;
-
-        if (newSharesOwned > targetCompany.totalShares * 0.49) {
-          res.status(400).json({
-            error: 'OWNERSHIP_LIMIT_EXCEEDED',
-            message: `Hostile Takeover Shield: You cannot own more than 49% of another company's total outstanding shares.`,
-          });
-          return;
-        }
-
-        const finalCost = totalCost * taxRateMultiplier;
-
-        if (Number(buyerCompany.legalBalance) < finalCost) {
-          res.status(400).json({ error: 'INSUFFICIENT_FUNDS', message: `Insufficient clean cash. Cost: $${finalCost.toFixed(2)}, Available: $${Number(buyerCompany.legalBalance).toFixed(2)}` });
-          return;
-        }
-
-        await prisma.$transaction(async (tx) => {
-          // Deduct cost
-          await tx.company.update({
-            where: { id: buyerCompanyId },
-            data: { legalBalance: { decrement: finalCost } },
-          });
-
-          // Upsert holdings
-          await tx.companyShare.upsert({
-            where: { companyId_ownerCompanyId: { companyId: targetCompanyId, ownerCompanyId: buyerCompanyId } },
-            update: {
-              shares: { increment: sharesAmount },
-              avgPurchasePrice: (existingHolding ? (Number(existingHolding.avgPurchasePrice) * currentSharesOwned + totalCost) / newSharesOwned : sharePrice),
-              purchasedAt: new Date(),
-            },
-            create: {
-              companyId: targetCompanyId,
-              ownerCompanyId: buyerCompanyId,
-              shares: sharesAmount,
-              avgPurchasePrice: sharePrice,
-              purchasedAt: new Date(),
-            },
-          });
-        });
-
-        res.json({
-          message: `SUCCESS: Purchased ${sharesAmount} shares of ${targetCompany.name} at $${sharePrice.toFixed(4)}/share.`,
-          sharesOwned: newSharesOwned,
-        });
-
-      } else if (action.toUpperCase() === 'SELL') {
-        const existingHolding = await prisma.companyShare.findUnique({
-          where: { companyId_ownerCompanyId: { companyId: targetCompanyId, ownerCompanyId: buyerCompanyId } },
-        });
-
-        if (!existingHolding || existingHolding.shares < sharesAmount) {
-          res.status(400).json({ error: 'INSUFFICIENT_SHARES', message: 'You do not own enough shares to execute this sale.' });
-          return;
-        }
-
-        // Capital Gains Tax Calculation
-        let capGainsRate = 0.25; // default Baltics standard long-term
-        const holdsShortTerm = Date.now() - new Date(existingHolding.purchasedAt).getTime() < 10 * 60 * 1000; // 10 minutes short-term day-trading
-
-        const jurisdiction = buyerCompany.jurisdiction;
-        if (holdsShortTerm) {
-          // Short-Term heavy surcharges
-          if (jurisdiction === Jurisdiction.SCANDINAVIA) capGainsRate = 0.45;
-          else if (jurisdiction === Jurisdiction.GERMANY) capGainsRate = 0.40;
-          else if (jurisdiction === Jurisdiction.BALTICS) capGainsRate = 0.25;
-          else capGainsRate = 0.15; // Belarus
-        } else {
-          // Long-Term standard
-          if (jurisdiction === Jurisdiction.SCANDINAVIA) capGainsRate = 0.30;
-          else if (jurisdiction === Jurisdiction.GERMANY) capGainsRate = 0.25;
-          else if (jurisdiction === Jurisdiction.BALTICS) capGainsRate = 0.19;
-          else capGainsRate = 0.10; // Belarus
-        }
-
-        const profit = Math.max(0, (sharePrice - Number(existingHolding.avgPurchasePrice)) * sharesAmount);
-        const tax = profit * capGainsRate;
-        const netCredit = totalCost - tax;
-
-        await prisma.$transaction(async (tx) => {
-          // Increment legal balance
-          await tx.company.update({
-            where: { id: buyerCompanyId },
-            data: { legalBalance: { increment: netCredit } },
-          });
-
-          // Decrement holdings
-          if (existingHolding.shares === sharesAmount) {
-            await tx.companyShare.delete({
-              where: { id: existingHolding.id },
-            });
-          } else {
-            await tx.companyShare.update({
-              where: { id: existingHolding.id },
-              data: { shares: { decrement: sharesAmount } },
-            });
-          }
-        });
-
-        res.json({
-          message: `SUCCESS: Sold ${sharesAmount} shares of ${targetCompany.name} at $${sharePrice.toFixed(4)}/share.`,
-          profit: parseFloat(profit.toFixed(2)),
-          taxCharged: parseFloat(tax.toFixed(2)),
-          netProceeds: parseFloat(netCredit.toFixed(2)),
-          holdingPeriod: holdsShortTerm ? 'SHORT_TERM_DAY_TRADE' : 'LONG_TERM_STABLE',
-        });
-      } else {
-        res.status(400).json({ error: 'INVALID_ACTION', message: 'Action must be BUY or SELL.' });
-      }
+      res.json(result);
     });
   } catch (error: any) {
-    res.status(500).json({ error: 'SERVER_ERROR', message: error.message });
+    if (
+      error.message.includes('INSUFFICIENT_FUNDS') ||
+      error.message.includes('HOSTILE_TAKEOVER_SHIELD_TRIGGERED') ||
+      error.message.includes('INSUFFICIENT_SHARES') ||
+      error.message.includes('TARGET_NOT_PUBLIC') ||
+      error.message.includes('TARGET_COMPANY_NOT_FOUND')
+    ) {
+      return res.status(400).json({ error: 'TRADE_FAILED', message: error.message });
+    }
+    const statusCode = error.statusCode || 500;
+    const errorCode = error.code || 'SERVER_ERROR';
+    res.status(statusCode).json({ error: errorCode, message: error.message });
   }
 });
+
 
 /**
  * GET /api/finance/loans
@@ -361,13 +252,16 @@ router.get('/loans', async (req: AuthRequest, res: Response) => {
       collateralValue: parseFloat(assetsValue.toFixed(2)),
     });
   } catch (error: any) {
-    res.status(500).json({ error: 'SERVER_ERROR', message: error.message });
+    const statusCode = error.statusCode || 500;
+    const errorCode = error.code || 'SERVER_ERROR';
+    res.status(statusCode).json({ error: errorCode, message: error.message });
   }
 });
 
 /**
  * POST /api/finance/loans/borrow
  * Borrows funds from the bank using corporate reputation and assets as collateral
+ * REFACTORED: Decoupled controller delegating execution to BorrowLoanCommandHandler
  */
 router.post('/loans/borrow', async (req: AuthRequest, res: Response) => {
   const companyId = req.user!.companyId;
@@ -381,68 +275,31 @@ router.post('/loans/borrow', async (req: AuthRequest, res: Response) => {
 
   try {
     await LockService.withLock(lockKey, async () => {
-      const company = await prisma.company.findUnique({
-        where: { id: companyId },
-        include: { trucks: true, garages: true },
-      });
+      const uow = new PrismaUnitOfWork(prisma);
+      const handler = new BorrowLoanCommandHandler(uow);
 
-      if (!company) {
-        res.status(404).json({ error: 'COMPANY_NOT_FOUND', message: 'Company not found.' });
-        return;
-      }
-
-      // Calculate collateral
-      let assetsValue = 0;
-      for (const garage of company.garages) {
-        assetsValue += 150000.00 + (garage.upgradeLevel - 1) * 50000.00 + garage.terminalLevel * 15000.00;
-      }
-      for (const truck of company.trucks) {
-        const retail = FinanceService.getTruckRetailValue(truck.manufacturer, truck.tier);
-        const engineDeprec = (100 - truck.engineHealth) / 200.0;
-        const cosmeticDeprec = (100 - truck.cosmeticHealth) / 400.0;
-        assetsValue += retail * Math.max(0.1, 1.0 - engineDeprec - cosmeticDeprec);
-      }
-
-      const effectiveRep = company.reputationScore + company.marketingRepBoost;
-      const creditCeiling = (assetsValue * 0.5) + (effectiveRep * 2000.00);
-
-      const currentPrincipal = Number(company.activeDebtPrincipal);
-      const newPrincipal = currentPrincipal + amount;
-
-      if (newPrincipal > creditCeiling) {
-        res.status(400).json({
-          error: 'CREDIT_LIMIT_EXCEEDED',
-          message: `Your credit limit of $${creditCeiling.toFixed(2)} is insufficient. Max borrow available: $${Math.max(0, creditCeiling - currentPrincipal).toFixed(2)}`,
-        });
-        return;
-      }
-
-      // Dynamic Interest Rate APR scales with new borrowing status
-      const activeAPR = Math.max(4.5, 26.0 - (effectiveRep * 0.04));
-
-      await prisma.company.update({
-        where: { id: companyId },
-        data: {
-          activeDebtPrincipal: newPrincipal,
-          activeDebtInterest: activeAPR,
-          legalBalance: { increment: amount },
-        },
-      });
+      const result = await handler.handle({ companyId, amount });
 
       res.json({
         message: `FINANCING APPROVED: Borrowed $${amount.toFixed(2)} Clean Cash.`,
-        activeDebtPrincipal: parseFloat(newPrincipal.toFixed(2)),
-        activeDebtInterest: parseFloat(activeAPR.toFixed(2)),
+        activeDebtPrincipal: parseFloat(result.activeDebtPrincipal.toFixed(2)),
+        activeDebtInterest: parseFloat(result.activeDebtInterest.toFixed(2)),
       });
     });
   } catch (error: any) {
-    res.status(500).json({ error: 'SERVER_ERROR', message: error.message });
+    if (error.message.includes('CREDIT_LIMIT_EXCEEDED') || error.message.includes('COMPANY_NOT_FOUND')) {
+      return res.status(400).json({ error: 'BORROW_FAILED', message: error.message });
+    }
+    const statusCode = error.statusCode || 500;
+    const errorCode = error.code || 'SERVER_ERROR';
+    res.status(statusCode).json({ error: errorCode, message: error.message });
   }
 });
 
 /**
  * POST /api/finance/loans/repay
  * Repays outstanding debt principal using clean legal cash
+ * REFACTORED: Decoupled controller delegating execution to RepayLoanCommandHandler
  */
 router.post('/loans/repay', async (req: AuthRequest, res: Response) => {
   const companyId = req.user!.companyId;
@@ -456,46 +313,27 @@ router.post('/loans/repay', async (req: AuthRequest, res: Response) => {
 
   try {
     await LockService.withLock(lockKey, async () => {
-      const company = await prisma.company.findUnique({
-        where: { id: companyId },
-      });
+      const uow = new PrismaUnitOfWork(prisma);
+      const handler = new RepayLoanCommandHandler(uow);
 
-      if (!company) {
-        res.status(404).json({ error: 'COMPANY_NOT_FOUND', message: 'Company not found.' });
-        return;
-      }
-
-      const currentDebt = Number(company.activeDebtPrincipal);
-      if (currentDebt <= 0) {
-        res.status(400).json({ error: 'NO_DEBT', message: 'Your company has no outstanding active debts.' });
-        return;
-      }
-
-      const payAmount = Math.min(amount, currentDebt);
-      const balance = Number(company.legalBalance);
-
-      if (balance < payAmount) {
-        res.status(400).json({ error: 'INSUFFICIENT_FUNDS', message: 'Insufficient clean legal cash to settle debt.' });
-        return;
-      }
-
-      const remainingDebt = currentDebt - payAmount;
-
-      await prisma.company.update({
-        where: { id: companyId },
-        data: {
-          activeDebtPrincipal: remainingDebt,
-          legalBalance: { decrement: payAmount },
-        },
-      });
+      const result = await handler.handle({ companyId, amount });
 
       res.json({
-        message: `DEBT REPAYMENT COMPLETED: Settled $${payAmount.toFixed(2)} debt.`,
-        remainingPrincipal: parseFloat(remainingDebt.toFixed(2)),
+        message: `DEBT REPAYMENT COMPLETED: Settled $${result.payAmount.toFixed(2)} debt.`,
+        remainingPrincipal: parseFloat(result.remainingPrincipal.toFixed(2)),
       });
     });
   } catch (error: any) {
-    res.status(500).json({ error: 'SERVER_ERROR', message: error.message });
+    if (
+      error.message.includes('NO_OUTSTANDING_DEBT') ||
+      error.message.includes('INSUFFICIENT_LEGAL_FUNDS') ||
+      error.message.includes('COMPANY_NOT_FOUND')
+    ) {
+      return res.status(400).json({ error: 'REPAYMENT_FAILED', message: error.message });
+    }
+    const statusCode = error.statusCode || 500;
+    const errorCode = error.code || 'SERVER_ERROR';
+    res.status(statusCode).json({ error: errorCode, message: error.message });
   }
 });
 
@@ -561,7 +399,9 @@ router.post('/marketing', async (req: AuthRequest, res: Response) => {
       });
     });
   } catch (error: any) {
-    res.status(500).json({ error: 'SERVER_ERROR', message: error.message });
+    const statusCode = error.statusCode || 500;
+    const errorCode = error.code || 'SERVER_ERROR';
+    res.status(statusCode).json({ error: errorCode, message: error.message });
   }
 });
 
@@ -634,7 +474,9 @@ router.post('/gold/trade', async (req: AuthRequest, res: Response) => {
       }
     });
   } catch (error: any) {
-    res.status(500).json({ error: 'SERVER_ERROR', message: error.message });
+    const statusCode = error.statusCode || 500;
+    const errorCode = error.code || 'SERVER_ERROR';
+    res.status(statusCode).json({ error: errorCode, message: error.message });
   }
 });
 

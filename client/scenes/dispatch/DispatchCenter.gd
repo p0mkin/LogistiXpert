@@ -45,8 +45,8 @@ func _ready() -> void:
 	
 	clock_lbl = Label.new()
 	clock_lbl.name = "ClockLabel"
-	clock_lbl.add_theme_font_size_override("font_size", 12)
-	clock_lbl.add_theme_color_override("font_color", Color(0.180, 0.803, 0.443, 0.85))
+	clock_lbl.add_theme_font_size_override("font_size", 14)
+	clock_lbl.add_theme_color_override("font_color", Color(1, 1, 1))
 	if player_lbl and player_lbl.get_parent():
 		player_lbl.get_parent().add_child(clock_lbl)
 		clock_lbl.position = player_lbl.position + Vector2(250, 0)
@@ -92,7 +92,7 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	tacho_anim_time += delta
 	if clock_lbl and is_instance_valid(clock_lbl):
-		clock_lbl.text = "📅 " + GameState.get_simulated_time_string()
+		clock_lbl.text = GameState.get_simulated_time_string()
 	queue_redraw()  # For tachograph arc animation
 
 func _draw() -> void:

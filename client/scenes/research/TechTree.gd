@@ -155,7 +155,7 @@ func _build_ui() -> void:
 
 	var tech_vbox = VBoxContainer.new()
 	tech_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	tech_vbox.add_theme_constants_override("separation", 14)
+	tech_vbox.add_theme_constant_override("separation", 14)
 	tech_vbox.name = "TechVBox"
 	tech_view.add_child(tech_vbox)
 
@@ -209,7 +209,7 @@ func _render_research_nodes() -> void:
 		# Row content
 		var card_hbox = HBoxContainer.new()
 		card_hbox.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		card_hbox.add_theme_constants_override("separation", 16)
+		card_hbox.add_theme_constant_override("separation", 16)
 		card.add_child(card_hbox)
 		
 		# Spacer margin
@@ -251,7 +251,7 @@ func _render_research_nodes() -> void:
 
 		var dots_hbox = HBoxContainer.new()
 		dots_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
-		dots_hbox.add_theme_constants_override("separation", 6)
+		dots_hbox.add_theme_constant_override("separation", 6)
 		level_vbox.add_child(dots_hbox)
 
 		for idx in range(max_level):
@@ -311,7 +311,7 @@ func _render_brand_contracts() -> void:
 
 	var panel_vbox = VBoxContainer.new()
 	panel_vbox.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	panel_vbox.add_theme_constants_override("separation", 12)
+	panel_vbox.add_theme_constant_override("separation", 12)
 	brand_view.add_child(panel_vbox)
 	
 	# Spacer
@@ -357,7 +357,7 @@ func _render_brand_contracts() -> void:
 
 	var brand_vbox = VBoxContainer.new()
 	brand_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	brand_vbox.add_theme_constants_override("separation", 10)
+	brand_vbox.add_theme_constant_override("separation", 10)
 	scroll.add_child(brand_vbox)
 
 	var brands_specs = [
@@ -394,7 +394,7 @@ func _render_brand_contracts() -> void:
 
 		var card_hbox = HBoxContainer.new()
 		card_hbox.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		card_hbox.add_theme_constants_override("separation", 12)
+		card_hbox.add_theme_constant_override("separation", 12)
 		card_hbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		item_card.add_child(card_hbox)
 		

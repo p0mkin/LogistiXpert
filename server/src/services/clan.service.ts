@@ -56,8 +56,9 @@ export class ClanService {
   /**
    * Records a completed delivery portion of a clan contract from a sibling company
    */
-  static async recordContribution(clanContractId: string, companyId: string, volume: number) {
-    const contract = await prisma.clanContract.findUnique({
+  static async recordContribution(clanContractId: string, companyId: string, volume: number, tx?: any) {
+    const client = tx || prisma;
+    const contract = await client.clanContract.findUnique({
       where: { id: clanContractId },
       include: { clan: true, contributions: true },
     });
@@ -74,7 +75,7 @@ export class ClanService {
     }
 
     // Upsert contribution record
-    await prisma.clanContractContribution.upsert({
+    await client.clanContractContribution.upsert({
       where: {
         clanContractId_companyId: { clanContractId, companyId },
       },
@@ -89,7 +90,7 @@ export class ClanService {
     });
 
     // Update contract overall delivered volume
-    const updatedContract = await prisma.clanContract.update({
+    const updatedContract = await client.clanContract.update({
       where: { id: clanContractId },
       data: {
         volumeDelivered: newVolumeDelivered,
@@ -114,7 +115,7 @@ export class ClanService {
 
     // If fully completed, trigger mathematical revenue splits
     if (newVolumeDelivered >= contract.totalVolume) {
-      await this.settleClanContract(updatedContract.id);
+      await this.settleClanContract(updatedContract.id, tx);
     }
 
     return updatedContract;
@@ -123,8 +124,9 @@ export class ClanService {
   /**
    * Distributes clean legal and/or black market cash proportionately among contributors, applying optional clan tax
    */
-  static async settleClanContract(contractId: string) {
-    const contract = await prisma.clanContract.findUnique({
+  static async settleClanContract(contractId: string, tx?: any) {
+    const client = tx || prisma;
+    const contract = await client.clanContract.findUnique({
       where: { id: contractId },
       include: { contributions: true, clan: true },
     });
@@ -143,9 +145,9 @@ export class ClanService {
     const netPayoutLegal = totalPayoutLegal - taxLegal;
     const netPayoutBlack = totalPayoutBlack - taxBlack;
 
-    await prisma.$transaction(async (tx) => {
+    const runSettle = async (transactionalClient: any) => {
       // 1. Credit Clan Treasury
-      await tx.clan.update({
+      await transactionalClient.clan.update({
         where: { id: contract.clanId },
         data: {
           treasury: { increment: taxLegal + taxBlack }, // Treasury accepts both or sum as cash (legal focus)
@@ -159,7 +161,7 @@ export class ClanService {
         const companyLegalShare = netPayoutLegal * ratio;
         const companyBlackShare = netPayoutBlack * ratio;
 
-        await tx.company.update({
+        await transactionalClient.company.update({
           where: { id: contribution.companyId },
           data: {
             legalBalance: { increment: companyLegalShare },
@@ -178,7 +180,15 @@ export class ClanService {
           message: `JOINT DELIVERY SETTLED: Your company received $${companyLegalShare.toFixed(2)} Clean and $${companyBlackShare.toFixed(2)} Dirty cash for contributing ${contribution.volumeDelivered.toFixed(1)} units (${(ratio * 100).toFixed(1)}%) of "${contract.title}".`,
         });
       }
-    });
+    };
+
+    if (tx) {
+      await runSettle(tx);
+    } else {
+      await prisma.$transaction(async (newTx) => {
+        await runSettle(newTx);
+      });
+    }
 
     // Notify whole clan of final settlement
     GameWebSocketServer.broadcastToClan(contract.clanId, 'clan:contract_completed', {

@@ -281,11 +281,14 @@ func _ready() -> void:
 	
 	clock_lbl = Label.new()
 	clock_lbl.name = "ClockLabel"
-	clock_lbl.add_theme_font_size_override("font_size", 12)
-	clock_lbl.add_theme_color_override("font_color", Color(0.180, 0.803, 0.443, 0.85)) # Emerald Green
+	clock_lbl.add_theme_font_size_override("font_size", 14)
+	clock_lbl.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 1.0)) # Pure White Date
 	if player_name_lbl and is_instance_valid(player_name_lbl) and player_name_lbl.get_parent():
+		# Add a small visual spacer container inside HBox for perfect alignment
+		var spacer = Control.new()
+		spacer.custom_minimum_size = Vector2(24, 0)
+		player_name_lbl.get_parent().add_child(spacer)
 		player_name_lbl.get_parent().add_child(clock_lbl)
-		clock_lbl.position = player_name_lbl.position + Vector2(250, 0)
 
 	
 	# Load and project the Baltic route network
@@ -325,30 +328,9 @@ func _ready() -> void:
 	# Instruct map drawer to implement our custom vector _draw call
 	map_drawer.draw.connect(_draw_vector_map)
 	
-	# AAA Polish: Inject the Retro CRT Holo-Scanner Shader overlay over the map
-	_inject_shader_overlay()
-	
 	set_process_input(true)
 
-func _inject_shader_overlay() -> void:
-	# Add a BackBufferCopy to grab the current screen texture behind the UI
-	var back_buffer = BackBufferCopy.new()
-	back_buffer.copy_mode = BackBufferCopy.COPY_MODE_VIEWPORT
-	map_container.add_child(back_buffer)
-	
-	var overlay = ColorRect.new()
-	overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	
-	var mat = ShaderMaterial.new()
-	var shader = load("res://scenes/game_map/HoloScanner.gdshader")
-	if shader:
-		mat.shader = shader
-		overlay.material = mat
-	else:
-		_log_console("Shader load failed", Color(1,0,0))
-		
-	map_container.add_child(overlay)
+
 
 # ==========================================
 # MAP PROJECTION ENGINE
@@ -392,7 +374,7 @@ func _process(delta: float) -> void:
 	if map_drawer:
 		map_drawer.queue_redraw()
 	if clock_lbl and is_instance_valid(clock_lbl):
-		clock_lbl.text = "📅 " + GameState.get_simulated_time_string()
+		clock_lbl.text = GameState.get_simulated_time_string()
 
 
 func _pos_to_coords(pos: Vector2) -> Vector2:
@@ -633,8 +615,8 @@ func _draw_vector_map() -> void:
 	else:
 		step_deg = 0.2
 		
-	var coord_bottom_left = _pos_to_coords(Vector2(visible_left, visible_bottom))
-	var coord_top_right = _pos_to_coords(Vector2(visible_right, visible_top))
+	var coord_bottom_left = _pos_to_coords(Vector2(visible_min.x, visible_max.y))
+	var coord_top_right = _pos_to_coords(Vector2(visible_max.x, visible_min.y))
 	
 	var min_visible_lat = max(coord_bottom_left.x, -85.0)
 	var max_visible_lat = min(coord_top_right.x, 85.0)
@@ -649,16 +631,15 @@ func _draw_vector_map() -> void:
 	while lat <= max_visible_lat + 0.01:
 		if lat >= -85.01 and lat <= 85.01:
 			var pos_y = _coords_to_pos(Vector2(lat, min_visible_lon)).y
-			map_drawer.draw_line(Vector2(visible_left, pos_y), Vector2(visible_right, pos_y), Color(0.1, 0.3, 0.4, 0.12), 1.0 / zoom)
+			map_drawer.draw_line(Vector2(visible_min.x, pos_y), Vector2(visible_max.x, pos_y), Color(0.1, 0.3, 0.4, 0.12), 1.0 / zoom)
 			
-			var lat_txt = "%.1f° N" % lat
-			var label_x = visible_left + 15.0 / zoom
-			var label_y = pos_y + 4.0 / zoom
-			
-			var draw_font_size = clamp(int(10.0 / zoom), 5, 32)
-			var text_sz = font.get_string_size(lat_txt, HORIZONTAL_ALIGNMENT_LEFT, -1, draw_font_size)
-			map_drawer.draw_rect(Rect2(Vector2(label_x - 4.0 / zoom, label_y - 10.0 / zoom), text_sz + Vector2(8.0 / zoom, 4.0 / zoom)), Color(0.04, 0.04, 0.06, 0.65), true)
-			map_drawer.draw_string(font, Vector2(label_x, label_y), lat_txt, HORIZONTAL_ALIGNMENT_LEFT, -1, draw_font_size, text_color)
+			# Only draw coordinate labels if they are within the active/visible map viewport area
+			if pos_y >= visible_top and pos_y <= visible_bottom:
+				var lat_txt = "%.1f° N" % lat
+				var label_x = visible_left + 15.0 / zoom
+				var label_y = pos_y + 4.0 / zoom
+				var draw_font_size = clamp(int(10.0 / zoom), 5, 32)
+				map_drawer.draw_string(font, Vector2(label_x, label_y), lat_txt, HORIZONTAL_ALIGNMENT_LEFT, -1, draw_font_size, text_color)
 		lat += step_deg
 		
 	# Vertical lines (Longitude)
@@ -666,16 +647,15 @@ func _draw_vector_map() -> void:
 	while lon <= max_visible_lon + 0.01:
 		if lon >= -180.01 and lon <= 180.01:
 			var pos_x = _coords_to_pos(Vector2(min_visible_lat, lon)).x
-			map_drawer.draw_line(Vector2(pos_x, visible_top), Vector2(pos_x, visible_bottom), Color(0.1, 0.3, 0.4, 0.12), 1.0 / zoom)
+			map_drawer.draw_line(Vector2(pos_x, visible_min.y), Vector2(pos_x, visible_max.y), Color(0.1, 0.3, 0.4, 0.12), 1.0 / zoom)
 			
-			var lon_txt = "%.1f° E" % lon
-			var label_x = pos_x - 20.0 / zoom
-			var label_y = visible_top + 16.0 / zoom
-			
-			var draw_font_size = clamp(int(10.0 / zoom), 5, 32)
-			var text_sz = font.get_string_size(lon_txt, HORIZONTAL_ALIGNMENT_LEFT, -1, draw_font_size)
-			map_drawer.draw_rect(Rect2(Vector2(label_x - 4.0 / zoom, label_y - 10.0 / zoom), text_sz + Vector2(8.0 / zoom, 4.0 / zoom)), Color(0.04, 0.04, 0.06, 0.65), true)
-			map_drawer.draw_string(font, Vector2(label_x, label_y), lon_txt, HORIZONTAL_ALIGNMENT_LEFT, -1, draw_font_size, text_color)
+			# Only draw coordinate labels if they are within the active/visible map viewport area
+			if pos_x >= visible_left and pos_x <= visible_right:
+				var lon_txt = "%.1f° E" % lon
+				var label_x = pos_x - 20.0 / zoom
+				var label_y = visible_top + 16.0 / zoom
+				var draw_font_size = clamp(int(10.0 / zoom), 5, 32)
+				map_drawer.draw_string(font, Vector2(label_x, label_y), lon_txt, HORIZONTAL_ALIGNMENT_LEFT, -1, draw_font_size, text_color)
 		lon += step_deg
  
 	# 2. DRAW VIEWPORT CORNER TICKS
@@ -717,18 +697,18 @@ func _draw_vector_map() -> void:
 	if GameState.graphics_quality == "ULTRA_HD":
 		# A. Holographic vertical scanning sweep line
 		var sweep_y_pct = fmod(time_passed * 0.15, 1.0)
-		var sweep_y = visible_top + (visible_bottom - visible_top) * sweep_y_pct
+		var sweep_y = visible_min.y + (visible_max.y - visible_min.y) * sweep_y_pct
 		var sweep_color = Color(0.2, 0.9, 0.7, 0.15 * (1.0 - sin(time_passed * 10.0) * 0.05))
-		map_drawer.draw_line(Vector2(visible_left, sweep_y), Vector2(visible_right, sweep_y), sweep_color, 2.0 / zoom)
+		map_drawer.draw_line(Vector2(visible_min.x, sweep_y), Vector2(visible_max.x, sweep_y), sweep_color, 2.0 / zoom)
 		
 		# Trailing gradient scanner glows
 		var trail_height = 40.0 / zoom
 		var trail_steps = 4
 		for i in range(trail_steps):
 			var step_y = sweep_y - (float(i) * trail_height / float(trail_steps))
-			if step_y >= visible_top:
+			if step_y >= visible_min.y:
 				var step_alpha = 0.08 * (1.0 - float(i) / float(trail_steps))
-				map_drawer.draw_line(Vector2(visible_left, step_y), Vector2(visible_right, step_y), Color(0.2, 0.9, 0.7, step_alpha), 1.0 / zoom)
+				map_drawer.draw_line(Vector2(visible_min.x, step_y), Vector2(visible_max.x, step_y), Color(0.2, 0.9, 0.7, step_alpha), 1.0 / zoom)
 				
 		# B. Flickering simulated satellite telemetry in corner readouts
 		var signal_strength = 95.0 + sin(time_passed * 4.3) * 3.0 + (randf() - 0.5) * 1.5
@@ -995,41 +975,7 @@ func _draw_vector_map() -> void:
 			map_drawer.draw_rect(Rect2(text_pos + Vector2(-2.0 / zoom, -draw_city_font_size * 1.25), text_sz + Vector2(4.0 / zoom, 2.0 / zoom)), label_bg_col, true)
 			map_drawer.draw_string(node_label_font, text_pos, label_text, HORIZONTAL_ALIGNMENT_LEFT, -1, draw_city_font_size, label_col)
  
-	# 8. CURSOR TELEMETRY HUD CROSSHAIRS AND COORDINATES
-	var mouse_pos = map_drawer.get_local_mouse_position()
-	var inside_viewport = mouse_pos.x >= visible_left and mouse_pos.x <= visible_right and mouse_pos.y >= visible_top and mouse_pos.y <= visible_bottom
-	if inside_viewport:
-		var tel_cross_col = Color(0.2, 0.9, 0.7, 0.16)
-		# Draw horizontal dashed crosshair line
-		_draw_dashed_line(Vector2(visible_left, mouse_pos.y), Vector2(visible_right, mouse_pos.y), tel_cross_col, 1.0 / zoom, 4.0 / zoom, 4.0 / zoom)
-		# Draw vertical dashed crosshair line
-		_draw_dashed_line(Vector2(mouse_pos.x, visible_top), Vector2(mouse_pos.x, visible_bottom), tel_cross_col, 1.0 / zoom, 4.0 / zoom, 4.0 / zoom)
-		
-		# Get Geographic coordinates at cursor
-		var geo_coord = _pos_to_coords(mouse_pos)
-		
-		var cursor_label_font = get_theme_font("font")
-		if cursor_label_font:
-			var draw_cursor_font_size = clamp(int(7.0 / zoom), 5, 24)
-			# Left Margin Lat Box
-			var lat_text = "%.3f° N" % geo_coord.x
-			var lat_box_pos = Vector2(visible_left + 15.0 / zoom, mouse_pos.y)
-			map_drawer.draw_rect(Rect2(lat_box_pos + Vector2(-4.0 / zoom, -8.0 / zoom), Vector2(50.0 / zoom, 15.0 / zoom)), Color(0.04, 0.04, 0.06, 0.85), true)
-			map_drawer.draw_rect(Rect2(lat_box_pos + Vector2(-4.0 / zoom, -8.0 / zoom), Vector2(50.0 / zoom, 15.0 / zoom)), Color(0.2, 0.9, 0.7, 0.3), false, 1.0 / zoom)
-			map_drawer.draw_string(cursor_label_font, lat_box_pos + Vector2(0.0, 3.0 / zoom), lat_text, HORIZONTAL_ALIGNMENT_LEFT, -1, draw_cursor_font_size, Color(0.2, 0.9, 0.7, 0.85))
-			
-			# Top Margin Lon Box
-			var lon_text = "%.3f° E" % geo_coord.y
-			var lon_box_pos = Vector2(mouse_pos.x, visible_top + 16.0 / zoom)
-			map_drawer.draw_rect(Rect2(lon_box_pos + Vector2(-26.0 / zoom, -8.0 / zoom), Vector2(52.0 / zoom, 15.0 / zoom)), Color(0.04, 0.04, 0.06, 0.85), true)
-			map_drawer.draw_rect(Rect2(lon_box_pos + Vector2(-26.0 / zoom, -8.0 / zoom), Vector2(52.0 / zoom, 15.0 / zoom)), Color(0.2, 0.9, 0.7, 0.3), false, 1.0 / zoom)
-			map_drawer.draw_string(cursor_label_font, lon_box_pos + Vector2(-22.0 / zoom, 3.0 / zoom), lon_text, HORIZONTAL_ALIGNMENT_LEFT, -1, draw_cursor_font_size, Color(0.2, 0.9, 0.7, 0.85))
-			
-			# Box on the cursor itself
-			var cur_box_text = "[ LAT:%.4f N / LON:%.4f E ]" % [geo_coord.x, geo_coord.y]
-			map_drawer.draw_rect(Rect2(mouse_pos + Vector2(12.0 / zoom, -22.0 / zoom), Vector2(144.0 / zoom, 14.0 / zoom)), Color(0.04, 0.04, 0.06, 0.75), true)
-			map_drawer.draw_rect(Rect2(mouse_pos + Vector2(12.0 / zoom, -22.0 / zoom), Vector2(144.0 / zoom, 14.0 / zoom)), Color(0.2, 0.9, 0.7, 0.25), false, 1.0 / zoom)
-			map_drawer.draw_string(cursor_label_font, mouse_pos + Vector2(16.0 / zoom, -12.0 / zoom), cur_box_text, HORIZONTAL_ALIGNMENT_LEFT, -1, draw_cursor_font_size, Color(0.2, 0.9, 0.7, 0.75))
+
 
 # ==========================================
 # INTERACTIVE DRAGS AND SCROLLS
@@ -1111,7 +1057,7 @@ func _select_city(city_id: String) -> void:
 		
 		var conn_lbl = Label.new()
 		conn_lbl.theme_type_variation = "HeaderSmall"
-		conn_lbl.add_theme_font_size_override("font_size", 13)
+		conn_lbl.add_theme_font_size_override("font_size", 14)
 		
 		var border_txt = " (Schengen)"
 		if conn.get("is_border_crossing", false):

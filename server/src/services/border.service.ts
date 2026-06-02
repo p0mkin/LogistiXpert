@@ -57,7 +57,8 @@ export class BorderService {
    */
   static async calculateClearance(
     truckId: string,
-    checkpoint: CheckpointDefinition
+    checkpoint: CheckpointDefinition,
+    tx?: any
   ): Promise<{
     cleared: boolean;
     roll: number;
@@ -70,8 +71,10 @@ export class BorderService {
       impoundDays: number;
     };
   }> {
+    const client = tx || prisma;
+
     // 1. Load the truck and active route state
-    const truck = await prisma.truck.findUnique({
+    const truck = await client.truck.findUnique({
       where: { id: truckId },
       include: { company: true, activeRoute: { include: { contrabandJob: true } } },
     });
@@ -176,10 +179,11 @@ export class BorderService {
       reputationLoss: number;
       policeHeatIncrease: number;
       impoundDays: number;
-    }
+    },
+    tx?: any
   ): Promise<void> {
-    await prisma.$transaction(async (tx) => {
-      const truck = await tx.truck.findUnique({
+    const runLogic = async (transactionalClient: any) => {
+      const truck = await transactionalClient.truck.findUnique({
         where: { id: truckId },
         include: { activeRoute: true, garage: true },
       });
@@ -192,7 +196,7 @@ export class BorderService {
 
       // 1. Charge fine (deduct legal balance, can go negative = bankrupt threat)
       // and update stats
-      await tx.company.update({
+      await transactionalClient.company.update({
         where: { id: companyId },
         data: {
           legalBalance: { decrement: penalties.fineAmount },
@@ -203,7 +207,7 @@ export class BorderService {
 
       // Record daily fine expense
       await AnalyticsService.recordTransaction(
-        tx,
+        transactionalClient,
         companyId,
         truck.garageId,
         truck.garage.city,
@@ -212,7 +216,7 @@ export class BorderService {
       );
 
       // 2. Impound truck
-      await tx.truck.update({
+      await transactionalClient.truck.update({
         where: { id: truckId },
         data: {
           isImpounded: true,
@@ -221,27 +225,35 @@ export class BorderService {
       });
 
       // 3. Clear active route (the job is canceled and cargo confiscated)
-      await tx.activeRoute.delete({
+      await transactionalClient.activeRoute.delete({
         where: { id: truck.activeRoute.id },
       });
 
       // 4. Log vehicle history
-      await tx.truckHistory.create({
+      await transactionalClient.truckHistory.create({
         data: {
           truckId,
           eventType: 'BORDER_BUST',
           description: `Busted smuggling at border crossing. Vehicle impounded for ${penalties.impoundDays} days. Fine of $${penalties.fineAmount} charged. Heat increased by ${penalties.policeHeatIncrease}.`,
         },
       });
-    });
+    };
+
+    if (tx) {
+      await runLogic(tx);
+    } else {
+      await prisma.$transaction(async (newTx) => {
+        await runLogic(newTx);
+      });
+    }
   }
 
   /**
    * Processes successful clearance payouts
    */
-  static async applyClearanceSuccess(truckId: string): Promise<{ payout: number }> {
-    return await prisma.$transaction(async (tx) => {
-      const truck = await tx.truck.findUnique({
+  static async applyClearanceSuccess(truckId: string, tx?: any): Promise<{ payout: number }> {
+    const runLogic = async (transactionalClient: any) => {
+      const truck = await transactionalClient.truck.findUnique({
         where: { id: truckId },
         include: { company: true, garage: true, activeRoute: { include: { contrabandJob: true, legalContract: true, clanContract: true } } },
       });
@@ -256,7 +268,7 @@ export class BorderService {
 
       const kgDelivered = AnalyticsService.getCargoWeight(truck.tier);
       await AnalyticsService.recordTransaction(
-        tx,
+        transactionalClient,
         truck.companyId,
         truck.garageId,
         truck.garage.city,
@@ -268,7 +280,7 @@ export class BorderService {
       if (route.contrabandJob) {
         // Smuggling Payout (goes to black market balance)
         payout = route.contrabandJob.payoutBlack.toNumber();
-        await tx.company.update({
+        await transactionalClient.company.update({
           where: { id: truck.companyId },
           data: {
             blackMarketBalance: { increment: payout },
@@ -278,7 +290,7 @@ export class BorderService {
         payoutLog = `Successfully smuggled contraband to ${route.contrabandJob.destination}. Payout: $${payout} (Black Market Cash).`;
 
         await AnalyticsService.recordTransaction(
-          tx,
+          transactionalClient,
           truck.companyId,
           truck.garageId,
           truck.garage.city,
@@ -292,7 +304,7 @@ export class BorderService {
         if (truck.company.resAdvancedPacking > 0) {
           payout = payout * (1.0 + truck.company.resAdvancedPacking * 0.05);
         }
-        await tx.company.update({
+        await transactionalClient.company.update({
           where: { id: truck.companyId },
           data: {
             legalBalance: { increment: payout },
@@ -301,7 +313,7 @@ export class BorderService {
         payoutLog = `Delivered legal cargo to ${route.legalContract.destination}. Payout: $${payout.toFixed(2)} (Legal Cash).`;
 
         await AnalyticsService.recordTransaction(
-          tx,
+          transactionalClient,
           truck.companyId,
           truck.garageId,
           truck.garage.city,
@@ -313,7 +325,7 @@ export class BorderService {
         const payoutLegal = route.clanContract.payoutLegal.toNumber();
         const payoutBlack = route.clanContract.payoutBlack.toNumber();
         payout = payoutLegal + payoutBlack;
-        await tx.company.update({
+        await transactionalClient.company.update({
           where: { id: truck.companyId },
           data: {
             legalBalance: { increment: payoutLegal },
@@ -324,7 +336,7 @@ export class BorderService {
 
         if (payoutLegal > 0) {
           await AnalyticsService.recordTransaction(
-            tx,
+            transactionalClient,
             truck.companyId,
             truck.garageId,
             truck.garage.city,
@@ -334,7 +346,7 @@ export class BorderService {
         }
         if (payoutBlack > 0) {
           await AnalyticsService.recordTransaction(
-            tx,
+            transactionalClient,
             truck.companyId,
             truck.garageId,
             truck.garage.city,
@@ -367,7 +379,7 @@ export class BorderService {
       const newEngine = Math.max(truck.engineHealth - wearPercent, 0);
       const newTires = Math.max(truck.tireWear - wearPercent, 0);
 
-      await tx.truck.update({
+      await transactionalClient.truck.update({
         where: { id: truckId },
         data: {
           mileage: newMileage,
@@ -389,7 +401,7 @@ export class BorderService {
       let rebindMsg = '';
       if (destinationCity) {
         rebindMsg = await BorderService.handleTerminalRebinding(
-          tx,
+          transactionalClient,
           truckId,
           truck.companyId,
           destinationCity,
@@ -398,12 +410,12 @@ export class BorderService {
       }
 
       // Clear active route
-      await tx.activeRoute.delete({
+      await transactionalClient.activeRoute.delete({
         where: { id: route.id },
       });
 
       // Write truck history
-      await tx.truckHistory.create({
+      await transactionalClient.truckHistory.create({
         data: {
           truckId,
           eventType: 'JOB_DELIVERY',
@@ -412,7 +424,15 @@ export class BorderService {
       });
 
       return { payout };
-    });
+    };
+
+    if (tx) {
+      return await runLogic(tx);
+    } else {
+      return await prisma.$transaction(async (newTx) => {
+        return await runLogic(newTx);
+      });
+    }
   }
 
   /**
@@ -420,7 +440,8 @@ export class BorderService {
    */
   static async applyBribeAttempt(
     truckId: string,
-    bribeAmount: number
+    bribeAmount: number,
+    tx?: any
   ): Promise<{
     success: boolean;
     roll: number;
@@ -428,8 +449,8 @@ export class BorderService {
     payout?: number;
     penalties?: any;
   }> {
-    return await prisma.$transaction(async (tx) => {
-      const truck = await tx.truck.findUnique({
+    const runLogic = async (transactionalClient: any) => {
+      const truck = await transactionalClient.truck.findUnique({
         where: { id: truckId },
         include: { company: true, garage: true, activeRoute: { include: { driver: true, contrabandJob: true } } },
       });
@@ -468,7 +489,7 @@ export class BorderService {
       const success = roll <= chance;
 
       // Charge the bribe immediately
-      await tx.company.update({
+      await transactionalClient.company.update({
         where: { id: company.id },
         data: {
           legalBalance: { decrement: bribeAmount },
@@ -477,7 +498,7 @@ export class BorderService {
 
       // Record bribe expense
       await AnalyticsService.recordTransaction(
-        tx,
+        transactionalClient,
         company.id,
         truck.garageId,
         truck.garage.city,
@@ -487,7 +508,7 @@ export class BorderService {
 
       if (success) {
         const payout = job.payoutBlack.toNumber();
-        await tx.company.update({
+        await transactionalClient.company.update({
           where: { id: company.id },
           data: {
             blackMarketBalance: { increment: payout },
@@ -498,7 +519,7 @@ export class BorderService {
         // Record successful completion and payout revenue
         const kgDelivered = AnalyticsService.getCargoWeight(truck.tier);
         await AnalyticsService.recordTransaction(
-          tx,
+          transactionalClient,
           company.id,
           truck.garageId,
           truck.garage.city,
@@ -508,7 +529,7 @@ export class BorderService {
         );
 
         await AnalyticsService.recordTransaction(
-          tx,
+          transactionalClient,
           company.id,
           truck.garageId,
           truck.garage.city,
@@ -518,7 +539,7 @@ export class BorderService {
 
         // RE-BINDING LOGIC!
         const rebindMsg = await BorderService.handleTerminalRebinding(
-          tx,
+          transactionalClient,
           truckId,
           truck.companyId,
           job.destination,
@@ -526,12 +547,12 @@ export class BorderService {
         );
 
         // Clear active route
-        await tx.activeRoute.delete({
+        await transactionalClient.activeRoute.delete({
           where: { id: route.id },
         });
 
         // Log history
-        await tx.truckHistory.create({
+        await transactionalClient.truckHistory.create({
           data: {
             truckId,
             eventType: 'BORDER_CLEAR',
@@ -571,7 +592,7 @@ export class BorderService {
         releaseDate.setDate(releaseDate.getDate() + penalties.impoundDays);
 
         // Deduct balance and update stats
-        await tx.company.update({
+        await transactionalClient.company.update({
           where: { id: company.id },
           data: {
             legalBalance: { decrement: penalties.fineAmount },
@@ -582,7 +603,7 @@ export class BorderService {
 
         // Record fail fine expense
         await AnalyticsService.recordTransaction(
-          tx,
+          transactionalClient,
           company.id,
           truck.garageId,
           truck.garage.city,
@@ -591,7 +612,7 @@ export class BorderService {
         );
 
         // Impound truck
-        await tx.truck.update({
+        await transactionalClient.truck.update({
           where: { id: truckId },
           data: {
             isImpounded: true,
@@ -600,12 +621,12 @@ export class BorderService {
         });
 
         // Clear active route
-        await tx.activeRoute.delete({
+        await transactionalClient.activeRoute.delete({
           where: { id: route.id },
         });
 
         // Log history
-        await tx.truckHistory.create({
+        await transactionalClient.truckHistory.create({
           data: {
             truckId,
             eventType: 'BORDER_BUST',
@@ -615,14 +636,23 @@ export class BorderService {
 
         return { success: false, roll, chance, penalties };
       }
-    });
+    };
+
+    if (tx) {
+      return await runLogic(tx);
+    } else {
+      return await prisma.$transaction(async (newTx) => {
+        return await runLogic(newTx);
+      });
+    }
   }
 
   /**
    * Processes a breakthrough run attempt
    */
   static async applyBorderRun(
-    truckId: string
+    truckId: string,
+    tx?: any
   ): Promise<{
     success: boolean;
     roll: number;
@@ -631,8 +661,8 @@ export class BorderService {
     payout?: number;
     penalties?: any;
   }> {
-    return await prisma.$transaction(async (tx) => {
-      const truck = await tx.truck.findUnique({
+    const runLogic = async (transactionalClient: any) => {
+      const truck = await transactionalClient.truck.findUnique({
         where: { id: truckId },
         include: { company: true, garage: true, activeRoute: { include: { driver: true, contrabandJob: true } } },
       });
@@ -666,7 +696,7 @@ export class BorderService {
 
       if (success) {
         const payout = job.payoutBlack.toNumber();
-        await tx.company.update({
+        await transactionalClient.company.update({
           where: { id: company.id },
           data: {
             blackMarketBalance: { increment: payout },
@@ -678,7 +708,7 @@ export class BorderService {
         // Record successful run completion and payout revenue
         const kgDelivered = AnalyticsService.getCargoWeight(truck.tier);
         await AnalyticsService.recordTransaction(
-          tx,
+          transactionalClient,
           company.id,
           truck.garageId,
           truck.garage.city,
@@ -688,7 +718,7 @@ export class BorderService {
         );
 
         await AnalyticsService.recordTransaction(
-          tx,
+          transactionalClient,
           company.id,
           truck.garageId,
           truck.garage.city,
@@ -698,7 +728,7 @@ export class BorderService {
 
         // RE-BINDING LOGIC!
         const rebindMsg = await BorderService.handleTerminalRebinding(
-          tx,
+          transactionalClient,
           truckId,
           truck.companyId,
           job.destination,
@@ -708,7 +738,7 @@ export class BorderService {
         // Add wear & tear from running the border barricades
         const newEngine = Math.max(truck.engineHealth - 15, 0);
         const newTires = Math.max(truck.tireWear - 20, 0);
-        await tx.truck.update({
+        await transactionalClient.truck.update({
           where: { id: truckId },
           data: {
             engineHealth: newEngine,
@@ -717,12 +747,12 @@ export class BorderService {
         });
 
         // Clear active route
-        await tx.activeRoute.delete({
+        await transactionalClient.activeRoute.delete({
           where: { id: route.id },
         });
 
         // Log history
-        await tx.truckHistory.create({
+        await transactionalClient.truckHistory.create({
           data: {
             truckId,
             eventType: 'BORDER_RUN_SUCCESS',
@@ -742,7 +772,7 @@ export class BorderService {
         const impoundDays = 12; // long impound
         releaseDate.setDate(releaseDate.getDate() + impoundDays);
 
-        await tx.truck.update({
+        await transactionalClient.truck.update({
           where: { id: truckId },
           data: {
             engineHealth: newEngine,
@@ -761,7 +791,7 @@ export class BorderService {
         };
 
         // Deduct balance and update stats
-        await tx.company.update({
+        await transactionalClient.company.update({
           where: { id: company.id },
           data: {
             legalBalance: { decrement: penalties.fineAmount },
@@ -772,7 +802,7 @@ export class BorderService {
 
         // Record crash fine expense
         await AnalyticsService.recordTransaction(
-          tx,
+          transactionalClient,
           company.id,
           truck.garageId,
           truck.garage.city,
@@ -781,12 +811,12 @@ export class BorderService {
         );
 
         // Clear active route
-        await tx.activeRoute.delete({
+        await transactionalClient.activeRoute.delete({
           where: { id: route.id },
         });
 
         // Log history
-        await tx.truckHistory.create({
+        await transactionalClient.truckHistory.create({
           data: {
             truckId,
             eventType: 'BORDER_RUN_FAIL',
@@ -796,6 +826,14 @@ export class BorderService {
 
         return { success: false, roll, chance, damagePercent, penalties };
       }
-    });
+    };
+
+    if (tx) {
+      return await runLogic(tx);
+    } else {
+      return await prisma.$transaction(async (newTx) => {
+        return await runLogic(newTx);
+      });
+    }
   }
 }

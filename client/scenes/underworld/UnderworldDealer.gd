@@ -57,7 +57,7 @@ func _ready() -> void:
 
 func _process(_delta: float) -> void:
 	if clock_lbl and is_instance_valid(clock_lbl):
-		clock_lbl.text = "📅 " + GameState.get_simulated_time_string()
+		clock_lbl.text = GameState.get_simulated_time_string()
 
 
 # ====================================================
@@ -95,9 +95,9 @@ func _build_ui() -> void:
 	clock_lbl = Label.new()
 	clock_lbl.name = "ClockLabel"
 	clock_lbl.add_theme_font_size_override("font_size", 14)
-	clock_lbl.add_theme_color_override("font_color", Color(0.180, 0.803, 0.443, 0.85)) # Emerald Green
+	clock_lbl.add_theme_color_override("font_color", Color(1, 1, 1)) # Pure White
 	clock_lbl.position = Vector2(700, 22)
-	clock_lbl.text = "📅 " + GameState.get_simulated_time_string()
+	clock_lbl.text = GameState.get_simulated_time_string()
 	header.add_child(clock_lbl)
 
 

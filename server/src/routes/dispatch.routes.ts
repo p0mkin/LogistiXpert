@@ -2,6 +2,8 @@ import { Router, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticateJWT, AuthRequest } from '../middleware/auth';
 import { AnalyticsService } from '../services/analytics.service';
+import { PrismaUnitOfWork } from '../infrastructure/persistence/PrismaUnitOfWork';
+import { LaunchRouteCommandHandler } from '../application/commands/LaunchRouteCommand';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -206,182 +208,41 @@ router.post('/launch', async (req: AuthRequest, res: Response) => {
   }
 
   try {
-    // 1. Verify truck ownership, check state
-    const truck = await prisma.truck.findUnique({
-      where: { id: truckId },
-      include: { driver: true, activeRoute: true, garage: true },
-    });
+    const uow = new PrismaUnitOfWork(prisma);
+    const handler = new LaunchRouteCommandHandler(uow);
 
-    if (!truck || truck.companyId !== companyId) {
-      return res.status(404).json({ error: 'TRUCK_NOT_FOUND', message: 'Truck not found in your fleet.' });
-    }
-
-    if (truck.isImpounded) {
-      return res.status(400).json({ error: 'TRUCK_IMPOUNDED', message: 'Cannot dispatch a vehicle in police impound.' });
-    }
-
-    if (truck.activeRoute) {
-      return res.status(400).json({ error: 'TRUCK_ACTIVE', message: 'This vehicle is already dispatched on a route.' });
-    }
-
-    // 2. Verify driver is assigned and fit
-    const driver = truck.driver;
-    if (!driver) {
-      return res.status(400).json({
-        error: 'NO_ASSIGNED_DRIVER',
-        message: 'No driver is assigned to this truck. Assign a driver in fleet management first.',
-      });
-    }
-
-    if (driver.fatigue >= 90) {
-      return res.status(400).json({
-        error: 'DRIVER_EXHAUSTED',
-        message: `Driver ${driver.name} is too exhausted (Fatigue: ${driver.fatigue}%). Order them to rest first!`,
-      });
-    }
-
-    // 3. Fetch contract details and calculate ETA
-    let origin = '';
-    let destination = '';
-    let distanceKm = 300; // base default
-    let cargoType: string | undefined = undefined;
-
-    if (legalContractId) {
-      const contract = await prisma.legalContract.findUnique({ where: { id: legalContractId } });
-      if (!contract) return res.status(404).json({ error: 'CONTRACT_NOT_FOUND', message: 'Legal contract not found.' });
-      origin = contract.origin;
-      destination = contract.destination;
-      distanceKm = contract.distanceKm;
-      cargoType = contract.cargoType;
-    } else if (contrabandJobId) {
-      const job = await prisma.contrabandJob.findUnique({ where: { id: contrabandJobId } });
-      if (!job) return res.status(404).json({ error: 'JOB_NOT_FOUND', message: 'Underworld contraband contract not found.' });
-      origin = job.origin;
-      destination = job.destination;
-      // standard distance calculation based on cities connection
-      distanceKm = 350; // Brest/Minsk standard smuggles
-    }
-
-    const cargoWeight = AnalyticsService.getCargoWeight(truck.tier);
-
-    // Verify remaining city capacity (FREIGHT_SUPPLY_DEPLETED check)
-    const remainingCapacity = await AnalyticsService.getRemainingFreightCapacity(origin, companyId);
-    if (remainingCapacity < cargoWeight) {
-      return res.status(400).json({
-        error: 'FREIGHT_SUPPLY_DEPLETED',
-        message: `Not enough freight supply in ${origin} today. Remaining capacity: ${remainingCapacity} kg. Your truck requires ${cargoWeight} kg capacity.`,
-      });
-    }
-
-    // Verify terminal level requirements (TERMINAL_LEVEL_TOO_LOW check)
-    const terminalLevel = truck.garage.terminalLevel;
-    const isAllowed = isContractAllowed(terminalLevel, distanceKm, cargoWeight, cargoType);
-    if (!isAllowed) {
-      return res.status(400).json({
-        error: 'TERMINAL_LEVEL_TOO_LOW',
-        message: `Your terminal level is too low to accept this contract (Terminal Level: ${terminalLevel}, Distance: ${distanceKm} km, Truck weight: ${cargoWeight} kg).`,
-      });
-    }
-
-    // Base dispatch speed: 70 km/h
-    let avgSpeed = 70.0;
-    
-    // Trait modifiers
-    if (driver.trait === 'LEAD_FOOT') avgSpeed += 10.0; // +10 km/h
-    if (driver.isStimulated) avgSpeed += 15.0; // pop pills speed boost!
-
-    // Calculate real-world seconds for route transit (1 km = 1 real second for fast gameplay simulation!)
-    const transitSeconds = distanceKm; 
-    const eta = new Date();
-    eta.setSeconds(eta.getSeconds() + transitSeconds);
-
-    // 4. Create Active Route inside database
-    const activeRoute = await prisma.$transaction(async (tx) => {
-      // Deduct city freight capacity
-      await AnalyticsService.recordFreightShipped(tx, origin, cargoWeight);
-
-      // Record daily transaction for route dispatch
-      await AnalyticsService.recordTransaction(
-        tx,
-        companyId,
-        truck.garageId,
-        origin,
-        'ROUTE_DISPATCHED',
-        0
-      );
-
-      // Manage contract state based on SPOT, LIMITED, or PERSISTENT types
-      if (legalContractId) {
-        const contract = await tx.legalContract.findUnique({ where: { id: legalContractId } });
-        if (contract) {
-          if (contract.contractType === 'SPOT') {
-            await tx.legalContract.delete({ where: { id: legalContractId } });
-          } else if (contract.contractType === 'LIMITED') {
-            const newQuota = (contract.remainingQuota || 0) - cargoWeight;
-            if (newQuota <= 0) {
-              await tx.legalContract.delete({ where: { id: legalContractId } });
-            } else {
-              await tx.legalContract.update({
-                where: { id: legalContractId },
-                data: { remainingQuota: newQuota },
-              });
-            }
-          }
-        }
-      } else if (contrabandJobId) {
-        const job = await tx.contrabandJob.findUnique({ where: { id: contrabandJobId } });
-        if (job) {
-          if (job.contractType === 'SPOT') {
-            await tx.contrabandJob.delete({ where: { id: contrabandJobId } });
-          } else if (job.contractType === 'LIMITED') {
-            const newQuota = (job.remainingQuota || 0) - cargoWeight;
-            if (newQuota <= 0) {
-              await tx.contrabandJob.delete({ where: { id: contrabandJobId } });
-            } else {
-              await tx.contrabandJob.update({
-                where: { id: contrabandJobId },
-                data: { remainingQuota: newQuota },
-              });
-            }
-          }
-        }
-      }
-
-      const route = await tx.activeRoute.create({
-        data: {
-          companyId,
-          truckId,
-          driverId: driver.id,
-          legalContractId: legalContractId || null,
-          contrabandJobId: contrabandJobId || null,
-          progressPct: 0.0,
-          eta,
-          currentCity: origin,
-          isUnderBorderCheck: false,
-          autopilotPolicy: autopilotPolicy || 'SAFE',
-        },
-      });
-
-      // Log dispatch history
-      const jobType = contrabandJobId ? 'UNDERWORLD SMUGGLING' : 'LEGAL CONTRACT';
-      await tx.truckHistory.create({
-        data: {
-          truckId,
-          eventType: 'ROUTE_DISPATCH',
-          description: `Dispatched on ${jobType} from ${origin} to ${destination} (${distanceKm} km). Estimated transit time: ${transitSeconds}s. Driver: ${driver.name}. Autopilot Policy: ${autopilotPolicy || 'SAFE'}.`,
-        },
-      });
-
-      return route;
+    const activeRouteState = await handler.handle({
+      companyId,
+      truckId,
+      legalContractId,
+      contrabandJobId,
+      autopilotPolicy,
     });
 
     res.status(201).json({
       message: 'Fleet truck dispatched successfully! Track progression in HUD.',
-      route: activeRoute,
+      route: activeRouteState,
     });
 
-  } catch (error) {
-    res.status(500).json({ error: 'SERVER_ERROR', message: 'Failed to dispatch route.' });
+  } catch (error: any) {
+    const matched = [
+      'TRUCK_NOT_FOUND',
+      'TRUCK_IMPOUNDED',
+      'TRUCK_ACTIVE',
+      'NO_ASSIGNED_DRIVER',
+      'DRIVER_EXHAUSTED',
+      'CONTRACT_NOT_FOUND',
+      'JOB_NOT_FOUND',
+      'FREIGHT_SUPPLY_DEPLETED',
+      'TERMINAL_LEVEL_TOO_LOW',
+    ].find((errCode) => error.message.includes(errCode));
+
+    if (matched) {
+      return res.status(400).json({ error: matched, message: error.message });
+    }
+    const statusCode = error.statusCode || 500;
+    const errorCode = error.code || 'SERVER_ERROR';
+    res.status(statusCode).json({ error: errorCode, message: error.message });
   }
 });
 

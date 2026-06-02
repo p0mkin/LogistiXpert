@@ -181,8 +181,9 @@ export class FinanceService {
   /**
    * Calculates the true dynamic valuation of a company
    */
-  static async calculateCompanyValuation(companyId: string): Promise<number> {
-    const company = await prisma.company.findUnique({
+  static async calculateCompanyValuation(companyId: string, txClient?: any): Promise<number> {
+    const client = txClient || prisma;
+    const company = await client.company.findUnique({
       where: { id: companyId },
       include: {
         trucks: true,

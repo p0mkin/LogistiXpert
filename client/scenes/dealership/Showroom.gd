@@ -154,7 +154,7 @@ func _build_ui() -> void:
 
 	var catalog_vbox = VBoxContainer.new()
 	catalog_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	catalog_vbox.add_theme_constants_override("separation", 12)
+	catalog_vbox.add_theme_constant_override("separation", 12)
 	catalog_vbox.name = "CatalogVBox"
 	catalog_scroll.add_child(catalog_vbox)
 
@@ -226,7 +226,7 @@ func _render_catalog_list() -> void:
 
 		var v = VBoxContainer.new()
 		v.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		v.add_theme_constants_override("separation", 4)
+		v.add_theme_constant_override("separation", 4)
 		v.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		card.add_child(v)
 		
@@ -293,7 +293,7 @@ func _update_customizer_panel() -> void:
 
 	var workspace_vbox = VBoxContainer.new()
 	workspace_vbox.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	workspace_vbox.add_theme_constants_override("separation", 14)
+	workspace_vbox.add_theme_constant_override("separation", 14)
 	customizer.add_child(workspace_vbox)
 
 	# Inner spacer
@@ -303,7 +303,7 @@ func _update_customizer_panel() -> void:
 
 	# 1. Selected Model Showcase Header
 	var showcase_hbox = HBoxContainer.new()
-	showcase_hbox.add_theme_constants_override("separation", 16)
+	showcase_hbox.add_theme_constant_override("separation", 16)
 	workspace_vbox.add_child(showcase_hbox)
 
 	var header_vbox = VBoxContainer.new()
@@ -333,7 +333,7 @@ func _update_customizer_panel() -> void:
 
 	# 2. Selectable Tiers (Chassis weights)
 	var tier_box = HBoxContainer.new()
-	tier_box.add_theme_constants_override("separation", 8)
+	tier_box.add_theme_constant_override("separation", 8)
 	workspace_vbox.add_child(tier_box)
 
 	var t_lbl = Label.new()
@@ -368,13 +368,13 @@ func _update_customizer_panel() -> void:
 	# Grid arrangement for specifications
 	var grid = GridContainer.new()
 	grid.columns = 2
-	grid.add_theme_constants_override("h_separation", 24)
-	grid.add_theme_constants_override("v_separation", 14)
+	grid.add_theme_constant_override("h_separation", 24)
+	grid.add_theme_constant_override("v_separation", 14)
 	workspace_vbox.add_child(grid)
 
 	# A. CAB TYPE SELECTOR
 	var cab_v = VBoxContainer.new()
-	cab_v.add_theme_constants_override("separation", 4)
+	cab_v.add_theme_constant_override("separation", 4)
 	grid.add_child(cab_v)
 
 	var cab_lbl = Label.new()
@@ -384,7 +384,7 @@ func _update_customizer_panel() -> void:
 	cab_v.add_child(cab_lbl)
 
 	var cab_hbox = HBoxContainer.new()
-	cab_hbox.add_theme_constants_override("separation", 6)
+	cab_hbox.add_theme_constant_override("separation", 6)
 	cab_v.add_child(cab_hbox)
 
 	var cab_specs = [
@@ -410,7 +410,7 @@ func _update_customizer_panel() -> void:
 
 	# B. TUNING SPECIFICATION
 	var tune_v = VBoxContainer.new()
-	tune_v.add_theme_constants_override("separation", 4)
+	tune_v.add_theme_constant_override("separation", 4)
 	grid.add_child(tune_v)
 
 	var tune_lbl = Label.new()
@@ -420,7 +420,7 @@ func _update_customizer_panel() -> void:
 	tune_v.add_child(tune_lbl)
 
 	var tune_hbox = HBoxContainer.new()
-	tune_hbox.add_theme_constants_override("separation", 6)
+	tune_hbox.add_theme_constant_override("separation", 6)
 	tune_v.add_child(tune_hbox)
 
 	var tune_specs = [
@@ -447,7 +447,7 @@ func _update_customizer_panel() -> void:
 
 	# C. PAYLOAD TYPE RIGS (Row spans both columns)
 	var payload_v = VBoxContainer.new()
-	payload_v.add_theme_constants_override("separation", 4)
+	payload_v.add_theme_constant_override("separation", 4)
 	workspace_vbox.add_child(payload_v)
 
 	var pay_lbl = Label.new()
@@ -457,7 +457,7 @@ func _update_customizer_panel() -> void:
 	payload_v.add_child(pay_lbl)
 
 	var pay_hbox = HBoxContainer.new()
-	pay_hbox.add_theme_constants_override("separation", 6)
+	pay_hbox.add_theme_constant_override("separation", 6)
 	payload_v.add_child(pay_hbox)
 
 	var payload_specs = [
@@ -487,7 +487,7 @@ func _update_customizer_panel() -> void:
 
 	# 4. Target Garage Selector
 	var gar_v = VBoxContainer.new()
-	gar_v.add_theme_constants_override("separation", 4)
+	gar_v.add_theme_constant_override("separation", 4)
 	workspace_vbox.add_child(gar_v)
 
 	var gar_title_lbl = Label.new()
@@ -497,7 +497,7 @@ func _update_customizer_panel() -> void:
 	gar_v.add_child(gar_title_lbl)
 
 	var gar_hbox = HBoxContainer.new()
-	gar_hbox.add_theme_constants_override("separation", 10)
+	gar_hbox.add_theme_constant_override("separation", 10)
 	gar_v.add_child(gar_hbox)
 
 	if player_garages.size() == 0:
@@ -541,7 +541,7 @@ func _update_customizer_panel() -> void:
 
 	var invoice_hbox = HBoxContainer.new()
 	invoice_hbox.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	invoice_hbox.add_theme_constants_override("separation", 24)
+	invoice_hbox.add_theme_constant_override("separation", 24)
 	invoice_card.add_child(invoice_hbox)
 	
 	# Margin
