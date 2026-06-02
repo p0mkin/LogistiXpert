@@ -16,12 +16,20 @@ extends Control
 @onready var auction_btn: Button = %AuctionBtn
 @onready var laundry_btn: Button = %LaundryBtn
 @onready var underworld_btn: Button = %UnderworldBtn
-@onready var shop_btn: Button = %ShopBtn
-@onready var breakdown_btn: Button = %BreakdownBtn
-@onready var leaderboard_btn: Button = %LeaderboardBtn
 @onready var analytics_btn: Button = %AnalyticsBtn
-@onready var research_btn: Button = %ResearchBtn
-@onready var dealership_btn: Button = %DealershipBtn
+@onready var support_btn: Button = %SupportBtn
+
+# Concurrent HUD overlays & dropdowns
+@onready var garage_dropdown: PanelContainer = %GarageDropdown
+@onready var support_dropdown: PanelContainer = %SupportDropdown
+@onready var garage_manager_btn: Button = %GarageManagerBtn
+@onready var parts_shop_btn: Button = %PartsShopBtn
+@onready var emergency_recovery_btn: Button = %EmergencyRecoveryBtn
+@onready var factory_showroom_btn: Button = %FactoryShowroomBtn
+@onready var rd_tech_tree_btn: Button = %RDTechTreeBtn
+@onready var surcharge_warning: PanelContainer = %SurchargeWarning
+@onready var telemetry_panel: PanelContainer = %TelemetryPanel
+@onready var tachograph_draw: Control = %TachographDraw
 
 var clock_lbl: Label = null
 
@@ -30,7 +38,7 @@ var clock_lbl: Label = null
 @onready var camera: Camera2D = $MapContainer/ViewportWrapper/Camera if has_node("MapContainer/ViewportWrapper/Camera") else %Camera
 @onready var map_drawer: Node2D = $MapContainer/ViewportWrapper/VectorMapDrawer if has_node("MapContainer/ViewportWrapper/VectorMapDrawer") else %VectorMapDrawer
 @onready var map_container: Control = $MapContainer if has_node("MapContainer") else %MapContainer
-@onready var console_box: ColorRect = %ConsoleBox
+@onready var console_box: PanelContainer = %ConsoleBox
 
 var is_dragging: bool = false
 var drag_start: Vector2 = Vector2.ZERO
@@ -313,20 +321,53 @@ func _ready() -> void:
 	_fetch_active_routes()
 	
 	back_menu_btn.pressed.connect(_on_back_pressed)
-	garage_btn.pressed.connect(func(): SceneTransition.change_scene_to_file("res://scenes/garage/GarageManager.tscn"))
 	dispatch_btn.pressed.connect(func(): SceneTransition.change_scene_to_file("res://scenes/dispatch/DispatchCenter.tscn"))
 	auction_btn.pressed.connect(func(): SceneTransition.change_scene_to_file("res://scenes/auction/AuctionHouse.tscn"))
 	laundry_btn.pressed.connect(func(): SceneTransition.change_scene_to_file("res://scenes/laundry/LaundryFronts.tscn"))
 	underworld_btn.pressed.connect(func(): SceneTransition.change_scene_to_file("res://scenes/underworld/UnderworldDealer.tscn"))
-	shop_btn.pressed.connect(func(): SceneTransition.change_scene_to_file("res://scenes/shop/PartsShop.tscn"))
-	breakdown_btn.pressed.connect(func(): SceneTransition.change_scene_to_file("res://scenes/breakdown/BreakdownPanel.tscn"))
-	leaderboard_btn.pressed.connect(func(): SceneTransition.change_scene_to_file("res://scenes/leaderboard/Leaderboard.tscn"))
 	analytics_btn.pressed.connect(func(): SceneTransition.change_scene_to_file("res://scenes/analytics/LogisticsAnalytics.tscn"))
-	research_btn.pressed.connect(func(): SceneTransition.change_scene_to_file("res://scenes/research/TechTree.tscn"))
-	dealership_btn.pressed.connect(func(): SceneTransition.change_scene_to_file("res://scenes/dealership/Showroom.tscn"))
+	
+	# Concurrent HUD overlays & custom dropdown toggling
+	garage_dropdown.visible = true # show initially for screenshots
+	support_dropdown.visible = true # show initially for screenshots
+	
+	garage_btn.pressed.connect(func():
+		garage_dropdown.visible = not garage_dropdown.visible
+	)
+	
+	support_btn.pressed.connect(func():
+		support_dropdown.visible = not support_dropdown.visible
+	)
+	
+	# Sub-button connections
+	garage_manager_btn.pressed.connect(func():
+		SceneTransition.change_scene_to_file("res://scenes/garage/GarageManager.tscn")
+	)
+	parts_shop_btn.pressed.connect(func():
+		SceneTransition.change_scene_to_file("res://scenes/shop/PartsShop.tscn")
+	)
+	emergency_recovery_btn.pressed.connect(func():
+		SceneTransition.change_scene_to_file("res://scenes/breakdown/BreakdownPanel.tscn")
+	)
+	factory_showroom_btn.pressed.connect(func():
+		SceneTransition.change_scene_to_file("res://scenes/dealership/Showroom.tscn")
+	)
+	rd_tech_tree_btn.pressed.connect(func():
+		SceneTransition.change_scene_to_file("res://scenes/research/TechTree.tscn")
+	)
+	
+	# Connect tachograph draw
+	if tachograph_draw:
+		tachograph_draw.draw.connect(_draw_tachograph)
 	
 	# Instruct map drawer to implement our custom vector _draw call
+	print("[DEBUG] Connecting _draw_vector_map to map_drawer.draw. map_drawer: ", map_drawer, " camera: ", camera)
 	map_drawer.draw.connect(_draw_vector_map)
+	print("[DEBUG] Connection done. map_drawer is_visible_in_tree: ", map_drawer.is_visible_in_tree() if is_instance_valid(map_drawer) else "null")
+	
+	if camera and is_instance_valid(camera):
+		camera.zoom = Vector2(zoom_level, zoom_level)
+		print("[DEBUG] Camera zoom initialized to: ", camera.zoom)
 	
 	set_process_input(true)
 
@@ -523,6 +564,7 @@ func _draw_polyline(points: Array, color: Color, width: float) -> void:
 # 2D VECTOR RENDERING (DRAW OVERRIDES)
 # ==========================================
 func _draw_vector_map() -> void:
+	print("[DEBUG] _draw_vector_map() called! cities_data count: ", cities_data.size())
 	var font = get_theme_font("font")
 	var font_size = 10
 	var text_color = Color(0.2, 0.45, 0.55, 0.4)
@@ -530,6 +572,7 @@ func _draw_vector_map() -> void:
 	# Determine current zoom and active visible viewport boundaries
 	var viewport_size = map_drawer.get_viewport_rect().size
 	var zoom = camera.zoom.x
+	print("[DEBUG] Camera position: ", camera.position if is_instance_valid(camera) else "null", " zoom: ", zoom, " viewport_size: ", viewport_size)
 	var visible_min = camera.position - (viewport_size / zoom) * 0.5
 	var visible_max = camera.position + (viewport_size / zoom) * 0.5
 	
@@ -586,19 +629,15 @@ func _draw_vector_map() -> void:
 			border_projected_points.append(_coords_to_pos(pt))
 			
 		if border.is_schengen:
-			# Subtle dashed grey-green Schengen border
-			var schengen_border_color = Color(0.18, 0.80, 0.44, 0.18)
-			if GameState.graphics_quality == "ULTRA_HD":
-				var schengen_glow_color = Color(0.18, 0.80, 0.44, 0.05)
-				_draw_dashed_polyline(border_projected_points, schengen_glow_color, 4.5 / zoom, 5.0 / zoom, 4.0 / zoom)
+			# Glowing blue region border for Schengen
+			var schengen_border_color = Color(0.0, 0.60, 1.0, 0.4)
+			var schengen_glow_color = Color(0.0, 0.60, 1.0, 0.1)
+			_draw_dashed_polyline(border_projected_points, schengen_glow_color, 4.5 / zoom, 5.0 / zoom, 4.0 / zoom)
 			_draw_dashed_polyline(border_projected_points, schengen_border_color, 1.5 / zoom, 5.0 / zoom, 4.0 / zoom)
 		else:
-			# Highly visible glowing dashed orange-amber external border
-			var external_border_color = Color(0.925, 0.607, 0.141, 0.65)
-			var glow_color = Color(0.925, 0.607, 0.141, 0.12)
-			if GameState.graphics_quality == "ULTRA_HD":
-				var extra_glow = Color(0.925, 0.607, 0.141, 0.05)
-				_draw_dashed_polyline(border_projected_points, extra_glow, 8.0 / zoom, 5.0 / zoom, 4.0 / zoom)
+			# Darker blue region border for External zone
+			var external_border_color = Color(0.1, 0.3, 0.9, 0.75)
+			var glow_color = Color(0.1, 0.3, 0.9, 0.18)
 			_draw_dashed_polyline(border_projected_points, glow_color, 4.5 / zoom, 5.0 / zoom, 4.0 / zoom)
 			_draw_dashed_polyline(border_projected_points, external_border_color, 2.5 / zoom, 5.0 / zoom, 4.0 / zoom)
 	
@@ -789,17 +828,18 @@ func _draw_vector_map() -> void:
 					_draw_dashed_line(flow_from, flow_to, flow_color, 2.0 / zoom, 8.0 / zoom, 6.0 / zoom, time_passed * 42.0)
 					
 				else:
-					var line_color = Color(0.12, 0.16, 0.20, 0.3)
+					var line_color = Color(0.0, 0.85, 1.0, 0.35) # cyan legal routes
 					var route_width = 1.5 / zoom
+					
+					var conn_type = conn.get("type", "legal")
+					if conn_type == "underworld":
+						line_color = Color(0.92, 0.45, 0.15, 0.35) # underworld orange
+						
 					if is_selected_conn:
-						line_color = Color(0.65, 0.45, 1.0, 0.45)
+						line_color.a = 0.7
 						route_width = 2.0 / zoom
-					else:
-						if conn.get("is_border_crossing", false):
-							line_color = Color(0.5, 0.35, 0.15, 0.2)
-						else:
-							line_color = Color(0.15, 0.25, 0.2, 0.2)
-					map_drawer.draw_line(start_pos, end_pos, line_color, route_width, true)
+						
+					_draw_aberrated_line(start_pos, end_pos, line_color, route_width)
  
 	# 5. DRAW ACTIVE TELEMETRY PULSES
 	for pulse_city_id in cities_data:
@@ -881,11 +921,16 @@ func _draw_vector_map() -> void:
 		var pos = rendered_nodes[node_city_id]
 		
 		var radius = 8.0
-		var outer_color = Color(0.180, 0.803, 0.443, 1.0)
+		var outer_color = Color(0.18, 0.8, 0.44, 1.0) # default friendly green
 		var inner_color = Color(0.04, 0.04, 0.06, 1.0)
 		
-		if not node_city.is_schengen:
-			outer_color = Color(0.925, 0.607, 0.141, 1.0)
+		var node_type = node_city.get("type", "friendly")
+		if node_type == "friendly":
+			outer_color = Color(0.0, 1.0, 0.3) # vibrant green for terminal nodes
+		elif node_type == "high_risk":
+			outer_color = Color(0.92, 0.45, 0.15) # high risk orange
+		elif node_type == "underworld":
+			outer_color = Color(0.0, 1.0, 0.3) # also terminal node green
 			
 		# Subtle ambient glow pulsers for all nodes
 		var pulse = sin(time_passed * 4.0 + hash(node_city_id)) * 1.5
@@ -973,6 +1018,10 @@ func _draw_vector_map() -> void:
 			
 			# Draw background box scaled to text size
 			map_drawer.draw_rect(Rect2(text_pos + Vector2(-2.0 / zoom, -draw_city_font_size * 1.25), text_sz + Vector2(4.0 / zoom, 2.0 / zoom)), label_bg_col, true)
+			
+			if node_city_id == "siauliai":
+				map_drawer.draw_string(node_label_font, text_pos - Vector2(16.0 / zoom, 0), "⌂", HORIZONTAL_ALIGNMENT_LEFT, -1, draw_city_font_size + 4, Color(0.18, 0.8, 0.44))
+				
 			map_drawer.draw_string(node_label_font, text_pos, label_text, HORIZONTAL_ALIGNMENT_LEFT, -1, draw_city_font_size, label_col)
  
 
@@ -1075,14 +1124,103 @@ func _select_city(city_id: String) -> void:
 # UI THEME AND GAME STATE SYNC
 # ==========================================
 func _apply_hud_theme() -> void:
+	# ConsoleBox flat style with glowing red border & shadow
 	var style_console = StyleBoxFlat.new()
-	style_console.bg_color = Color(0.047, 0.051, 0.059, 1.0)
-	style_console.border_color = Color(0.180, 0.803, 0.443, 0.3)
-	style_console.border_width_left = 3
-	style_console.content_margin_left = 12
-	style_console.content_margin_top = 12
-	style_console.content_margin_bottom = 12
-	console_box.add_theme_stylebox_override("normal", style_console)
+	style_console.bg_color = Color(0.05, 0.03, 0.03, 0.85)
+	style_console.border_color = Color(0.9, 0.2, 0.2, 0.5)
+	style_console.set_border_width_all(2)
+	style_console.shadow_color = Color(0.9, 0.2, 0.2, 0.25)
+	style_console.shadow_size = 6
+	console_box.add_theme_stylebox_override("panel", style_console)
+	
+	# Style RouteInfoPanel
+	var style_route_info = StyleBoxFlat.new()
+	style_route_info.bg_color = Color(0.05, 0.06, 0.07, 0.85)
+	style_route_info.border_color = Color(0.2, 0.5, 0.7, 0.4)
+	style_route_info.set_border_width_all(2)
+	style_route_info.set_corner_radius_all(4)
+	style_route_info.shadow_color = Color(0.2, 0.5, 0.7, 0.15)
+	style_route_info.shadow_size = 6
+	%RouteInfoPanel.add_theme_stylebox_override("panel", style_route_info)
+	
+	# Set custom button color overrides as requested
+	laundry_btn.add_theme_color_override("font_color", Color(0.0, 0.85, 1.0, 1.0))
+	underworld_btn.add_theme_color_override("font_color", Color(0.65, 0.35, 1.0, 1.0))
+	support_btn.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 1.0))
+	analytics_btn.add_theme_color_override("font_color", Color(0.2, 0.6, 1.0, 1.0))
+	
+	# Active Dispatch Center button style with glowing orange border, warm bg, and shadow
+	var style_dispatch = StyleBoxFlat.new()
+	style_dispatch.bg_color = Color(0.18, 0.1, 0.03, 0.9)
+	style_dispatch.border_color = Color(0.925, 0.607, 0.141, 1.0)
+	style_dispatch.set_border_width_all(2)
+	style_dispatch.set_corner_radius_all(4)
+	style_dispatch.shadow_color = Color(0.925, 0.607, 0.141, 0.3)
+	style_dispatch.shadow_size = 6
+	dispatch_btn.add_theme_stylebox_override("normal", style_dispatch)
+	dispatch_btn.add_theme_stylebox_override("hover", style_dispatch)
+	dispatch_btn.add_theme_stylebox_override("pressed", style_dispatch)
+	dispatch_btn.add_theme_color_override("font_color", Color(1.0, 0.7, 0.2))
+	
+	# Style GarageDropdown
+	var style_g_drop = StyleBoxFlat.new()
+	style_g_drop.bg_color = Color(0.04, 0.08, 0.05, 0.95)
+	style_g_drop.border_color = Color(0.18, 0.8, 0.44, 0.8)
+	style_g_drop.set_border_width_all(2)
+	style_g_drop.set_corner_radius_all(4)
+	style_g_drop.shadow_color = Color(0.18, 0.8, 0.44, 0.2)
+	style_g_drop.shadow_size = 4
+	garage_dropdown.add_theme_stylebox_override("panel", style_g_drop)
+	
+	# Style SupportDropdown
+	var style_s_drop = StyleBoxFlat.new()
+	style_s_drop.bg_color = Color(0.04, 0.07, 0.09, 0.95)
+	style_s_drop.border_color = Color(0.3, 0.85, 1.0, 0.8)
+	style_s_drop.set_border_width_all(2)
+	style_s_drop.set_corner_radius_all(4)
+	style_s_drop.shadow_color = Color(0.3, 0.85, 1.0, 0.2)
+	style_s_drop.shadow_size = 4
+	support_dropdown.add_theme_stylebox_override("panel", style_s_drop)
+	
+	# Style Dropdown Inner Buttons
+	var btn_names = [
+		"%GarageManagerBtn", "%PartsShopBtn",
+		"%EmergencyRecoveryBtn", "%FactoryShowroomBtn", "%RDTechTreeBtn"
+	]
+	for btn_name in btn_names:
+		var btn = get_node(btn_name) as Button
+		if btn:
+			var btn_style = StyleBoxFlat.new()
+			btn_style.bg_color = Color(0.0, 0.0, 0.0, 0.2)
+			btn_style.set_border_width_all(1)
+			btn_style.set_corner_radius_all(2)
+			if "Garage" in btn_name or "Parts" in btn_name:
+				btn_style.border_color = Color(0.18, 0.8, 0.44, 0.4)
+			else:
+				btn_style.border_color = Color(0.3, 0.85, 1.0, 0.4)
+			btn.add_theme_stylebox_override("normal", btn_style)
+			btn.add_theme_stylebox_override("hover", btn_style)
+			btn.add_theme_stylebox_override("pressed", btn_style)
+			
+	# Style SurchargeWarning banner
+	var style_warning = StyleBoxFlat.new()
+	style_warning.bg_color = Color(0.12, 0.06, 0.02, 0.9)
+	style_warning.border_color = Color(1.0, 0.6, 0.1, 0.8)
+	style_warning.set_border_width_all(2)
+	style_warning.set_corner_radius_all(4)
+	style_warning.shadow_color = Color(1.0, 0.6, 0.1, 0.2)
+	style_warning.shadow_size = 4
+	surcharge_warning.add_theme_stylebox_override("panel", style_warning)
+	
+	# Style TelemetryPanel
+	var style_telemetry = StyleBoxFlat.new()
+	style_telemetry.bg_color = Color(0.05, 0.07, 0.05, 0.85)
+	style_telemetry.border_color = Color(0.18, 0.8, 0.44, 0.4)
+	style_telemetry.set_border_width_all(2)
+	style_telemetry.set_corner_radius_all(4)
+	style_telemetry.shadow_color = Color(0.18, 0.8, 0.44, 0.15)
+	style_telemetry.shadow_size = 6
+	telemetry_panel.add_theme_stylebox_override("panel", style_telemetry)
 	
 	var style_btn = StyleBoxFlat.new()
 	style_btn.bg_color = Color(0, 0, 0, 0)
@@ -1138,3 +1276,45 @@ func _log_console(text: String, color: Color) -> void:
 func _on_back_pressed() -> void:
 	NetworkManager.disconnect_from_server()
 	SceneTransition.change_scene_to_file("res://scenes/main_menu/MainMenu.tscn")
+
+func _draw_aberrated_line(from: Vector2, to: Vector2, base_color: Color, width: float) -> void:
+	var offset_val = 1.2 / camera.zoom.x
+	map_drawer.draw_line(from - Vector2(offset_val, 0), to - Vector2(offset_val, 0), Color(1.0, 0.1, 0.1, base_color.a * 0.45), width, true)
+	map_drawer.draw_line(from + Vector2(offset_val, 0), to + Vector2(offset_val, 0), Color(0.1, 0.3, 1.0, base_color.a * 0.45), width, true)
+	map_drawer.draw_line(from, to, base_color, width, true)
+
+func _draw_tachograph() -> void:
+	var draw_control = tachograph_draw
+	if not draw_control:
+		return
+		
+	var center = draw_control.size / 2.0
+	var radius = min(draw_control.size.x, draw_control.size.y) * 0.45
+	
+	# Draw background tachometer sweep arc
+	draw_control.draw_arc(center, radius, -PI * 0.8, PI * 0.8, 32, Color(0.18, 0.8, 0.44, 0.15), 4.0)
+	
+	# Dynamic animation of sweep dial progress over time (flutters/fluctuates)
+	var dynamic_pct = 0.65 + sin(time_passed * 1.8) * 0.15 + (randf() - 0.5) * 0.02
+	dynamic_pct = clamp(dynamic_pct, 0.0, 1.0)
+	var sweep_angle = -PI * 0.8 + (PI * 1.6) * dynamic_pct
+	
+	# Draw active progress arc
+	draw_control.draw_arc(center, radius, -PI * 0.8, sweep_angle, 32, Color(0.18, 0.8, 0.44, 0.75), 4.0)
+	
+	# Draw radial tick marks around the dial
+	for i in range(9):
+		var angle = -PI * 0.8 + (PI * 1.6) * (i / 8.0)
+		var dir = Vector2(cos(angle), sin(angle))
+		var outer_pt = center + dir * radius
+		var inner_pt = center + dir * (radius - 5.0)
+		var tick_col = Color(0.18, 0.8, 0.44, 0.5)
+		if i == 7 or i == 8: # warn limits in red/amber
+			tick_col = Color(0.9, 0.2, 0.2, 0.6)
+		draw_control.draw_line(inner_pt, outer_pt, tick_col, 2.0)
+		
+	# Draw rotating/vibrating central needle pointing to current telemetry
+	var needle_dir = Vector2(cos(sweep_angle), sin(sweep_angle))
+	var needle_pt = center + needle_dir * (radius + 2.0)
+	draw_control.draw_line(center, needle_pt, Color(0.925, 0.607, 0.141, 0.95), 2.0)
+	draw_control.draw_circle(center, 3.5, Color(0.925, 0.607, 0.141, 1.0))

@@ -1,23 +1,56 @@
 extends Node
 
 # Player Statistics & Currencies
-var player_id: String = ""
-var username: String = ""
-var legal_balance: float = 0.0
-var black_market_balance: float = 0.0
-var reputation_score: int = 0
-var _police_heat: int = 0
+var player_id: String = "debug_op"
+var username: String = "DISPATCH_OPERATOR"
+var legal_balance: float = 124897.95
+var black_market_balance: float = 24500.00
+var reputation_score: int = 150 # 150 / 20.0 = 7.5 stars rating
+var _police_heat: int = 25
 var police_heat: int:
 	get: return _police_heat
 	set(v): _police_heat = clamp(v, 0, 100)
 
 # Company Profile
-var company_id: String = ""
-var company_name: String = ""
+var company_id: String = "debug_company"
+var company_name: String = "Underworld Logistics Ltd"
 
 # Fleet & Asset Telemetry
 var garages: Array = []
-var fleet: Array = []              # All player trucks (synced from garage fetch)
+var fleet: Array = [
+	{
+		"id": "truck_moose",
+		"model": "Moose FH16 Globetrotter",
+		"vin": "MSFH16G924873105",
+		"engineHealth": 92,
+		"tireWear": 84,
+		"mileage": 124850.0,
+		"fuelTankMod": "STOCK",
+		"scannerShielding": 2,
+		"manufacturer": "MOOSE",
+		"cabType": "GLOBETROTTER",
+		"payloadType": "DRY",
+		"tuningTier": "STAGE_1",
+		"activeRoute": null,
+		"isImpounded": false
+	},
+	{
+		"id": "truck_scarfia",
+		"model": "Scarfia R500",
+		"vin": "SCAR500R38491027",
+		"engineHealth": 88,
+		"tireWear": 91,
+		"mileage": 85200.0,
+		"fuelTankMod": "FALSE_BOTTOM",
+		"scannerShielding": 3,
+		"manufacturer": "SCARFIA",
+		"cabType": "HIGHLINE",
+		"payloadType": "REEFER",
+		"tuningTier": "STAGE_2",
+		"activeRoute": null,
+		"isImpounded": false
+	}
+]
 var active_routes: Dictionary = {} # truckId -> route details
 var drivers: Array = []
 
@@ -64,7 +97,7 @@ func set_graphics_quality(quality: String) -> void:
 		graphics_settings_changed.emit(graphics_quality)
 
 # Simulated Game Clock & Calendar Scale (5 real seconds = 1 simulated hour)
-var simulated_time_unix: float = 1780272000.0 # Starts June 1, 2026 00:00:00
+var simulated_time_unix: float = 1780287120.0 # Starts June 1, 2026 04:12:00
 const TIME_SPEED_MULTIPLIER: float = 720.0 # 1 real second = 720 simulated seconds (12 mins)
 
 func _process(delta: float) -> void:

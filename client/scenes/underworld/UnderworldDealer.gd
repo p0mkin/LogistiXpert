@@ -71,56 +71,59 @@ func _build_ui() -> void:
 	scene_root.add_child(bg)
 
 	# TOP HEADER BAR
-	var header = _make_panel(Vector2(0, 0), Vector2(1280, 64), Color(0.08, 0.04, 0.12, 0.95))
+	var header = _make_panel(Vector2(0, 0), Vector2(1280, 80), Color(0.08, 0.04, 0.12, 0.95))
 	scene_root.add_child(header)
 
 	var logo_label = Label.new()
 	logo_label.text = "▼ UNDERWORLD MARKET — CLASSIFIED CONTRACTS ▼"
-	logo_label.add_theme_font_size_override("font_size", 18)
+	logo_label.add_theme_font_size_override("font_size", 20)
 	logo_label.add_theme_color_override("font_color", Color(0.7, 0.0, 1.0, 1.0))
-	logo_label.set_anchors_and_offsets_preset(Control.PRESET_CENTER_LEFT)
-	logo_label.position = Vector2(20, 20)
+	logo_label.position = Vector2(24, 26)
 	header.add_child(logo_label)
 
 	# Heat indicator in header
 	var heat_label = Label.new()
 	heat_label.text = "☢ HEAT: %d" % GameState.police_heat
-	heat_label.add_theme_font_size_override("font_size", 14)
+	heat_label.add_theme_font_size_override("font_size", 18)
 	heat_label.add_theme_color_override("font_color", _heat_color(GameState.police_heat))
-	heat_label.position = Vector2(980, 22)
+	heat_label.position = Vector2(850, 26)
+	heat_label.size = Vector2(150, 24)
+	heat_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	heat_label.name = "HeatLabel"
 	header.add_child(heat_label)
 
 	# Simulated clock label in header
 	clock_lbl = Label.new()
 	clock_lbl.name = "ClockLabel"
-	clock_lbl.add_theme_font_size_override("font_size", 14)
+	clock_lbl.add_theme_font_size_override("font_size", 18)
 	clock_lbl.add_theme_color_override("font_color", Color(1, 1, 1)) # Pure White
-	clock_lbl.position = Vector2(700, 22)
+	clock_lbl.position = Vector2(620, 26)
+	clock_lbl.size = Vector2(200, 24)
+	clock_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	clock_lbl.text = GameState.get_simulated_time_string()
 	header.add_child(clock_lbl)
 
 
-	var back_btn = _make_button("◀  HUB", Vector2(1170, 12), Vector2(90, 40))
+	var back_btn = _make_button("◀  HUB", Vector2(1140, 19), Vector2(110, 42))
 	_style_btn(back_btn, Color(1.0, 0.25, 0.25)) # Crimson Warnings for exit
 	back_btn.pressed.connect(_go_back)
 	header.add_child(back_btn)
 
-	# MAIN LAYOUT — Three column panels
-	# Left: Dealer persona card
-	var dealer_panel = _make_panel(Vector2(16, 80), Vector2(300, 580), Color(0.07, 0.04, 0.1, 0.9))
+	# MAIN LAYOUT — Three column panels starting at y = 100 with a 20px gap from 80px header
+	# Left: Dealer persona card (Expanded width to 320 for text readability)
+	var dealer_panel = _make_panel(Vector2(16, 100), Vector2(320, 560), Color(0.07, 0.04, 0.1, 0.9))
 	scene_root.add_child(dealer_panel)
 	_build_dealer_card(dealer_panel)
 
-	# Center: Contract listings
-	var contracts_panel = _make_panel(Vector2(332, 80), Vector2(620, 580), Color(0.06, 0.06, 0.08, 0.9))
+	# Center: Contract listings (Optimized width 580)
+	var contracts_panel = _make_panel(Vector2(352, 100), Vector2(580, 560), Color(0.06, 0.06, 0.08, 0.9))
 	contracts_panel.name = "ContractsPanel"
 	scene_root.add_child(contracts_panel)
 	_build_contracts_header(contracts_panel)
 
 	var contracts_scroll = ScrollContainer.new()
 	contracts_scroll.position = Vector2(8, 90)
-	contracts_scroll.size = Vector2(604, 478)
+	contracts_scroll.size = Vector2(564, 460)
 	contracts_scroll.name = "ContractsScroll"
 	contracts_panel.add_child(contracts_scroll)
 
@@ -129,8 +132,8 @@ func _build_ui() -> void:
 	contracts_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	contracts_scroll.add_child(contracts_list)
 
-	# Right: Job detail / risk breakdown panel
-	var detail_panel = _make_panel(Vector2(968, 80), Vector2(300, 580), Color(0.07, 0.04, 0.1, 0.9))
+	# Right: Job detail / risk breakdown panel (Optimized width 316)
+	var detail_panel = _make_panel(Vector2(948, 100), Vector2(316, 560), Color(0.07, 0.04, 0.1, 0.9))
 	detail_panel.name = "DetailPanel"
 	scene_root.add_child(detail_panel)
 	_build_detail_placeholder(detail_panel)
@@ -155,7 +158,7 @@ func _build_ui() -> void:
 func _build_dealer_card(parent: Control) -> void:
 	# Avatar box with rounded corners and border
 	var avatar = PanelContainer.new()
-	avatar.position = Vector2(100, 20)
+	avatar.position = Vector2(110, 15)
 	avatar.size = Vector2(100, 100)
 	var savatar = StyleBoxFlat.new()
 	savatar.bg_color = active_dealer.avatar_color
@@ -170,71 +173,71 @@ func _build_dealer_card(parent: Control) -> void:
 	var skull = Label.new()
 	skull.text = "💀"
 	skull.add_theme_font_size_override("font_size", 48)
-	skull.position = Vector2(116, 28)
+	skull.position = Vector2(126, 23)
 	parent.add_child(skull)
 
 	# Name
 	var name_lbl = Label.new()
 	name_lbl.text = active_dealer.name
-	name_lbl.add_theme_font_size_override("font_size", 14)
+	name_lbl.add_theme_font_size_override("font_size", 18)
 	name_lbl.add_theme_color_override("font_color", Color(0.9, 0.7, 1.0, 1.0))
-	name_lbl.position = Vector2(10, 132)
-	name_lbl.size = Vector2(280, 40)
+	name_lbl.position = Vector2(15, 125)
+	name_lbl.size = Vector2(290, 40)
 	name_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	parent.add_child(name_lbl)
 
 	var city_lbl = Label.new()
 	city_lbl.text = "📍 " + active_dealer.city
-	city_lbl.add_theme_font_size_override("font_size", 12)
+	city_lbl.add_theme_font_size_override("font_size", 14)
 	city_lbl.add_theme_color_override("font_color", Color(0.5, 0.4, 0.6, 1.0))
-	city_lbl.position = Vector2(10, 170)
+	city_lbl.position = Vector2(15, 170)
 	parent.add_child(city_lbl)
 
 	var specialty_lbl = Label.new()
 	specialty_lbl.text = "Specialty: " + active_dealer.specialty.replace("CLASS_", "Class ")
-	specialty_lbl.add_theme_font_size_override("font_size", 12)
+	specialty_lbl.add_theme_font_size_override("font_size", 14)
 	specialty_lbl.add_theme_color_override("font_color", _class_color(active_dealer.specialty))
-	specialty_lbl.position = Vector2(10, 190)
+	specialty_lbl.position = Vector2(15, 195)
 	parent.add_child(specialty_lbl)
 
 	# Divider
 	var div = ColorRect.new()
 	div.color = Color(0.3, 0.0, 0.5, 0.5)
-	div.position = Vector2(10, 214)
-	div.size = Vector2(280, 1)
+	div.position = Vector2(15, 222)
+	div.size = Vector2(290, 1)
 	parent.add_child(div)
 
 	# Greeting text
 	var greeting = Label.new()
 	greeting.text = "\"" + active_dealer.greeting + "\""
-	greeting.add_theme_font_size_override("font_size", 11)
+	greeting.add_theme_font_size_override("font_size", 13)
 	greeting.add_theme_color_override("font_color", Color(0.65, 0.55, 0.7, 1.0))
-	greeting.position = Vector2(10, 224)
-	greeting.size = Vector2(280, 120)
+	greeting.position = Vector2(15, 234)
+	greeting.size = Vector2(290, 110)
 	greeting.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	parent.add_child(greeting)
 
 	# Risk warning
 	var warning = Label.new()
 	warning.text = "⚠ ALL TRANSACTIONS ARE FINAL\n⚠ DO NOT SPEAK TO POLICE\n⚠ DRIVER LOYALTY MATTERS"
-	warning.add_theme_font_size_override("font_size", 10)
+	warning.add_theme_font_size_override("font_size", 12)
 	warning.add_theme_color_override("font_color", Color(0.8, 0.3, 0.3, 0.8))
-	warning.position = Vector2(10, 440)
-	warning.size = Vector2(280, 80)
+	warning.position = Vector2(15, 435)
+	warning.size = Vector2(290, 90)
 	warning.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	parent.add_child(warning)
 
 	# Truck selector
 	var truck_label = Label.new()
 	truck_label.text = "🚛 SELECT TRUCK FOR CONTRACT:"
-	truck_label.add_theme_font_size_override("font_size", 11)
+	truck_label.add_theme_font_size_override("font_size", 13)
 	truck_label.add_theme_color_override("font_color", Color(0.7, 0.6, 0.8, 1.0))
-	truck_label.position = Vector2(10, 360)
+	truck_label.position = Vector2(15, 355)
 	parent.add_child(truck_label)
 
 	var truck_select = OptionButton.new()
-	truck_select.position = Vector2(10, 382)
-	truck_select.size = Vector2(280, 36)
+	truck_select.position = Vector2(15, 380)
+	truck_select.size = Vector2(290, 36)
 	truck_select.name = "TruckSelect"
 	_style_btn(truck_select, Color(0.65, 0.45, 1.0))
 	truck_select.item_selected.connect(_on_truck_selected)
@@ -246,33 +249,33 @@ func _build_dealer_card(parent: Control) -> void:
 func _build_contracts_header(parent: Control) -> void:
 	var header = Label.new()
 	header.text = "📋 AVAILABLE CONTRACTS"
-	header.add_theme_font_size_override("font_size", 16)
+	header.add_theme_font_size_override("font_size", 18)
 	header.add_theme_color_override("font_color", Color(0.8, 0.5, 1.0, 1.0))
 	header.position = Vector2(12, 10)
 	parent.add_child(header)
 
-	# Filter buttons
-	var filter_all = _make_button("ALL", Vector2(12, 46), Vector2(70, 28))
+	# Filter buttons (styled larger with y = 46 and 32px height)
+	var filter_all = _make_button("ALL", Vector2(12, 46), Vector2(70, 32))
 	_style_btn(filter_all, Color(0.65, 0.45, 1.0))
 	filter_all.pressed.connect(func(): _filter_jobs("ALL"))
 	parent.add_child(filter_all)
 
-	var filter_a = _make_button("CLASS A", Vector2(88, 46), Vector2(80, 28))
+	var filter_a = _make_button("CLASS A", Vector2(88, 46), Vector2(85, 32))
 	_style_btn(filter_a, Color(0.2, 0.9, 0.5))
 	filter_a.pressed.connect(func(): _filter_jobs("CLASS_A"))
 	parent.add_child(filter_a)
 
-	var filter_b = _make_button("CLASS B", Vector2(174, 46), Vector2(80, 28))
+	var filter_b = _make_button("CLASS B", Vector2(179, 46), Vector2(85, 32))
 	_style_btn(filter_b, Color(1.0, 0.6, 0.1))
 	filter_b.pressed.connect(func(): _filter_jobs("CLASS_B"))
 	parent.add_child(filter_b)
 
-	var filter_c = _make_button("CLASS C", Vector2(260, 46), Vector2(80, 28))
+	var filter_c = _make_button("CLASS C", Vector2(270, 46), Vector2(85, 32))
 	_style_btn(filter_c, Color(1.0, 0.15, 0.2))
 	filter_c.pressed.connect(func(): _filter_jobs("CLASS_C"))
 	parent.add_child(filter_c)
 
-	var refresh_btn = _make_button("↻ REFRESH", Vector2(500, 46), Vector2(112, 28))
+	var refresh_btn = _make_button("↻ REFRESH", Vector2(456, 46), Vector2(112, 32))
 	_style_btn(refresh_btn, Color(0.95, 0.75, 0.15))
 	refresh_btn.pressed.connect(_fetch_garage_data)
 	parent.add_child(refresh_btn)
@@ -415,20 +418,24 @@ func _populate_truck_selector() -> void:
 	if fleet == null or fleet.size() == 0:
 		ts.add_item("No trucks — visit Garage first")
 		return
-	# Only show standby, non-impounded trucks with assigned drivers
+	# Show standby, non-impounded trucks (even if they have no driver assigned)
 	var dispatch_ready = fleet.filter(func(t): 
 		return not t.get("isImpounded", false) \
-			and t.get("activeRoute", null) == null \
-			and t.get("driver", null) != null
+			and t.get("activeRoute", null) == null
 	)
 	if dispatch_ready.is_empty():
 		ts.add_item("No dispatch-ready trucks")
 		return
 	for truck in dispatch_ready:
-		ts.add_item("%s  [Eng:%d%% Tire:%d%%]" % [
+		var d_name = "No Driver"
+		var driver = truck.get("driver", null)
+		if driver and driver is Dictionary:
+			d_name = driver.get("name", "Unknown Driver")
+		ts.add_item("%s  [Eng:%d%% Tire:%d%%] - %s" % [
 			truck.get("model", "Unknown"),
 			int(truck.get("engineHealth", 0)),
-			int(truck.get("tireWear", 0))
+			int(truck.get("tireWear", 0)),
+			d_name
 		])
 	player_trucks = dispatch_ready
 	if not player_trucks.is_empty():
@@ -463,7 +470,7 @@ func _render_job_list(jobs: Array) -> void:
 
 func _make_job_card(job: Dictionary) -> Control:
 	var card = PanelContainer.new()
-	card.custom_minimum_size = Vector2(590, 90)
+	card.custom_minimum_size = Vector2(550, 90)
 	_style_panel(card, _class_color(job.cargoClass))
 
 	var hbox = HBoxContainer.new()
@@ -473,7 +480,7 @@ func _make_job_card(job: Dictionary) -> Control:
 	# Class badge
 	var badge = Label.new()
 	badge.text = job.cargoClass.replace("CLASS_", "C")
-	badge.add_theme_font_size_override("font_size", 22)
+	badge.add_theme_font_size_override("font_size", 24)
 	badge.add_theme_color_override("font_color", _class_color(job.cargoClass))
 	badge.custom_minimum_size = Vector2(48, 0)
 	badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -485,13 +492,13 @@ func _make_job_card(job: Dictionary) -> Control:
 
 	var route_lbl = Label.new()
 	route_lbl.text = "📍 %s  ►  %s   [%d km]" % [job.origin, job.destination, job.distanceKm]
-	route_lbl.add_theme_font_size_override("font_size", 12)
+	route_lbl.add_theme_font_size_override("font_size", 14)
 	route_lbl.add_theme_color_override("font_color", Color(0.8, 0.8, 0.9, 1.0))
 	vbox.add_child(route_lbl)
 
 	var desc_lbl = Label.new()
 	desc_lbl.text = job.description
-	desc_lbl.add_theme_font_size_override("font_size", 11)
+	desc_lbl.add_theme_font_size_override("font_size", 13)
 	desc_lbl.add_theme_color_override("font_color", Color(0.5, 0.45, 0.6, 1.0))
 	vbox.add_child(desc_lbl)
 
@@ -499,14 +506,15 @@ func _make_job_card(job: Dictionary) -> Control:
 	payout_lbl.text = "💜 $%s BM   ⚠ Risk ×%.1f" % [
 		_format_money(job.payoutBlack), job.riskMultiplier
 	]
-	payout_lbl.add_theme_font_size_override("font_size", 12)
+	payout_lbl.add_theme_font_size_override("font_size", 14)
 	payout_lbl.add_theme_color_override("font_color", Color(0.8, 0.5, 1.0, 1.0))
 	vbox.add_child(payout_lbl)
 
 	# Select button
 	var sel_btn = Button.new()
 	sel_btn.text = "VIEW"
-	sel_btn.custom_minimum_size = Vector2(64, 0)
+	sel_btn.custom_minimum_size = Vector2(80, 0)
+	sel_btn.add_theme_font_size_override("font_size", 13)
 	_style_btn(sel_btn, _class_color(job.cargoClass))
 	sel_btn.pressed.connect(func(): _select_job(job))
 	hbox.add_child(sel_btn)
@@ -530,14 +538,14 @@ func _render_job_detail(job: Dictionary) -> void:
 
 	var title = Label.new()
 	title.text = "CARGO ANALYSIS"
-	title.add_theme_font_size_override("font_size", 14)
+	title.add_theme_font_size_override("font_size", 16)
 	title.add_theme_color_override("font_color", Color(0.8, 0.5, 1.0, 1.0))
 	title.position = Vector2(12, 10)
 	panel.add_child(title)
 
 	var class_lbl = Label.new()
 	class_lbl.text = job.cargoClass.replace("_", " ") + "  —  Risk ×" + str(job.riskMultiplier)
-	class_lbl.add_theme_font_size_override("font_size", 12)
+	class_lbl.add_theme_font_size_override("font_size", 13)
 	class_lbl.add_theme_color_override("font_color", _class_color(job.cargoClass))
 	class_lbl.position = Vector2(12, 34)
 	panel.add_child(class_lbl)
@@ -548,7 +556,7 @@ func _render_job_detail(job: Dictionary) -> void:
 	div.size = Vector2(276, 1)
 	panel.add_child(div)
 
-	# Route info
+	# Route info (Key-Value single-line grid)
 	var info_lines = [
 		["ORIGIN", job.origin],
 		["DESTINATION", job.destination],
@@ -558,34 +566,39 @@ func _render_job_detail(job: Dictionary) -> void:
 		["RISK MULTIPLIER", "×%.1f" % job.riskMultiplier],
 	]
 
-	var y_offset = 70
+	var y_offset = 64
 	for pair in info_lines:
 		var key_lbl = Label.new()
-		key_lbl.text = pair[0] + ":"
-		key_lbl.add_theme_font_size_override("font_size", 10)
+		key_lbl.text = pair[0]
+		key_lbl.add_theme_font_size_override("font_size", 12)
 		key_lbl.add_theme_color_override("font_color", Color(0.5, 0.4, 0.6, 1.0))
 		key_lbl.position = Vector2(12, y_offset)
 		panel.add_child(key_lbl)
 
 		var val_lbl = Label.new()
 		val_lbl.text = pair[1]
-		val_lbl.add_theme_font_size_override("font_size", 11)
+		val_lbl.add_theme_font_size_override("font_size", 13)
 		val_lbl.add_theme_color_override("font_color", Color(0.85, 0.8, 0.9, 1.0))
-		val_lbl.position = Vector2(12, y_offset + 14)
-		val_lbl.size = Vector2(276, 36)
+		val_lbl.position = Vector2(120, y_offset)
+		val_lbl.size = Vector2(168, 40 if pair[0] == "CARGO" else 20)
+		val_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		val_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		panel.add_child(val_lbl)
-		y_offset += 52
+		
+		if pair[0] == "CARGO":
+			y_offset += 34
+		else:
+			y_offset += 24
 
 	# Risk bar
 	var risk_header = Label.new()
 	risk_header.text = "ESTIMATED BORDER RISK"
-	risk_header.add_theme_font_size_override("font_size", 11)
+	risk_header.add_theme_font_size_override("font_size", 12)
 	risk_header.add_theme_color_override("font_color", Color(1.0, 0.5, 0.2, 1.0))
 	risk_header.position = Vector2(12, y_offset)
 	panel.add_child(risk_header)
 
-	y_offset += 18
+	y_offset += 20
 	var risk_pct = clamp(job.riskMultiplier / 5.0, 0.0, 1.0)
 	
 	# Risk bar background
@@ -596,7 +609,6 @@ func _render_job_detail(job: Dictionary) -> void:
 	sbg.bg_color = Color(0.04, 0.04, 0.06, 0.8)
 	sbg.border_color = Color(1.0, 0.25, 0.25, 0.2)
 	sbg.set_border_width_all(1)
-
 	sbg.set_corner_radius_all(3)
 	risk_bg.add_theme_stylebox_override("panel", sbg)
 	panel.add_child(risk_bg)
@@ -616,7 +628,7 @@ func _render_job_detail(job: Dictionary) -> void:
 	risk_fill.add_theme_stylebox_override("panel", sfill)
 	panel.add_child(risk_fill)
 
-	y_offset += 24
+	y_offset += 26
 
 	# Dispatch vehicle details row
 	var selected_truck: Dictionary = {}
@@ -627,12 +639,12 @@ func _render_job_detail(job: Dictionary) -> void:
 
 	var dispatch_header = Label.new()
 	dispatch_header.text = "DISPATCH VEHICLE"
-	dispatch_header.add_theme_font_size_override("font_size", 11)
+	dispatch_header.add_theme_font_size_override("font_size", 12)
 	dispatch_header.add_theme_color_override("font_color", Color(0.65, 0.45, 1.0, 1.0))
 	dispatch_header.position = Vector2(12, y_offset)
 	panel.add_child(dispatch_header)
 
-	y_offset += 16
+	y_offset += 18
 
 	var truck_lbl = Label.new()
 	if not selected_truck.is_empty():
@@ -646,12 +658,12 @@ func _render_job_detail(job: Dictionary) -> void:
 		truck_lbl.text = "🚚 None Selected (Select in center panel)"
 		truck_lbl.add_theme_color_override("font_color", Color(1.0, 0.25, 0.25, 1.0))
 	
-	truck_lbl.add_theme_font_size_override("font_size", 11)
+	truck_lbl.add_theme_font_size_override("font_size", 12)
 	truck_lbl.position = Vector2(12, y_offset)
-	truck_lbl.size = Vector2(276, 32)
+	truck_lbl.size = Vector2(276, 36)
 	panel.add_child(truck_lbl)
 
-	y_offset += 38
+	y_offset += 42
 
 	# ACCEPT BUTTON
 	var accept_btn = Button.new()
@@ -663,7 +675,6 @@ func _render_job_detail(job: Dictionary) -> void:
 	accept_btn.pressed.connect(_accept_job)
 	panel.add_child(accept_btn)
 
-
 	y_offset += 52
 
 	# DECLINE BUTTON
@@ -671,7 +682,7 @@ func _render_job_detail(job: Dictionary) -> void:
 	decline_btn.text = "✕  DECLINE"
 	decline_btn.position = Vector2(12, y_offset)
 	decline_btn.size = Vector2(276, 32)
-	decline_btn.add_theme_font_size_override("font_size", 12)
+	decline_btn.add_theme_font_size_override("font_size", 13)
 	_style_btn(decline_btn, Color(1.0, 0.25, 0.25))
 	decline_btn.pressed.connect(func(): selected_job = {})
 	panel.add_child(decline_btn)
@@ -778,7 +789,7 @@ func _make_button(label_text: String, pos: Vector2, sz: Vector2) -> Button:
 	btn.text = label_text
 	btn.position = pos
 	btn.size = sz
-	btn.add_theme_font_size_override("font_size", 11)
+	btn.add_theme_font_size_override("font_size", 13)
 	_style_btn(btn, Color(0.65, 0.45, 1.0))
 	return btn
 

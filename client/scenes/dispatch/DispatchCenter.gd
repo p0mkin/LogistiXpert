@@ -22,6 +22,10 @@ extends Control
 @onready var tab_legal_btn: Button = %TabLegalBtn
 @onready var tab_contra_btn: Button = %TabContraBtn
 
+var cities_data: Dictionary = {}
+var selected_contract_is_cross_region: bool = false
+var local_simulating_trucks: Dictionary = {}
+
 var api_base: String:
 	get: return NetworkManager.HTTP_URL
 var available_trucks: Array = []
@@ -39,6 +43,7 @@ var autopilot_policy_box: OptionButton = null
 var clock_lbl: Label = null
 
 func _ready() -> void:
+	_load_cities_data()
 	_apply_theme()
 	player_lbl.text = GameState.username.to_upper()
 	_refresh_header()
@@ -93,29 +98,78 @@ func _process(delta: float) -> void:
 	tacho_anim_time += delta
 	if clock_lbl and is_instance_valid(clock_lbl):
 		clock_lbl.text = GameState.get_simulated_time_string()
+		
+	# Process local mock simulation progress
+	var simulation_keys = local_simulating_trucks.keys()
+	for t_id in simulation_keys:
+		local_simulating_trucks[t_id] += delta * 12.0 # 12% progress per second (speedy debug autopilot)
+		var pct = clamp(local_simulating_trucks[t_id], 0.0, 100.0)
+		
+		var found_route = false
+		for route in active_routes:
+			if route.get("truckId") == t_id:
+				route["progressPct"] = pct
+				found_route = true
+				break
+		
+		if found_route:
+			_render_active_routes()
+			live_progress = pct / 100.0
+			
+		if pct >= 100.0:
+			local_simulating_trucks.erase(t_id)
+			var comp_route = {}
+			for r in active_routes:
+				if r.get("truckId") == t_id:
+					comp_route = r
+					break
+			if not comp_route.is_empty():
+				_on_route_completed(comp_route)
+				
+	# Update live telemetry panel status
+	if has_node("%TelemetryStatus"):
+		if live_progress > 0.0:
+			var active_route_info = ""
+			for r in active_routes:
+				if float(r.get("progressPct", 0.0)) > 0.0:
+					active_route_info = "%s ➔ %s (%d%%)" % [r.get("originCity", "?"), r.get("destinationCity", "?"), int(r.get("progressPct", 0.0))]
+					break
+			%TelemetryStatus.text = "ACTIVE ROUTE: " + active_route_info + "\nTACHOGRAPH SWEEPING...\nGrid connection: SECURE FEED"
+			%TelemetryStatus.add_theme_color_override("font_color", Color(0.2, 0.85, 1.0))
+		else:
+			%TelemetryStatus.text = "SYSTEM STANDBY // READY FOR DISPATCH\nAwaiting next logistics command..."
+			%TelemetryStatus.add_theme_color_override("font_color", Color(0.709, 0.768, 0.843, 0.5))
+			
 	queue_redraw()  # For tachograph arc animation
 
 func _draw() -> void:
-	# Animated tachograph sweep arc on the bottom-right corner
-	var center = Vector2(get_viewport_rect().size.x - 80, get_viewport_rect().size.y - 80)
-	var radius = 55.0
+	if not has_node("%LiveTelemetryPanel"):
+		return
+	var panel = %LiveTelemetryPanel
+	if not panel.is_visible_in_tree():
+		return
+	var panel_pos = panel.global_position
+	var panel_size = panel.size
+	
+	var center = panel_pos + Vector2(panel_size.x - 60, panel_size.y / 2.0)
+	var radius = 38.0
 	
 	# Outer ring
-	draw_arc(center, radius, deg_to_rad(140), deg_to_rad(400), 48, Color(0.18, 0.803, 0.443, 0.1), 2.0)
+	draw_arc(center, radius, deg_to_rad(140), deg_to_rad(400), 48, Color(0.2, 0.85, 1.0, 0.1), 2.0)
 	
 	# Animated sweep needle based on live_progress
 	var sweep_angle = lerp(140.0, 400.0, live_progress)
-	draw_arc(center, radius, deg_to_rad(140), deg_to_rad(sweep_angle), 32, Color(0.18, 0.803, 0.443, 0.6), 3.0)
+	draw_arc(center, radius, deg_to_rad(140), deg_to_rad(sweep_angle), 32, Color(0.2, 0.85, 1.0, 0.6), 3.0)
 	
 	# Center dot
-	draw_circle(center, 5, Color(0.18, 0.803, 0.443, 0.8))
+	draw_circle(center, 4, Color(0.2, 0.85, 1.0, 0.8))
 	
 	# Tick marks around dial (0-10h markers)
 	for i in range(11):
 		var angle = deg_to_rad(lerp(140.0, 400.0, float(i) / 10.0))
-		var inner = center + Vector2(cos(angle), sin(angle)) * (radius - 8)
+		var inner = center + Vector2(cos(angle), sin(angle)) * (radius - 6)
 		var outer = center + Vector2(cos(angle), sin(angle)) * radius
-		var tick_color = Color(0.18, 0.803, 0.443, 0.4) if i < 10 else Color(0.901, 0.298, 0.235, 0.8)
+		var tick_color = Color(0.2, 0.85, 1.0, 0.4) if i < 10 else Color(0.9, 0.2, 0.2, 0.8)
 		draw_line(inner, outer, tick_color, 1.5)
 
 # ==========================================
@@ -254,6 +308,12 @@ func _on_contraband_jobs_response(result: int, code: int, headers: PackedStringA
 
 func _on_trucks_response(result: int, code: int, headers: PackedStringArray, body: PackedByteArray, http: HTTPRequest) -> void:
 	http.queue_free()
+	var busy_truck_ids = []
+	for r in active_routes:
+		var t_id = r.get("truckId", "")
+		if not t_id.is_empty():
+			busy_truck_ids.append(t_id)
+
 	if code == 200:
 		var data = JSON.parse_string(body.get_string_from_utf8())
 		available_trucks = []
@@ -262,8 +322,10 @@ func _on_trucks_response(result: int, code: int, headers: PackedStringArray, bod
 				if garage.has("trucks"):
 					for truck in garage.trucks:
 						if not truck.get("isImpounded", false) and truck.get("activeRoute", null) == null:
-							truck["currentCity"] = garage.get("city", "Unknown")
-							available_trucks.append(truck)
+							var t_id = truck.get("id", "")
+							if not t_id in busy_truck_ids:
+								truck["currentCity"] = garage.get("city", "Unknown")
+								available_trucks.append(truck)
 		
 		truck_select_box.clear()
 		for i in range(available_trucks.size()):
@@ -274,6 +336,25 @@ func _on_trucks_response(result: int, code: int, headers: PackedStringArray, bod
 			_log("No trucks available for dispatch.", Color(0.901, 0.298, 0.235))
 		else:
 			_log("%d truck(s) ready for dispatch." % available_trucks.size(), Color(0.18, 0.803, 0.443))
+	else:
+		# FALLBACK: populate available trucks from GameState.fleet if server is offline
+		available_trucks = []
+		for truck in GameState.fleet:
+			if not truck.get("isImpounded", false) and truck.get("activeRoute", null) == null:
+				var t_id = truck.get("id", "")
+				if not t_id in busy_truck_ids:
+					if not truck.has("currentCity"):
+						truck["currentCity"] = "siauliai" # Default fallback city
+					if not truck.has("fuel"):
+						truck["fuel"] = 100.0
+					available_trucks.append(truck)
+		
+		truck_select_box.clear()
+		for i in range(available_trucks.size()):
+			var t = available_trucks[i]
+			truck_select_box.add_item("[%s] %s (E:%d%%)" % [t.get("currentCity", "?").to_upper(), t.get("model","?"), int(t.get("engineHealth",0))], i)
+			
+		_log("Offline mode: loaded persistent local fleet fallback.", Color(0.925, 0.607, 0.141))
 
 func _on_active_routes_response(result: int, code: int, headers: PackedStringArray, body: PackedByteArray, http: HTTPRequest) -> void:
 	http.queue_free()
@@ -293,8 +374,40 @@ func _on_launch_response(result: int, code: int, headers: PackedStringArray, bod
 		_fetch_active_routes()
 		_fetch_trucks()
 	else:
-		var msg = data.get("message", "Unknown error.")
-		_log("⚠ Dispatch failed: " + msg, Color(0.901, 0.298, 0.235))
+		# Server offline fallback launch
+		_log("⚠ Server Offline. Initializing LOCAL PERSISTENT AUTOPILOT...", Color(0.925, 0.607, 0.141))
+		dispatch_panel.hide()
+		
+		var truck_idx = truck_select_box.get_selected_id()
+		if truck_idx >= 0 and truck_idx < available_trucks.size():
+			var truck = available_trucks[truck_idx]
+			var truck_id = truck.get("id", "")
+			
+			var mock_route = {
+				"truckId": truck_id,
+				"isSmuggling": is_contraband_mode,
+				"progressPct": 0.0,
+				"driverName": "Local Operator",
+				"driverFatigue": 15,
+				"driverTachoHours": 1.2,
+				"driverIsStimulated": false,
+				"engineHealth": truck.get("engineHealth", 100),
+				"tireWear": truck.get("tireWear", 100),
+				"originCity": selected_contract.get("origin", "Tallinn"),
+				"destinationCity": selected_contract.get("destination", "Riga"),
+				"distanceKm": selected_contract.get("distanceKm", 300.0),
+				"payout": selected_contract.get("payoutCash", 1000.0),
+				"currentCity": selected_contract.get("origin", "Tallinn")
+			}
+			
+			GameState.active_routes[truck_id] = mock_route
+			active_routes.append(mock_route)
+			_render_active_routes()
+			
+			selected_contract = {}
+			_start_local_progress_simulation(truck_id)
+		else:
+			_log("⚠ Launch failed: invalid truck selection.", Color(0.901, 0.298, 0.235))
 
 # ==========================================
 # RENDERING
@@ -423,7 +536,8 @@ func _build_contract_card(contract: Dictionary) -> PanelContainer:
 	
 	var btn = Button.new()
 	btn.text = "▶ SELECT CONTRACT"
-	btn.add_theme_font_size_override("font_size", 11)
+	btn.custom_minimum_size = Vector2(0, 32)
+	btn.add_theme_font_size_override("font_size", 13)
 	var btn_color = Color(0.607, 0.349, 0.713) if is_contraband_mode else Color(0.18, 0.803, 0.443)
 	btn.add_theme_color_override("font_color", btn_color)
 	var style_btn = StyleBoxFlat.new()
@@ -441,15 +555,30 @@ func _build_route_card(route: Dictionary) -> PanelContainer:
 	var truck_id = route.get("truckId", "?")
 	var is_smuggle = route.get("isSmuggling", false)
 	var pct = int(float(route.get("progressPct", 0)))
-	var driver_name = route.get("driverName", "Unknown Driver")
+	var driver_name = route.get("driverName", "")
+	if driver_name == "" or driver_name == null:
+		var d_obj = route.get("driver", null)
+		if d_obj and d_obj is Dictionary:
+			driver_name = d_obj.get("name", "Unknown Driver")
+		else:
+			driver_name = "Unknown Driver"
+			
 	var fatigue = int(route.get("driverFatigue", 0))
 	var tacho = float(route.get("driverTachoHours", 0.0))
 	var stimulated = bool(route.get("driverIsStimulated", false))
 	var engine_hp = int(route.get("engineHealth", 100))
 	var tire_hp = int(route.get("tireWear", 100))
 	var current_city = route.get("currentCity", "En Route")
-	var origin = route.get("originCity", route.get("currentCity", "?"))
-	var dest = route.get("destinationCity", "?")
+	
+	var origin = route.get("originCity", "")
+	if origin == "" or origin == null:
+		origin = route.get("origin", "")
+	if origin == "" or origin == null:
+		origin = route.get("currentCity", "?")
+		
+	var dest = route.get("destinationCity", "")
+	if dest == "" or dest == null:
+		dest = route.get("destination", "?")
 	
 	# Cosmetic health parsing
 	var cosmetic_hp = 100
@@ -631,13 +760,31 @@ func _make_bar_bg(fill_color: Color, val: int, max_val: int) -> Control:
 func _select_contract(contract: Dictionary) -> void:
 	selected_contract = contract
 	dispatch_panel.show()
-	selected_contract_lbl.text = "%s → %s\n%s\n$%d payout" % [
+	
+	var origin_city = cities_data.get(contract.get("origin", "").to_lower(), {})
+	var dest_city = cities_data.get(contract.get("destination", "").to_lower(), {})
+	selected_contract_is_cross_region = false
+	
+	var warning_text = ""
+	if not origin_city.is_empty() and not dest_city.is_empty():
+		var origin_country = origin_city.get("country", "")
+		var dest_country = dest_city.get("country", "")
+		if origin_country != dest_country:
+			selected_contract_is_cross_region = true
+			warning_text = "\n\n⚠️ CROSS-REGION SURCHARGE APPLIED:\n+35% fuel, +2h time, +15% wear"
+	
+	selected_contract_lbl.text = "%s → %s\n%s\n$%d payout%s" % [
 		contract.get("origin", "?"),
 		contract.get("destination", "?"),
 		contract.get("cargoType", "?"),
-		int(contract.get("payoutCash", 0))
+		int(contract.get("payoutCash", 0)),
+		warning_text
 	]
-	_log("Contract selected. Choose truck and launch.", Color(0.925, 0.607, 0.141))
+	
+	if selected_contract_is_cross_region:
+		_log("Cross-region route. Surcharges will apply on completion.", Color(0.925, 0.607, 0.141))
+	else:
+		_log("Contract selected. Choose truck and launch.", Color(0.925, 0.607, 0.141))
 
 func _show_legal_tab() -> void:
 	is_contraband_mode = false
@@ -685,8 +832,68 @@ func _on_route_progress(payload: Dictionary) -> void:
 func _on_route_completed(payload: Dictionary) -> void:
 	live_progress = 0.0
 	var truck_id = payload.get("truckId", "")
+	
+	# 1. Lookup origin/destination from active route before removing
+	var origin = payload.get("originCity", "")
+	var dest = payload.get("destinationCity", "")
+	var distance = 200.0
+	
+	for route in active_routes:
+		if route.get("truckId") == truck_id:
+			origin = route.get("originCity", origin)
+			dest = route.get("destinationCity", dest)
+			distance = float(route.get("distanceKm", distance))
+			break
+			
+	var is_cross_region_completed = false
+	var origin_city = cities_data.get(origin.to_lower(), {})
+	var dest_city = cities_data.get(dest.to_lower(), {})
+	if not origin_city.is_empty() and not dest_city.is_empty():
+		if origin_city.get("country", "") != dest_city.get("country", ""):
+			is_cross_region_completed = true
+			
+	# 2. Erase from active routes
 	GameState.active_routes.erase(truck_id)
-	_log("✓ DELIVERY CONFIRMED: %s payout credited." % ["$" + str(int(payload.get("payout", 0)))], Color(0.18, 0.803, 0.443))
+	var clean_routes = []
+	for route in active_routes:
+		if route.get("truckId") != truck_id:
+			clean_routes.append(route)
+	active_routes = clean_routes
+	
+	# 3. Apply Multipliers
+	var fuel_multiplier = 1.35 if is_cross_region_completed else 1.0
+	var wear_multiplier = 1.15 if is_cross_region_completed else 1.0
+	
+	# 4. Consume Stats in GameState.fleet
+	var found_truck = false
+	for truck in GameState.fleet:
+		if truck.get("id") == truck_id:
+			found_truck = true
+			if not truck.has("fuel"):
+				truck["fuel"] = 100.0
+				
+			var fuel_used = (15.0 + 0.05 * distance) * fuel_multiplier
+			truck["fuel"] = clamp(float(truck["fuel"]) - fuel_used, 0.0, 100.0)
+			
+			var tire_damage = randi_range(4, 10) * wear_multiplier
+			truck["tireWear"] = clamp(int(truck["tireWear"]) - int(tire_damage), 0, 100)
+			
+			var engine_damage = randi_range(3, 8) * wear_multiplier
+			truck["engineHealth"] = clamp(int(truck["engineHealth"]) - int(engine_damage), 0, 100)
+			
+			_log("✓ ASSET UPDATE: Fuel consumed: %d%%, engine health decreased, tire wear applied." % int(fuel_used), Color(0.18, 0.803, 0.443))
+			break
+			
+	# 5. Payout cash update for local mock completion
+	var payout = float(payload.get("payout", payload.get("payoutCash", 0.0)))
+	var is_smuggle = payload.get("isSmuggling", false)
+	if payout > 0.0:
+		if is_smuggle:
+			GameState.update_balances(0.0, payout)
+		else:
+			GameState.update_balances(payout, 0.0)
+			
+	_log("✓ DELIVERY CONFIRMED: %s payout credited." % ["$" + str(int(payout))], Color(0.18, 0.803, 0.443))
 	_fetch_active_routes()
 	_fetch_trucks()
 
@@ -749,8 +956,31 @@ func _log(text: String, color: Color) -> void:
 func _on_back() -> void:
 	SceneTransition.change_scene_to_file("res://scenes/game_map/GameMap.tscn")
 
+func _load_cities_data() -> void:
+	var file = FileAccess.open("res://resources/cities.json", FileAccess.READ)
+	if not file:
+		_log("System Error: resources/cities.json not found.", Color(0.901, 0.298, 0.235))
+		return
+		
+	var json_str = file.get_as_text()
+	var json = JSON.parse_string(json_str)
+	if not json or not json.has("cities"):
+		_log("System Error: Corrupt route network dataset.", Color(0.901, 0.298, 0.235))
+		return
+		
+	cities_data = json.cities
+
+func _start_local_progress_simulation(truck_id: String) -> void:
+	local_simulating_trucks[truck_id] = 0.0
+
 func _apply_theme() -> void:
-	pass
+	if has_node("%LiveTelemetryPanel"):
+		var style_tel = StyleBoxFlat.new()
+		style_tel.bg_color = Color(0.05, 0.05, 0.06, 0.95)
+		style_tel.border_color = Color(0.2, 0.85, 1.0, 0.4)
+		style_tel.set_border_width_all(2)
+		style_tel.set_corner_radius_all(6)
+		%LiveTelemetryPanel.add_theme_stylebox_override("panel", style_tel)
 
 # ==========================================
 # BORDER INSPECTION MINI-GAME UI

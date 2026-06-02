@@ -12,6 +12,7 @@ var BASE_URL: String:
 var catalog_models: Array = []
 var custom_specs: Dictionary = {}
 var player_garages: Array = []
+var is_offline_mode: bool = false
 
 # Selected Configuration State
 var selected_model_idx: int = 0
@@ -32,6 +33,11 @@ var active_partnership: String = "NONE"
 @onready var buy_http = $BuyHTTPRequest
 
 func _ready() -> void:
+	# Programmatically connect HTTP signals to response callbacks to ensure reliability
+	cat_http.request_completed.connect(_on_catalog_response)
+	gar_http.request_completed.connect(_on_garages_response)
+	buy_http.request_completed.connect(_on_buy_response)
+	
 	_build_ui()
 	_fetch_showroom_data()
 	
@@ -50,31 +56,43 @@ func _fetch_showroom_data() -> void:
 	gar_http.request(NetworkManager.HTTP_URL + "/garage", ["Authorization: Bearer " + token], HTTPClient.METHOD_GET)
 
 func _on_catalog_response(_r, code, _h, body) -> void:
+	var success = false
 	if code == 200:
 		var d = JSON.parse_string(body.get_string_from_utf8())
 		if d:
 			catalog_models = d.get("models", [])
 			custom_specs = d.get("customizationSpecs", {})
-			_render_catalog_list()
-			_update_customizer_panel()
-	else:
-		_show_toast("✕ Error loading showroom catalog", Color(1.0, 0.3, 0.3))
+			if catalog_models.size() > 0:
+				success = true
+	
+	if not success:
+		is_offline_mode = true
+		_generate_synthetic_catalog()
+		_show_toast("ℹ Displaying offline showroom catalog", Color(0.2, 0.9, 0.7))
+		
+	_render_catalog_list()
+	_update_customizer_panel()
 
 func _on_garages_response(_r, code, _h, body) -> void:
+	var success = false
 	if code == 200:
 		var d = JSON.parse_string(body.get_string_from_utf8())
-		if d:
+		if d and d is Array:
 			player_garages = d
-			if player_garages.size() > 0 and selected_garage_id.is_empty():
-				selected_garage_id = player_garages[0].id
-			_render_garage_selector()
-			_update_customizer_panel()
-	else:
-		_show_toast("✕ Error loading regional terminal listings", Color(1.0, 0.3, 0.3))
+			if player_garages.size() > 0:
+				success = true
+				if selected_garage_id.is_empty():
+					selected_garage_id = player_garages[0].id
+	
+	if not success:
+		_generate_synthetic_garages()
+		
+	_render_garage_selector()
+	_update_customizer_panel()
 
 func _on_buy_response(_r, code, _h, body) -> void:
-	var parsed = JSON.parse_string(body.get_string_from_utf8())
 	if code == 201:
+		var parsed = JSON.parse_string(body.get_string_from_utf8())
 		var msg = parsed.get("message", "Purchase complete!")
 		_show_toast("✔ " + msg, Color(0.2, 0.9, 0.45), 5.0)
 		
@@ -86,8 +104,12 @@ func _on_buy_response(_r, code, _h, body) -> void:
 		# Refresh garages to update capacities
 		_fetch_showroom_data()
 	else:
-		var err_msg = parsed.get("message", "Purchase rejected.") if parsed else "Server trade error."
-		_show_toast("✕ Purchase Rejected: " + err_msg, Color(1.0, 0.25, 0.25), 4.0)
+		if is_offline_mode:
+			_simulate_offline_purchase()
+		else:
+			var parsed = JSON.parse_string(body.get_string_from_utf8())
+			var err_msg = parsed.get("message", "Purchase rejected.") if parsed else "Server trade error."
+			_show_toast("✕ Purchase Rejected: " + err_msg, Color(1.0, 0.25, 0.25), 4.0)
 
 func _on_balance_sync(_l, _b) -> void:
 	_update_balances_strip()
@@ -816,3 +838,117 @@ func _find(root: Node, name: String) -> Node:
 		var r = _find(c, name)
 		if r: return r
 	return null
+
+func _generate_synthetic_catalog() -> void:
+	catalog_models = [
+		{
+			"manufacturer": "TESIO",
+			"brandRepresentation": "MODEL X ROAD-HAULER",
+			"description": "Next-generation fully electric platform. Silent motors, high torque, integrated autopilot guidance. Fits premium sleeper cabs.",
+			"tiers": [
+				{"name": "E-HAULER_STANDARD", "price": 145000},
+				{"name": "E-HAULER_PRO", "price": 195000},
+				{"name": "E-HAULER_ULTRA", "price": 265000}
+			]
+		},
+		{
+			"manufacturer": "SCARFIA",
+			"brandRepresentation": "S-SERIES LINEHAUL",
+			"description": "The undisputed king of European long-distance freight. Maximum reliability, customizable specifications, premium cabin comfort.",
+			"tiers": [
+				{"name": "CHASSIS_4X2", "price": 110000},
+				{"name": "CHASSIS_6X2", "price": 150000},
+				{"name": "CHASSIS_8X4", "price": 210000}
+			]
+		},
+		{
+			"manufacturer": "MOOSE",
+			"brandRepresentation": "NORTHERN TITAN",
+			"description": "Swedish industrial workhorse built for extreme weather and heavy logging or construction payloads. Rugged chassis, reinforced axles.",
+			"tiers": [
+				{"name": "TITAN_STOCK", "price": 125000},
+				{"name": "TITAN_REINFORCED", "price": 175000},
+				{"name": "TITAN_HEAVY_DUTY", "price": 240000}
+			]
+		},
+		{
+			"manufacturer": "GUY",
+			"brandRepresentation": "TGX PERFORMANCE",
+			"description": "German precision engineering focusing on fuel economy, quiet ride, and highly efficient engine re-maps. Perfect for heavy cargo rigging.",
+			"tiers": [
+				{"name": "TGX_EFFICIENT", "price": 115000},
+				{"name": "TGX_PREMIUM", "price": 160000},
+				{"name": "TGX_FLAGSHIP", "price": 225000}
+			]
+		}
+	]
+
+func _generate_synthetic_garages() -> void:
+	player_garages = [
+		{
+			"id": "syn_gar_minsk",
+			"city": "Minsk",
+			"capacity": 3,
+			"trucks": []
+		},
+		{
+			"id": "syn_gar_riga",
+			"city": "Riga",
+			"capacity": 5,
+			"trucks": []
+		}
+	]
+	if selected_garage_id.is_empty() and player_garages.size() > 0:
+		selected_garage_id = player_garages[0].id
+
+func _simulate_offline_purchase() -> void:
+	var model = catalog_models[selected_model_idx]
+	var brand = model.get("manufacturer", "Unknown")
+	var tiers = model.get("tiers", [])
+	var base_price = int(tiers[selected_tier_idx].get("price", 0))
+	var surcharge = 0
+	if selected_cab_type == "EXTENDED": surcharge += 8000
+	if selected_cab_type == "SUPER_LONG": surcharge += 18000
+	if selected_payload_type == "REEFER": surcharge += 12000
+	if selected_payload_type == "HAZARDOUS": surcharge += 22000
+	if selected_payload_type == "ULTRA_HEAVY": surcharge += 35000
+	if selected_tuning_tier == "PERFORMANCE": surcharge += 10000
+	if selected_tuning_tier == "ECONOMY": surcharge += 7000
+	if selected_tuning_tier == "RELIABLE": surcharge += 6000
+
+	var subtotal = base_price + surcharge
+	var partner_match = active_partnership.to_upper() == brand.to_upper()
+	var final_cost = float(subtotal)
+	if partner_match:
+		final_cost *= 0.85
+
+	GameState.legal_balance -= final_cost
+	GameState.balance_updated.emit(GameState.legal_balance, GameState.black_market_balance)
+	
+	# Add the truck to player_garages locally
+	for gar in player_garages:
+		if gar.get("id") == selected_garage_id:
+			var trucks = gar.get("trucks", [])
+			var new_truck = {
+				"id": "off_truck_" + str(Time.get_ticks_usec()),
+				"model": brand.to_upper() + " " + tiers[selected_tier_idx].get("name", "").replace("_", " "),
+				"engineHealth": 100,
+				"tireWear": 0,
+				"isImpounded": false,
+				"driver": null
+			}
+			trucks.append(new_truck)
+			gar["trucks"] = trucks
+			break
+			
+	# Update local fleet list in GameState
+	var merged_fleet: Array = []
+	for g in player_garages:
+		var trucks = g.get("trucks", [])
+		for t in trucks:
+			t["garageCity"] = g.get("city", "Unknown")
+			merged_fleet.append(t)
+	GameState.fleet = merged_fleet
+	
+	_show_toast("✔ [OFFLINE SIM] Purchase Complete! Vehicle registered in terminal.", Color(0.2, 0.9, 0.45), 5.0)
+	_update_customizer_panel()

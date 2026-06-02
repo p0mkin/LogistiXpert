@@ -156,6 +156,35 @@ layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 8
 custom_minimum_size = Vector2(360, 0)
+[node name="LiveTelemetryPanel" type="PanelContainer" parent="MainLayout/ContentRow/RightCol"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 110)
+layout_mode = 2
+
+[node name="Margin" type="MarginContainer" parent="MainLayout/ContentRow/RightCol/LiveTelemetryPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 110
+theme_override_constants/margin_bottom = 12
+
+[node name="TelemetryVBox" type="VBoxContainer" parent="MainLayout/ContentRow/RightCol/LiveTelemetryPanel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="TelemetryTitle" type="Label" parent="MainLayout/ContentRow/RightCol/LiveTelemetryPanel/Margin/TelemetryVBox"]
+layout_mode = 2
+text = "📡 LIVE TELEMETRY FEED"
+theme_override_font_sizes/font_size = 11
+theme_override_colors/font_color = Color(0.2, 0.85, 1, 1)
+
+[node name="TelemetryStatus" type="Label" parent="MainLayout/ContentRow/RightCol/LiveTelemetryPanel/Margin/TelemetryVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "STANDBY // NO ACTIVE ROUTE SELECTED"
+theme_override_font_sizes/font_size = 10
+theme_override_colors/font_color = Color(0.709, 0.768, 0.843, 0.5)
+autowrap_mode = 3
 
 [node name="DispatchPanel" type="PanelContainer" parent="MainLayout/ContentRow/RightCol"]
 unique_name_in_owner = true

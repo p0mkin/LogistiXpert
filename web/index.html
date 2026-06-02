@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LogistiXpert: Underworld Logistics Tactical Dashboard</title>
+  
+  <!-- Cyberpunk Terminal Typography -->
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=JetBrains+Mono:wght@300;400;500;700&family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+  
+  <!-- Modular Design System Styles -->
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+
+  <!-- Fine CRT horizontal scanning & ambient shadow overlay -->
+  <div class="screen-overlay"></div>
+
+  <!-- Background coordinate reference grid -->
+  <div class="grid-backplate"></div>
+
+  <!-- Complete fluid tactical interface container -->
+  <div class="dashboard-layout">
+
+    <!-- ==========================================================================
+         TOP BAR: SESSION LEDGER, CODES & STATUS
+         ========================================================================== -->
+    <header class="header-bar panel-cyber">
+      
+      <!-- Operator Identification Widget -->
+      <div class="operator-profile">
+        <div class="avatar-frame">
+          <svg viewBox="0 0 24 24">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15.93c-3.13-.47-5.5-3.14-5.5-6.43 0-1.79.69-3.41 1.81-4.63l1.41 1.41C9.64 9.17 9 10.5 9 12c0 2.21 1.79 4 4 4v1.93zm4.69-4.3C17.61 14.85 16 16.5 14 16.9v-1.93c1.1-.31 2-.96 2.5-1.85l1.19 1.51zM14 8.07V6.03c2 .4 3.61 2.05 4.31 4.18l-1.19 1.51c-.5-.89-1.4-1.54-2.5-1.85z"/>
+          </svg>
+        </div>
+        <div class="operator-details">
+          <h1 class="operator-name">DISPATCH_OPERATOR</h1>
+          <div class="operator-status">
+            <span class="pulse-dot"></span>
+            secure_link_established
+          </div>
+        </div>
+      </div>
+
+      <!-- Real-time metrics readouts -->
+      <div class="header-telemetry">
+        
+        <!-- Simulation Clock -->
+        <div class="telem-cell">
+          <span class="telem-cell-label">SYSTEM_EPOCH</span>
+          <span class="telem-cell-value" id="system-clock">MON, 01 JUN 2026 09:26:42</span>
+        </div>
+
+        <!-- Reputation factor indicator -->
+        <div class="telem-cell">
+          <span class="telem-cell-label">REP_FACTOR</span>
+          <div class="reputation-gauge">
+            <span class="reputation-star">★</span>
+            <span class="telem-cell-value">7.5 / 10.0</span>
+            <div class="reputation-cells">
+              <div class="reputation-dot active"></div>
+              <div class="reputation-dot active"></div>
+              <div class="reputation-dot active"></div>
+              <div class="reputation-dot active"></div>
+              <div class="reputation-dot active"></div>
+              <div class="reputation-dot active"></div>
+              <div class="reputation-dot active"></div>
+              <div class="reputation-dot active"></div>
+              <div class="reputation-dot"></div>
+              <div class="reputation-dot"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Police Heat status display -->
+        <div class="telem-cell">
+          <span class="telem-cell-label">POLICE_HEAT_INDEX</span>
+          <div class="police-heat-meter">
+            <span class="heat-value" id="police-heat-val">25%</span>
+            <div class="heat-segments">
+              <div class="heat-segment active"></div>
+              <div class="heat-segment active"></div>
+              <div class="heat-segment active"></div>
+              <div class="heat-segment"></div>
+              <div class="heat-segment"></div>
+              <div class="heat-segment"></div>
+              <div class="heat-segment"></div>
+              <div class="heat-segment"></div>
+              <div class="heat-segment"></div>
+              <div class="heat-segment"></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Sound Control Widget -->
+      <div class="audio-control-widget" id="sound-toggle-btn" title="Toggle System Synthesizer">
+        <svg class="audio-icon" viewBox="0 0 24 24">
+          <path class="audio-wave-path" d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+        </svg>
+        <span class="audio-status-text">SYNTH_ON</span>
+      </div>
+
+      <!-- Financial Ledgers (Dual Accounts) -->
+      <div class="header-ledgers">
+        
+        <!-- Legit clean funds account card -->
+        <div class="ledger-card clean">
+          <div class="ledger-icon">
+            <svg viewBox="0 0 24 24">
+              <path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.2c-.07-2.24-1.6-3.9-3.7-4.3V3h-3v1.7c-1.93.41-3.5 1.63-3.5 3.75 0 2.47 2 3.7 5.2 4.2 2.55.4 3.03 1.15 3.03 2.15 0 .75-.53 1.65-2.7 1.65-2.2 0-2.87-.95-3-2.1h-2.2c.1 2.58 1.91 3.9 3.7 4.3V21h3v-1.7c1.95-.41 3.5-1.51 3.5-3.8 0-2.92-2.17-3.75-5.22-4.15z"/>
+            </svg>
+          </div>
+          <div class="ledger-meta">
+            <span class="ledger-label">CLEAN_RESERVES</span>
+            <span class="ledger-amount" id="clean-amount">$117,617.95</span>
+          </div>
+        </div>
+
+        <!-- Black Market untracked liquid ledger card -->
+        <div class="ledger-card dirty">
+          <div class="ledger-icon">
+            <svg viewBox="0 0 24 24">
+              <path d="M19.28 4.72A10 10 0 0 0 12 2a10 10 0 1 0 10 10 10 10 0 0 0-2.72-7.28zM12 18a6 6 0 1 1 6-6 6 6 0 0 1-6 6zm-3.5-6a3.5 3.5 0 1 0 3.5-3.5 3.5 3.5 0 0 0-3.5 3.5z"/>
+            </svg>
+          </div>
+          <div class="ledger-meta">
+            <span class="ledger-label">LAUNDERED_DIRTY</span>
+            <span class="ledger-amount" id="dirty-amount">$24,500.00</span>
+          </div>
+        </div>
+
+      </div>
+
+    </header>
+
+    <!-- ==========================================================================
+         MAIN WORKSPACE: ROUTE PANEL, NODE CANVAS & COMMAND SIDEBAR
+         ========================================================================== -->
+    <main class="main-deck">
+
+      <!-- LEFT SIDEBAR: ROUTE INFORMATION CONTROL -->
+      <section class="panel-cyber panel-green route-panel">
+        
+        <div class="panel-title-strip">
+          <h2 class="panel-title">ROUTE INFORMATION CONTROL</h2>
+          <span class="panel-serial">SYS_NODE_09</span>
+        </div>
+
+        <!-- Interactive City Details Display (Hologram Frame) -->
+        <div class="city-details-viewport">
+          
+          <!-- State A: Idle Scanner (Awaiting city selection from map) -->
+          <div class="city-selector-empty-state" id="selector-idle">
+            <div class="scanner-grid"></div>
+            <div class="selector-cursor-prompt">
+              &gt; SELECT A CITY NODE<span class="terminal-cursor"></span>
+            </div>
+            <div class="selector-subtext">
+              <span class="pulse-dot"></span>
+              Awaiting handshaking link
+            </div>
+          </div>
+
+          <!-- State B: Active statistics display (Toggled dynamically by script) -->
+          <div class="active-city-display" id="selector-active">
+            <div class="active-city-header" id="active-city-name">TALLINN</div>
+            <div class="active-city-zone" id="active-city-zone">ZONE: ACTIVE (SCHENGEN)</div>
+            
+            <div class="waveform-label" style="margin-top: var(--space-4);">HIGHWAY CHANNELS</div>
+            <div class="active-connections-list" id="active-connections-list">
+              <!-- Dynamically populated from JS city connections -->
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Ambient tactical waveforms -->
+        <div class="waveform-container">
+          <span class="waveform-label">TACTICAL LINK BANDWIDTH</span>
+          <div class="waveform-bars">
+            <div class="waveform-bar" style="height: 12px;"></div>
+            <div class="waveform-bar" style="height: 24px;"></div>
+            <div class="waveform-bar" style="height: 16px;"></div>
+            <div class="waveform-bar" style="height: 8px;"></div>
+            <div class="waveform-bar" style="height: 28px;"></div>
+            <div class="waveform-bar" style="height: 14px;"></div>
+            <div class="waveform-bar" style="height: 20px;"></div>
+            <div class="waveform-bar" style="height: 10px;"></div>
+            <div class="waveform-bar" style="height: 26px;"></div>
+            <div class="waveform-bar" style="height: 18px;"></div>
+            <div class="waveform-bar" style="height: 12px;"></div>
+            <div class="waveform-bar" style="height: 24px;"></div>
+          </div>
+        </div>
+
+        <!-- Checkpoint Simulator Trigger Button -->
+        <div class="simulator-trigger-container" style="margin-top: var(--space-4);">
+          <button class="simulator-trigger-btn" id="btn-trigger-checkpoint">
+            <svg class="trigger-icon" viewBox="0 0 24 24">
+              <path d="M12 2L1 21h22L12 2zm1 14h-2v-2h2v2zm0-4h-2V8h2v4z"/>
+            </svg>
+            <span>SECURE_CHECKPOINT_SIM</span>
+          </button>
+        </div>
+
+      </section>
+
+      <!-- CENTER FRAME: TACTICAL ROUTE NODE CANVAS -->
+      <section class="map-canvas-container">
+        
+        <!-- Surcharge notification banner -->
+        <div class="surcharge-strip">
+          <div class="surcharge-icon">
+            <svg viewBox="0 0 24 24">
+              <path d="M12 2L1 21h22L12 2zm1 14h-2v-2h2v2zm0-4h-2V8h2v4z"/>
+            </svg>
+          </div>
+          <span class="surcharge-message">CROSS-REGION SURCHARGE ACTIVE: +35% FUEL CONSUMPTION</span>
+          <span class="surcharge-code">// NETWORK_TRANSREGIONAL_POLAR_ROUTE</span>
+        </div>
+
+        <!-- Vector map canvas frame -->
+        <div class="map-viewport">
+          
+          <div class="map-telemetry-stamp">
+            LAT_PROJ: POLAR_CYLINDRICAL<br>
+            GRID_REF: 42-X-99882<br>
+            RENDER: VECTOR_GRAPHICS_v4.2
+          </div>
+
+          <!-- Dynamic SVG Vector Map Overlay -->
+          <svg class="map-svg-overlay" id="map-svg" viewBox="0 0 1000 600">
+            <defs>
+              <!-- Core neon vector glowing filters -->
+              <filter id="glow-green" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur stdDeviation="4" result="blur" />
+                <feComposite in="SourceGraphic" in2="blur" operator="over" />
+              </filter>
+              <filter id="glow-orange" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur stdDeviation="4" result="blur" />
+                <feComposite in="SourceGraphic" in2="blur" operator="over" />
+              </filter>
+              <filter id="glow-red" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur stdDeviation="4" result="blur" />
+                <feComposite in="SourceGraphic" in2="blur" operator="over" />
+              </filter>
+            </defs>
+
+            <!-- Coordinate sectors text elements -->
+            <text x="30" y="35" fill="rgba(255,255,255,0.06)" font-family="monospace" font-size="9">SEC_01</text>
+            <text x="940" y="35" fill="rgba(255,255,255,0.06)" font-family="monospace" font-size="9">SEC_02</text>
+            <text x="30" y="580" fill="rgba(255,255,255,0.06)" font-family="monospace" font-size="9">SEC_03</text>
+            <text x="940" y="580" fill="rgba(255,255,255,0.06)" font-family="monospace" font-size="9">SEC_04</text>
+            
+            <!-- Nodes & connections are dynamically generated inside script.js -->
+          </svg>
+
+          <!-- Floating Overlays over Map Area -->
+          
+          <!-- Overlay 1: Garage Operations Module (Green) -->
+          <div class="hud-overlay-card panel-cyber panel-green hud-garage" id="garage-overlay">
+            <div class="hud-card-header">
+              <span>GARAGE OPERATIONS</span>
+              <span class="hud-card-dot"></span>
+            </div>
+            <div class="hud-card-body">
+              <div class="hud-control-btn">
+                <svg viewBox="0 0 24 24">
+                  <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14z M7 10h2v4H7zm4 0h2v4h-2zm4 0h2v4h-2z"/>
+                </svg>
+                <span>GARAGE MANAGER</span>
+              </div>
+              <div class="hud-control-btn">
+                <svg viewBox="0 0 24 24">
+                  <path d="M22.7 19l-9.1-9.1c.9-2.3.4-5-1.5-6.9-2-2-5-2.4-7.4-1.3L9 6 6 9 1.3 4.3C.2 6.7.6 9.7 2.6 11.7c1.9 1.9 4.6 2.4 6.9 1.5l9.1 9.1c.4.4 1 .4 1.4 0l2.7-2.7c.4-.4.4-1.1 0-1.6z"/>
+                </svg>
+                <span>PARTS & RIGGING SHOP</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Overlay 2: System Development Module (Blue) -->
+          <div class="hud-overlay-card panel-cyber panel-blue hud-development" id="support-overlay">
+            <div class="hud-card-header">
+              <span>SYSTEM DEVELOPMENT</span>
+              <span class="hud-card-dot"></span>
+            </div>
+            <div class="hud-card-body">
+              <div class="hud-control-btn">
+                <svg viewBox="0 0 24 24">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+                </svg>
+                <span>EMERGENCY RECOVERY</span>
+              </div>
+              <div class="hud-control-btn">
+                <svg viewBox="0 0 24 24">
+                  <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+                </svg>
+                <span>FACTORY SHOWROOM</span>
+              </div>
+              <div class="hud-control-btn">
+                <svg viewBox="0 0 24 24">
+                  <path d="M12 2a3 3 0 1 0 3 3 3 3 0 0 0-3-3zm0 14a3 3 0 1 0 3 3 3 3 0 0 0-3-3zm7-7a3 3 0 1 0 3 3 3 3 0 0 0-3-3zm-14 0a3 3 0 1 0 3 3 3 3 0 0 0-3-3zm7 2a1 1 0 0 0 1-1V8a1 1 0 0 0-2 0v3a1 1 0 0 0 1 1z"/>
+                </svg>
+                <span>R&D TECH TREE</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Overlay 3: Border Customs Checkpoint Simulator -->
+          <div class="hud-overlay-card panel-cyber panel-red hud-checkpoint" id="checkpoint-overlay">
+            <div class="hud-card-header">
+              <span>⚠️ BORDER INSPECTION ACTIVE</span>
+              <span class="hud-card-dot"></span>
+            </div>
+            <div class="hud-card-body">
+              <div class="checkpoint-sub-header">BREST-TERESPOL ENTRY GATE</div>
+              <div class="checkpoint-sub-text">SEC_ZONE_RESTRICTED // CONTRABAND_PAYLOAD</div>
+              
+              <div class="checkpoint-stats-box">
+                <div class="checkpoint-stat-row">
+                  <span class="stat-label">BASE SCAN RISK:</span>
+                  <span class="stat-value val-red">65% DETECT</span>
+                </div>
+                <div class="checkpoint-stat-row">
+                  <span class="stat-label">OFFICER DEMAND:</span>
+                  <span class="stat-value val-purple">$3,200 DIRTY</span>
+                </div>
+                <div class="checkpoint-stat-row">
+                  <span class="stat-label">ENGINE HP SPECS:</span>
+                  <span class="stat-value val-blue">STAGE_2 TUNED</span>
+                </div>
+              </div>
+
+              <div class="checkpoint-choices-stack">
+                <button class="checkpoint-choice-btn" id="btn-choice-scan">
+                  <span class="choice-title">A: SUBMIT TO SCAN</span>
+                  <span class="choice-desc">65% risk // Safe on pass, fine on fail</span>
+                </button>
+                <button class="checkpoint-choice-btn" id="btn-choice-bribe">
+                  <span class="choice-title">B: BRIBE OFFICER</span>
+                  <span class="choice-desc">Cost: $3,200 dirty // 55% success rate</span>
+                </button>
+                <button class="checkpoint-choice-btn" id="btn-choice-run">
+                  <span class="choice-title">C: RUN BARRICADE</span>
+                  <span class="choice-desc">Tuned engine escape // 45% escape rate</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Overlay 4: API Sync & Live Connection Terminal (Cyan/Blue) -->
+          <div class="hud-overlay-card panel-cyber panel-blue hud-api-auth" id="api-auth-overlay">
+            <div class="hud-card-header">
+              <span>🖥️ API GATEWAY CONNECTION</span>
+              <span class="hud-card-dot" id="api-status-dot" style="background-color: var(--neon-red);"></span>
+            </div>
+            <div class="hud-card-body">
+              <div class="checkpoint-sub-header">ESTABLISH SECURE UPLINK</div>
+              <div class="checkpoint-sub-text">REST_GATEWAY // WEBSOCKET_TUNNEL</div>
+
+              <!-- Unauthenticated State -->
+              <div id="api-unauth-view">
+                <div class="checkpoint-stats-box" style="padding: var(--space-3); margin-bottom: var(--space-3); border-color: rgba(0, 229, 255, 0.15);">
+                  <div class="api-form-row">
+                    <label class="stat-label">GATEWAY PORTAL:</label>
+                    <input type="text" id="api-url-input" class="api-terminal-input" value="http://localhost:3000" placeholder="http://localhost:3000">
+                  </div>
+                  <div class="api-form-row" style="margin-top: var(--space-2);">
+                    <label class="stat-label">OPERATOR IDENT:</label>
+                    <input type="text" id="api-username-input" class="api-terminal-input" placeholder="Operator Call-Sign">
+                  </div>
+                  <div class="api-form-row" style="margin-top: var(--space-2);">
+                    <label class="stat-label">DECRYPT KEY:</label>
+                    <input type="password" id="api-password-input" class="api-terminal-input" placeholder="••••••••">
+                  </div>
+                </div>
+                <div style="display: flex; gap: var(--space-2);">
+                  <button class="api-action-btn btn-blue" id="btn-api-login" style="flex: 1; font-weight: bold;">
+                    AUTHENTICATE
+                  </button>
+                  <button class="api-action-btn btn-green" id="btn-api-register" style="flex: 1; font-weight: bold;">
+                    INITIALIZE NEW
+                  </button>
+                </div>
+              </div>
+
+              <!-- Authenticated State -->
+              <div id="api-auth-view" style="display: none;">
+                <div class="checkpoint-stats-box" style="margin-bottom: var(--space-3); border-color: rgba(0, 229, 255, 0.15);">
+                  <div class="checkpoint-stat-row">
+                    <span class="stat-label">COMPANY NAME:</span>
+                    <span class="stat-value val-blue" id="api-company-name">---</span>
+                  </div>
+                  <div class="checkpoint-stat-row">
+                    <span class="stat-label">COMPANY ID:</span>
+                    <span class="stat-value val-purple" id="api-company-id" style="font-size: 8px;">---</span>
+                  </div>
+                  <div class="checkpoint-stat-row">
+                    <span class="stat-label">UPLINK TUNNEL:</span>
+                    <span class="stat-value val-green" id="api-socket-status">ACTIVE_WS</span>
+                  </div>
+                </div>
+                <button class="api-action-btn btn-terminate" id="btn-api-disconnect" style="width: 100%; font-weight: bold;">
+                  TERMINATE UPLINK
+                </button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+      </section>
+
+      <!-- RIGHT SIDEBAR: PRIMARY COMMAND OPERATIONS MENU -->
+      <aside class="panel-cyber panel-orange sidebar-panel">
+        
+        <div class="sidebar-title-strip">
+          <h2 class="sidebar-title">COMMAND OPERATIONS</h2>
+        </div>
+
+        <nav class="sidebar-nav">
+          
+          <div class="nav-op-btn btn-green" id="btn-garage-toggle">
+            <div class="nav-op-icon">
+              <svg viewBox="0 0 24 24">
+                <path d="M4 8h4V4H4v4zm6 12h4v-4h-4v4zm-6 0h4v-4H4v4zm0-6h4v-4H4v4zm6 0h4v-4h-4v4zm6-10v4h4V4h-4zm-6 4h4V4h-4v4zm6 6h4v-4h-4v4zm0 6h4v-4h-4v4z"/>
+              </svg>
+            </div>
+            <span class="nav-op-text">GARAGE OPERATIONS</span>
+          </div>
+
+          <div class="nav-op-btn active-orange">
+            <div class="nav-op-icon">
+              <svg viewBox="0 0 24 24">
+                <path d="M7 2v11h3v9l7-12h-4l4-8z"/>
+              </svg>
+            </div>
+            <span class="nav-op-text">DISPATCH CENTER</span>
+          </div>
+
+          <div class="nav-op-btn btn-orange" style="--neon-orange:#ff9900; --neon-orange-glow: rgba(255, 153, 0, 0.25);">
+            <div class="nav-op-icon">
+              <svg viewBox="0 0 24 24">
+                <path d="M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58.55 0 1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.55-.23-1.06-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z"/>
+              </svg>
+            </div>
+            <span class="nav-op-text" style="color: #ff9900;">AUCTION BLOCK</span>
+          </div>
+
+          <div class="nav-op-btn btn-cyan">
+            <div class="nav-op-icon">
+              <svg viewBox="0 0 24 24">
+                <path d="M12 4a8 8 0 1 0 8 8 8 8 0 0 0-8-8zm0 13a5 5 0 1 1 5-5 5 5 0 0 1-5 5zm-2.5-5a2.5 2.5 0 1 0 2.5-2.5 2.5 2.5 0 0 0-2.5 2.5z"/>
+              </svg>
+            </div>
+            <span class="nav-op-text">LAUNDRY FRONTS</span>
+          </div>
+
+          <div class="nav-op-btn btn-purple">
+            <div class="nav-op-icon">
+              <svg viewBox="0 0 24 24">
+                <path d="M12 2a9 9 0 0 0-9 9c0 2.24 1.21 4.15 3 5.12V19a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1v-1h2v1a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1v-2.88c1.79-.97 3-2.88 3-5.12a9 9 0 0 0-9-9zm-3 9a1.5 1.5 0 1 1 1.5-1.5A1.5 1.5 0 0 1 9 11zm6 0a1.5 1.5 0 1 1 1.5-1.5A1.5 1.5 0 0 1 15 11z"/>
+              </svg>
+            </div>
+            <span class="nav-op-text">UNDERWORLD MARKET</span>
+          </div>
+
+          <div class="nav-op-btn btn-white" id="btn-support-toggle">
+            <div class="nav-op-icon">
+              <svg viewBox="0 0 24 24">
+                <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
+              </svg>
+            </div>
+            <span class="nav-op-text">SUPPORT & SERVICES</span>
+          </div>
+
+          <div class="nav-op-btn btn-blue">
+            <div class="nav-op-icon">
+              <svg viewBox="0 0 24 24">
+                <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM7 10h2v7H7zm4-3h2v10h-2zm4 6h2v4h-2z"/>
+              </svg>
+            </div>
+            <span class="nav-op-text">LOGISTICS & ANALYTICS</span>
+          </div>
+
+          <!-- Secured Killswitch option -->
+          <div class="terminate-action-container">
+            <div class="nav-op-btn btn-terminate">
+              <div class="nav-op-icon">
+                <svg viewBox="0 0 24 24">
+                  <path d="M13 3h-2v10h2V3zm4.83 2.17l-1.42 1.42C17.99 7.86 19 9.81 19 12c0 3.87-3.13 7-7 7s-7-3.13-7-7c0-2.19 1.01-4.14 2.58-5.42L6.17 5.17C4.23 6.82 3 9.26 3 12c0 4.97 4.03 9 9 9s9-4.03 9-9c0-2.74-1.23-5.18-3.17-6.83z"/>
+                </svg>
+              </div>
+              <span class="nav-op-text">TERMINATE SESSION</span>
+            </div>
+          </div>
+
+        </nav>
+
+      </aside>
+
+    </main>
+
+    <!-- ==========================================================================
+         BOTTOM METRICS DECK: LOGS & TELEMETRY SPEED GAUGES
+         ========================================================================== -->
+    <footer class="bottom-deck">
+      
+      <!-- System Diagnostics Scrolling Log Console -->
+      <section class="panel-cyber panel-red diagnostics-panel">
+        
+        <div class="diagnostics-header">
+          <h2 class="diagnostics-title">VECTOR PROJECTION DIAGNOSTICS</h2>
+          <span class="diagnostics-status-badge">COORDINATES_STABLE</span>
+        </div>
+
+        <div class="diagnostics-body">
+          
+          <!-- Dynamic terminal box -->
+          <div class="terminal-console-log" id="console-log">
+            <!-- Populated via script.js initialization -->
+          </div>
+
+          <!-- Static network statistics -->
+          <div class="diagnostics-metrics-grid">
+            <div class="diag-row">
+              <span class="diag-label">CITIES RESOLVED</span>
+              <span class="diag-value" style="color: var(--neon-red);">13 NODES</span>
+            </div>
+            <div class="diag-row">
+              <span class="diag-label">GRID EFFICIENCY</span>
+              <span class="diag-value">99.98%</span>
+            </div>
+            <div class="diag-row">
+              <span class="diag-label">COEFF REF_CORR</span>
+              <span class="diag-value" style="color: var(--neon-green);">STABLE (1.0)</span>
+            </div>
+            <div class="diag-row">
+              <span class="diag-label">PACKET INTEGRITY</span>
+              <span class="diag-value">0.00% LOSS</span>
+            </div>
+          </div>
+
+        </div>
+
+      </section>
+
+      <!-- Autopilot & Telemetry telemetry stats -->
+      <section class="panel-cyber panel-green telemetry-panel">
+        
+        <!-- Speedometer Gauge -->
+        <div class="speedometer-widget">
+          <svg class="speedometer-svg">
+            <circle class="speedometer-bg" cx="55" cy="55" r="35" />
+            <circle class="speedometer-fill" id="speed-fill" cx="55" cy="55" r="35" />
+          </svg>
+          <div class="speedometer-needle" id="speed-needle"></div>
+          <div class="speedometer-pin"></div>
+          <div class="speedometer-digital-read">
+            <div class="speedometer-digit" id="speed-digit">84</div>
+            <div class="speedometer-unit">KM/H</div>
+          </div>
+        </div>
+
+        <!-- Telemetry lists -->
+        <div class="telemetry-metrics">
+          
+          <div class="telemetry-row">
+            <span class="telemetry-label">ACTIVE AUTOPILOT</span>
+            <span class="telemetry-val status-online">
+              <span class="pulse-dot"></span>
+              ONLINE
+            </span>
+          </div>
+
+          <div class="telemetry-row">
+            <span class="telemetry-label">FUEL CONSUMPTION</span>
+            <span class="telemetry-val">32.4 L/100KM</span>
+          </div>
+
+          <div class="telemetry-row">
+            <span class="telemetry-label">CHASSIS WEAR FACTOR</span>
+            <span class="telemetry-val" style="color: var(--neon-orange);">+0.05% / HR</span>
+          </div>
+
+          <!-- Route progression bar -->
+          <div class="progression-stack">
+            <div class="progression-meta">
+              <span>ROUTE PROGRESSION</span>
+              <span style="color: var(--neon-orange); font-weight: bold;" id="progress-pct">74%</span>
+            </div>
+            <div class="progression-segments">
+              <div class="progression-segment"></div>
+              <div class="progression-segment"></div>
+              <div class="progression-segment"></div>
+              <div class="progression-segment"></div>
+              <div class="progression-segment"></div>
+              <div class="progression-segment"></div>
+              <div class="progression-segment"></div>
+              <div class="progression-segment"></div>
+              <div class="progression-segment"></div>
+              <div class="progression-segment"></div>
+            </div>
+          </div>
+
+        </div>
+
+      </section>
+
+    </footer>
+
+  </div>
+
+  <!-- Command Control Logic -->
+  <script src="./script.js"></script>
+</body>
+</html>

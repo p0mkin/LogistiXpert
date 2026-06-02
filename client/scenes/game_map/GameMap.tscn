@@ -5,8 +5,8 @@
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_overlay"]
 shader = ExtResource("2_shader")
-shader_parameter/vignette_intensity = 1.1
-shader_parameter/curvature = 3.0
+shader_parameter/vignette_intensity = 1.2
+shader_parameter/curvature = 6.0
 
 [node name="GameMap" type="Control"]
 layout_mode = 3
@@ -17,8 +17,11 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_script")
 
-[node name="BG" type="ColorRect" parent="."]
-layout_mode = 1
+[node name="BGLayer" type="CanvasLayer" parent="."]
+layer = -1
+
+[node name="BG" type="ColorRect" parent="BGLayer"]
+layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -186,7 +189,7 @@ theme_override_font_sizes/font_size = 16
 text = "$0.00"
 
 [node name="SidePanel" type="ColorRect" parent="HUD"]
-custom_minimum_size = Vector2(300, 0)
+custom_minimum_size = Vector2(320, 0)
 anchors_preset = 11
 anchor_left = 1.0
 anchor_right = 1.0
@@ -207,75 +210,163 @@ theme_override_constants/margin_top = 76
 theme_override_constants/margin_right = 20
 theme_override_constants/margin_bottom = 20
 
-[node name="ScrollContainer" type="ScrollContainer" parent="HUD/SidePanel/Margin"]
+[node name="VBox" type="VBoxContainer" parent="HUD/SidePanel/Margin"]
 layout_mode = 2
-horizontal_scroll_mode = 0
+theme_override_constants/separation = 14
 
-[node name="VBox" type="VBoxContainer" parent="HUD/SidePanel/Margin/ScrollContainer"]
+[node name="NavTitle" type="Label" parent="HUD/SidePanel/Margin/VBox"]
 layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 20
+theme_override_colors/font_color = Color(0.92549, 0.607843, 0.141176, 1)
+theme_override_font_sizes/font_size = 12
+text = "COMMAND OPERATIONS"
+horizontal_alignment = 1
 
-[node name="HeaderBox" type="VBoxContainer" parent="HUD/SidePanel/Margin/ScrollContainer/VBox"]
+[node name="GarageBtn" type="Button" parent="HUD/SidePanel/Margin/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 42)
 layout_mode = 2
-theme_override_constants/separation = 4
+text = "▦  GARAGE OPERATIONS"
+theme_override_colors/font_color = Color(0.180392, 0.803922, 0.443137, 1)
+theme_override_font_sizes/font_size = 12
 
-[node name="SectionLabel" type="Label" parent="HUD/SidePanel/Margin/ScrollContainer/VBox/HeaderBox"]
+[node name="DispatchBtn" type="Button" parent="HUD/SidePanel/Margin/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+text = "⚡  DISPATCH CENTER"
+theme_override_colors/font_color = Color(0.92549, 0.607843, 0.141176, 1)
+theme_override_font_sizes/font_size = 12
+
+[node name="AuctionBtn" type="Button" parent="HUD/SidePanel/Margin/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+text = "🏷  AUCTION BLOCK"
+theme_override_colors/font_color = Color(0.925, 0.607, 0.141, 1)
+theme_override_font_sizes/font_size = 12
+
+[node name="LaundryBtn" type="Button" parent="HUD/SidePanel/Margin/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+text = "⚗  LAUNDRY FRONTS"
+theme_override_colors/font_color = Color(0.607843, 0.34902, 0.713726, 1)
+theme_override_font_sizes/font_size = 12
+
+[node name="UnderworldBtn" type="Button" parent="HUD/SidePanel/Margin/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+text = "💀  UNDERWORLD MARKET"
+theme_override_colors/font_color = Color(0.75, 0.1, 1.0, 1)
+theme_override_font_sizes/font_size = 12
+
+[node name="SupportBtn" type="Button" parent="HUD/SidePanel/Margin/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+text = "⚙  SUPPORT & SERVICES"
+theme_override_colors/font_color = Color(0.3, 0.85, 1.0, 1)
+theme_override_font_sizes/font_size = 12
+
+[node name="AnalyticsBtn" type="Button" parent="HUD/SidePanel/Margin/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+text = "📊  LOGISTICS & ANALYTICS"
+theme_override_colors/font_color = Color(0.2, 0.8, 1.0, 1)
+theme_override_font_sizes/font_size = 12
+
+[node name="NavDivider" type="ColorRect" parent="HUD/SidePanel/Margin/VBox"]
+custom_minimum_size = Vector2(0, 1)
+layout_mode = 2
+color = Color(1, 1, 1, 0.0784314)
+
+[node name="BackMenuBtn" type="Button" parent="HUD/SidePanel/Margin/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+text = "TERMINATE SESSION"
+theme_override_colors/font_color = Color(0.901961, 0.298039, 0.235294, 1)
+theme_override_font_sizes/font_size = 12
+
+[node name="RouteInfoPanel" type="PanelContainer" parent="HUD"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(320, 360)
+offset_left = 20.0
+offset_top = 80.0
+offset_right = 340.0
+offset_bottom = 440.0
+
+[node name="Margin" type="MarginContainer" parent="HUD/RouteInfoPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 14
+theme_override_constants/margin_top = 14
+theme_override_constants/margin_right = 14
+theme_override_constants/margin_bottom = 14
+
+[node name="VBox" type="VBoxContainer" parent="HUD/RouteInfoPanel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="SectionLabel" type="Label" parent="HUD/RouteInfoPanel/Margin/VBox"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.92549, 0.607843, 0.141176, 1)
 theme_override_font_sizes/font_size = 11
 text = "ROUTE INFORMATION CONTROL"
 
-[node name="CityName" type="Label" parent="HUD/SidePanel/Margin/ScrollContainer/VBox/HeaderBox"]
+[node name="CityName" type="Label" parent="HUD/RouteInfoPanel/Margin/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 1, 1, 1)
 theme_override_font_sizes/font_size = 20
 text = "Select a City Node..."
 
-[node name="SchengenVal" type="Label" parent="HUD/SidePanel/Margin/ScrollContainer/VBox/HeaderBox"]
+[node name="SchengenVal" type="Label" parent="HUD/RouteInfoPanel/Margin/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.180392, 0.803922, 0.443137, 1)
 theme_override_font_sizes/font_size = 12
 text = "ZONE: ACTIVE"
 
-[node name="CityDivider" type="ColorRect" parent="HUD/SidePanel/Margin/ScrollContainer/VBox"]
+[node name="CityDivider" type="ColorRect" parent="HUD/RouteInfoPanel/Margin/VBox"]
 custom_minimum_size = Vector2(0, 1)
 layout_mode = 2
 color = Color(1, 1, 1, 0.0784314)
 
-[node name="ConnectionList" type="VBoxContainer" parent="HUD/SidePanel/Margin/ScrollContainer/VBox"]
+[node name="ConnectionList" type="VBoxContainer" parent="HUD/RouteInfoPanel/Margin/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 3
-theme_override_constants/separation = 12
+theme_override_constants/separation = 8
 
-[node name="Label" type="Label" parent="HUD/SidePanel/Margin/ScrollContainer/VBox/ConnectionList"]
+[node name="Label" type="Label" parent="HUD/RouteInfoPanel/Margin/VBox/ConnectionList"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.470588, 0.521569, 0.596078, 1)
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 11
 text = "LOGISTICS CONNECTIONS:"
 
-[node name="ConsoleBox" type="ColorRect" parent="HUD/SidePanel/Margin/ScrollContainer/VBox"]
+[node name="ConsoleBox" type="PanelContainer" parent="HUD"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 120)
-layout_mode = 2
-color = Color(0.0470588, 0.0509804, 0.0588235, 1)
-
-[node name="Margin" type="MarginContainer" parent="HUD/SidePanel/Margin/ScrollContainer/VBox/ConsoleBox"]
+custom_minimum_size = Vector2(400, 120)
 layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
+anchors_preset = 2
+anchor_top = 1.0
 anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
+offset_left = 20.0
+offset_top = -140.0
+offset_right = 420.0
+offset_bottom = -20.0
+grow_vertical = 0
+
+[node name="Margin" type="MarginContainer" parent="HUD/ConsoleBox"]
+layout_mode = 2
 theme_override_constants/margin_left = 12
 theme_override_constants/margin_top = 12
 theme_override_constants/margin_right = 12
 theme_override_constants/margin_bottom = 12
 
-[node name="ConsoleLabel" type="Label" parent="HUD/SidePanel/Margin/ScrollContainer/VBox/ConsoleBox/Margin"]
+[node name="ConsoleLabel" type="Label" parent="HUD/ConsoleBox/Margin"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.180392, 0.803922, 0.443137, 1)
@@ -283,109 +374,185 @@ theme_override_font_sizes/font_size = 11
 text = "System Initialized. Logged in to logistics grid. Reconnection watchdog running."
 autowrap_mode = 3
 
-[node name="NavTitle" type="Label" parent="HUD/SidePanel/Margin/ScrollContainer/VBox"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.92549, 0.607843, 0.141176, 1)
-theme_override_font_sizes/font_size = 11
-text = "COMMAND OPERATIONS"
+[node name="GarageDropdown" type="PanelContainer" parent="HUD"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(240, 0)
+anchors_preset = 11
+anchor_left = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -580.0
+offset_top = 100.0
+offset_right = -340.0
+offset_bottom = -500.0
+grow_horizontal = 0
+grow_vertical = 2
 
-[node name="GarageBtn" type="Button" parent="HUD/SidePanel/Margin/ScrollContainer/VBox"]
+[node name="Margin" type="MarginContainer" parent="HUD/GarageDropdown"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 10
+
+[node name="VBox" type="VBoxContainer" parent="HUD/GarageDropdown/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="GarageManagerBtn" type="Button" parent="HUD/GarageDropdown/Margin/VBox"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
 text = "▦  GARAGE MANAGER"
-theme_override_colors/font_color = Color(0.180392, 0.803922, 0.443137, 1)
-theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0.18, 0.8, 0.44, 1)
+theme_override_font_sizes/font_size = 11
 
-[node name="DispatchBtn" type="Button" parent="HUD/SidePanel/Margin/ScrollContainer/VBox"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 36)
-layout_mode = 2
-text = "⚡  DISPATCH CENTER"
-theme_override_colors/font_color = Color(0.92549, 0.607843, 0.141176, 1)
-theme_override_font_sizes/font_size = 12
-
-[node name="AuctionBtn" type="Button" parent="HUD/SidePanel/Margin/ScrollContainer/VBox"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 36)
-layout_mode = 2
-text = "🏷  AUCTION BLOCK"
-theme_override_colors/font_color = Color(0.925, 0.607, 0.141, 1)
-theme_override_font_sizes/font_size = 12
-
-[node name="LaundryBtn" type="Button" parent="HUD/SidePanel/Margin/ScrollContainer/VBox"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 36)
-layout_mode = 2
-text = "⚗  LAUNDRY FRONTS"
-theme_override_colors/font_color = Color(0.607843, 0.34902, 0.713726, 1)
-theme_override_font_sizes/font_size = 12
-
-[node name="UnderworldBtn" type="Button" parent="HUD/SidePanel/Margin/ScrollContainer/VBox"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 36)
-layout_mode = 2
-text = "💀  UNDERWORLD MARKET"
-theme_override_colors/font_color = Color(0.75, 0.1, 1.0, 1)
-theme_override_font_sizes/font_size = 12
-
-[node name="ShopBtn" type="Button" parent="HUD/SidePanel/Margin/ScrollContainer/VBox"]
+[node name="PartsShopBtn" type="Button" parent="HUD/GarageDropdown/Margin/VBox"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
 text = "🔧  PARTS & RIGGING SHOP"
-theme_override_colors/font_color = Color(0.3, 0.85, 1.0, 1)
-theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0.18, 0.8, 0.44, 1)
+theme_override_font_sizes/font_size = 11
 
-[node name="BreakdownBtn" type="Button" parent="HUD/SidePanel/Margin/ScrollContainer/VBox"]
+[node name="SupportDropdown" type="PanelContainer" parent="HUD"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(240, 0)
+anchors_preset = 11
+anchor_left = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -580.0
+offset_top = 370.0
+offset_right = -340.0
+offset_bottom = -200.0
+grow_horizontal = 0
+grow_vertical = 2
+
+[node name="Margin" type="MarginContainer" parent="HUD/SupportDropdown"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 10
+
+[node name="VBox" type="VBoxContainer" parent="HUD/SupportDropdown/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="EmergencyRecoveryBtn" type="Button" parent="HUD/SupportDropdown/Margin/VBox"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
 text = "🚨  EMERGENCY RECOVERY"
-theme_override_colors/font_color = Color(1.0, 0.6, 0.1, 1)
-theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0.3, 0.85, 1.0, 1)
+theme_override_font_sizes/font_size = 11
 
-[node name="LeaderboardBtn" type="Button" parent="HUD/SidePanel/Margin/ScrollContainer/VBox"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 36)
-layout_mode = 2
-text = "🏆  LEADERBOARDS"
-theme_override_colors/font_color = Color(0.92549, 0.76, 0.141176, 1)
-theme_override_font_sizes/font_size = 12
-
-[node name="AnalyticsBtn" type="Button" parent="HUD/SidePanel/Margin/ScrollContainer/VBox"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 36)
-layout_mode = 2
-text = "📊  LOGISTICS & ANALYTICS"
-theme_override_colors/font_color = Color(0.2, 0.8, 1.0, 1)
-theme_override_font_sizes/font_size = 12
-
-[node name="ResearchBtn" type="Button" parent="HUD/SidePanel/Margin/ScrollContainer/VBox"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 36)
-layout_mode = 2
-text = "🔬  R&D TECH TREE"
-theme_override_colors/font_color = Color(0.65, 0.45, 1.0, 1)
-theme_override_font_sizes/font_size = 12
-
-[node name="DealershipBtn" type="Button" parent="HUD/SidePanel/Margin/ScrollContainer/VBox"]
+[node name="FactoryShowroomBtn" type="Button" parent="HUD/SupportDropdown/Margin/VBox"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
 text = "🏢  FACTORY SHOWROOM"
-theme_override_colors/font_color = Color(0.2, 0.9, 0.7, 1)
-theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0.3, 0.85, 1.0, 1)
+theme_override_font_sizes/font_size = 11
 
-[node name="NavDivider" type="ColorRect" parent="HUD/SidePanel/Margin/ScrollContainer/VBox"]
-custom_minimum_size = Vector2(0, 1)
-layout_mode = 2
-color = Color(1, 1, 1, 0.0784314)
-
-[node name="BackMenuBtn" type="Button" parent="HUD/SidePanel/Margin/ScrollContainer/VBox"]
+[node name="RDTechTreeBtn" type="Button" parent="HUD/SupportDropdown/Margin/VBox"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
-text = "TERMINATE SESSION"
-theme_override_colors/font_color = Color(0.901961, 0.298039, 0.235294, 1)
-theme_override_font_sizes/font_size = 12
+text = "🔬  R&D TECH TREE"
+theme_override_colors/font_color = Color(0.3, 0.85, 1.0, 1)
+theme_override_font_sizes/font_size = 11
+
+[node name="SurchargeWarning" type="PanelContainer" parent="HUD"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(360, 45)
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -180.0
+offset_top = 70.0
+offset_right = 180.0
+offset_bottom = 115.0
+grow_horizontal = 2
+
+[node name="Margin" type="MarginContainer" parent="HUD/SurchargeWarning"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 6
+
+[node name="WarningLabel" type="Label" parent="HUD/SurchargeWarning/Margin"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1.0, 0.6, 0.1, 1)
+theme_override_font_sizes/font_size = 11
+text = "⚠️ CROSS-REGION SURCHARGE ACTIVE: +35% FUEL"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="TelemetryPanel" type="PanelContainer" parent="HUD"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(260, 140)
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -600.0
+offset_top = -160.0
+offset_right = -340.0
+offset_bottom = -20.0
+grow_horizontal = 0
+grow_vertical = 0
+
+[node name="Margin" type="MarginContainer" parent="HUD/TelemetryPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 10
+
+[node name="HBox" type="HBoxContainer" parent="HUD/TelemetryPanel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="TachographDraw" type="Control" parent="HUD/TelemetryPanel/Margin/HBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+
+[node name="VBox" type="VBoxContainer" parent="HUD/TelemetryPanel/Margin/HBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+alignment = 1
+
+[node name="AutopilotLbl" type="Label" parent="HUD/TelemetryPanel/Margin/HBox/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.180392, 0.803922, 0.443137, 1)
+theme_override_font_sizes/font_size = 9
+text = "ACTIVE AUTOPILOT: ONLINE"
+
+[node name="SpeedLbl" type="Label" parent="HUD/TelemetryPanel/Margin/HBox/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.85)
+theme_override_font_sizes/font_size = 9
+text = "SPEED: 84 KM/H"
+
+[node name="ConsumptionLbl" type="Label" parent="HUD/TelemetryPanel/Margin/HBox/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.85)
+theme_override_font_sizes/font_size = 9
+text = "CONSUMP: 32.4 L/100KM"
+
+[node name="WearLbl" type="Label" parent="HUD/TelemetryPanel/Margin/HBox/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.85)
+theme_override_font_sizes/font_size = 9
+text = "WEAR: +0.05% / HR"
+
+[node name="ProgressLbl" type="Label" parent="HUD/TelemetryPanel/Margin/HBox/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.92549, 0.607843, 0.141176, 1)
+theme_override_font_sizes/font_size = 9
+text = "ROUTE PROGRESS: 74%"

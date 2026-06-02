@@ -4,15 +4,15 @@ shader_type canvas_item;
 // Gives the 2D vector map a dark, retro-futuristic control panel glow.
 
 uniform sampler2D screen_texture : hint_screen_texture, filter_linear_mipmap;
-uniform float scanline_count : hint_range(0, 1080) = 450.0;
-uniform float scanline_alpha : hint_range(0.0, 1.0) = 0.15;
+uniform float scanline_count : hint_range(0, 1080) = 360.0;
+uniform float scanline_alpha : hint_range(0.0, 1.0) = 0.35;
 uniform float vignette_intensity : hint_range(0.0, 2.0) = 1.2;
 uniform float chromatic_aberration : hint_range(0.0, 0.05) = 0.003;
-uniform float curvature : hint_range(0.0, 10.0) = 3.5;
+uniform float curvature : hint_range(0.0, 10.0) = 6.0;
 
 vec2 curve(vec2 uv) {
 	uv = (uv - 0.5) * 2.0;
-	uv *= 1.1;	
+	uv *= 1.025;	
 	uv.x *= 1.0 + pow((abs(uv.y) / curvature), 2.0);
 	uv.y *= 1.0 + pow((abs(uv.x) / curvature), 2.0);
 	uv  = (uv / 2.0) + 0.5;

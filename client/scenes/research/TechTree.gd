@@ -21,6 +21,11 @@ var selected_brand: String = "SCARFIA"
 @onready var brand_http = $BrandHTTPRequest
 
 func _ready() -> void:
+	# Programmatically connect HTTP signals to response callbacks to ensure reliability
+	get_http.request_completed.connect(_on_get_response)
+	upgrade_http.request_completed.connect(_on_upgrade_response)
+	brand_http.request_completed.connect(_on_brand_response)
+	
 	_build_ui()
 	_fetch_research_data()
 	

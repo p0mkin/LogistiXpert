@@ -2,6 +2,7 @@ import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import http from 'http';
+import path from 'path';
 import { CONFIG } from './config';
 import { PrismaClient } from '@prisma/client';
 import authRoutes from './routes/auth.routes';
@@ -34,9 +35,15 @@ const prisma = new PrismaClient();
 // ==========================================
 // 1. STANDARD MIDDLEWARES
 // ==========================================
-app.use(helmet());
+app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors());
 app.use(express.json());
+
+// Serve static web client files if available
+const webPath = path.resolve(__dirname, '../../web');
+const webPathDev = path.resolve(__dirname, '../web');
+app.use(express.static(webPath));
+app.use(express.static(webPathDev));
 
 // REST Route mappings
 app.use('/api/auth', authRoutes);
