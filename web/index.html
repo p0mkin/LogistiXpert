@@ -261,7 +261,7 @@
           <!-- Floating Overlays over Map Area -->
           
           <!-- Overlay 1: Garage Operations Module (Green) -->
-          <div class="hud-overlay-card panel-cyber panel-green hud-garage" id="garage-overlay">
+          <div class="hud-overlay-card panel-cyber panel-green hud-garage" id="garage-overlay" style="display: none;">
             <div class="hud-card-header">
               <span>GARAGE OPERATIONS</span>
               <span class="hud-card-dot"></span>
@@ -282,31 +282,112 @@
             </div>
           </div>
 
-          <!-- Overlay 2: System Development Module (Blue) -->
-          <div class="hud-overlay-card panel-cyber panel-blue hud-development" id="support-overlay">
+          <!-- Overlay 2: System Settings & Services Module (Blue - Glassmorphic Modal) -->
+          <div class="hud-overlay-card panel-cyber panel-blue hud-development" id="support-overlay" style="display: none;">
             <div class="hud-card-header">
-              <span>SYSTEM DEVELOPMENT</span>
-              <span class="hud-card-dot"></span>
+              <span>SYSTEM SETTINGS & SERVICES</span>
+              <button class="settings-close-btn" id="close-support-btn" title="Close calibration console">&times;</button>
             </div>
-            <div class="hud-card-body">
-              <div class="hud-control-btn">
-                <svg viewBox="0 0 24 24">
-                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
-                </svg>
-                <span>EMERGENCY RECOVERY</span>
+            <div class="hud-card-body settings-dual-column">
+              
+              <!-- Left Column: Operations & Services -->
+              <div class="settings-col-left">
+                <div class="settings-section-title">// SYSTEM SERVICES</div>
+                
+                <div class="hud-control-btn">
+                  <svg viewBox="0 0 24 24">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+                  </svg>
+                  <div class="btn-text-block">
+                    <span class="btn-title">EMERGENCY RECOVERY</span>
+                    <span class="btn-desc">Dispatch roadside engineers</span>
+                  </div>
+                </div>
+                
+                <div class="hud-control-btn">
+                  <svg viewBox="0 0 24 24">
+                    <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+                  </svg>
+                  <div class="btn-text-block">
+                    <span class="btn-title">FACTORY SHOWROOM</span>
+                    <span class="btn-desc">Acquire heavy transport rigs</span>
+                  </div>
+                </div>
+                
+                <div class="hud-control-btn">
+                  <svg viewBox="0 0 24 24">
+                    <path d="M12 2a3 3 0 1 0 3 3 3 3 0 0 0-3-3zm0 14a3 3 0 1 0 3 3 3 3 0 0 0-3-3zm7-7a3 3 0 1 0 3 3 3 3 0 0 0-3-3zm-14 0a3 3 0 1 0 3 3 3 3 0 0 0-3-3zm7 2a1 1 0 0 0 1-1V8a1 1 0 0 0-2 0v3a1 1 0 0 0 1 1z"/>
+                  </svg>
+                  <div class="btn-text-block">
+                    <span class="btn-title">R&D TECH TREE</span>
+                    <span class="btn-desc">Decrypt engine tuning specs</span>
+                  </div>
+                </div>
+
+                <!-- Network Handshake Stats Widget -->
+                <div class="settings-stats-widget">
+                  <div class="stats-row">
+                    <span class="stats-label">OPERATOR_UPLINK:</span>
+                    <span class="stats-value val-green">AUTHENTICATED</span>
+                  </div>
+                  <div class="stats-row">
+                    <span class="stats-label">SYSTEM_EPOCH:</span>
+                    <span class="stats-value" id="settings-epoch-val">SECURE_LINK</span>
+                  </div>
+                  <div class="stats-row">
+                    <span class="stats-label">COEFF_CORR:</span>
+                    <span class="stats-value val-blue">1.0 (STABLE)</span>
+                  </div>
+                </div>
               </div>
-              <div class="hud-control-btn">
-                <svg viewBox="0 0 24 24">
-                  <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
-                </svg>
-                <span>FACTORY SHOWROOM</span>
+
+              <!-- Right Column: Shader & Graphics Calibration -->
+              <div class="settings-col-right">
+                <div class="settings-section-title">// TACTICAL GRAPHICS CALIBRATION</div>
+                
+                <!-- Calibration Sliders -->
+                <div class="settings-slider-group">
+                  <div class="slider-header-row">
+                    <span class="slider-title">VIGNETTE GLOW INTENSITY</span>
+                    <span class="slider-display-val" id="val-vignette">0.60</span>
+                  </div>
+                  <input type="range" class="settings-range-slider" id="slider-vignette" min="0.0" max="1.0" step="0.05" value="0.60">
+                </div>
+
+                <div class="settings-slider-group">
+                  <div class="slider-header-row">
+                    <span class="slider-title">SCANLINE ALPHA OPACITY</span>
+                    <span class="slider-display-val" id="val-scanline">0.15</span>
+                  </div>
+                  <input type="range" class="settings-range-slider" id="slider-scanline" min="0.0" max="0.8" step="0.05" value="0.15">
+                </div>
+
+                <div class="settings-slider-group">
+                  <div class="slider-header-row">
+                    <span class="slider-title">CRT SCREEN CURVATURE</span>
+                    <span class="slider-display-val" id="val-curvature">6.0</span>
+                  </div>
+                  <input type="range" class="settings-range-slider" id="slider-curvature" min="0.0" max="15.0" step="0.5" value="6.0">
+                </div>
+
+                <div class="settings-slider-group">
+                  <div class="slider-header-row">
+                    <span class="slider-title">PIXEL LINE DENSITY</span>
+                    <span class="slider-display-val" id="val-density">4px</span>
+                  </div>
+                  <input type="range" class="settings-range-slider" id="slider-density" min="2" max="12" step="1" value="4">
+                </div>
+
+                <!-- Calibration Preset Toggles -->
+                <div class="preset-calibration-group">
+                  <span class="preset-group-label">GRAPHICS PRESET PROFILE:</span>
+                  <div class="preset-buttons-container">
+                    <button class="preset-profile-btn active-preset" id="btn-preset-standard">STANDARD (Battery)</button>
+                    <button class="preset-profile-btn" id="btn-preset-ultra">ULTRA_HD (High-End)</button>
+                  </div>
+                </div>
               </div>
-              <div class="hud-control-btn">
-                <svg viewBox="0 0 24 24">
-                  <path d="M12 2a3 3 0 1 0 3 3 3 3 0 0 0-3-3zm0 14a3 3 0 1 0 3 3 3 3 0 0 0-3-3zm7-7a3 3 0 1 0 3 3 3 3 0 0 0-3-3zm-14 0a3 3 0 1 0 3 3 3 3 0 0 0-3-3zm7 2a1 1 0 0 0 1-1V8a1 1 0 0 0-2 0v3a1 1 0 0 0 1 1z"/>
-                </svg>
-                <span>R&D TECH TREE</span>
-              </div>
+
             </div>
           </div>
 

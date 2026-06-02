@@ -296,8 +296,8 @@ const SYSTEM_STATE = {
     { type: "warn", text: "HAZARD: External checkpoint 'Brest-Terespol' reports intensive scanning." }
   ],
   dropdowns: {
-    garage: true,
-    support: true
+    garage: false,
+    support: false
   },
   token: null,
   user: null,
@@ -359,7 +359,20 @@ const UI_NODES = {
   btnApiDisconnect: document.getElementById("btn-api-disconnect"),
   apiCompanyName: document.getElementById("api-company-name"),
   apiCompanyId: document.getElementById("api-company-id"),
-  apiSocketStatus: document.getElementById("api-socket-status")
+  apiSocketStatus: document.getElementById("api-socket-status"),
+
+  // Calibration Sliders and Preset Buttons
+  sliderVignette: document.getElementById("slider-vignette"),
+  valVignette: document.getElementById("val-vignette"),
+  sliderScanline: document.getElementById("slider-scanline"),
+  valScanline: document.getElementById("val-scanline"),
+  sliderCurvature: document.getElementById("slider-curvature"),
+  valCurvature: document.getElementById("val-curvature"),
+  sliderDensity: document.getElementById("slider-density"),
+  valDensity: document.getElementById("val-density"),
+  btnPresetStandard: document.getElementById("btn-preset-standard"),
+  btnPresetUltra: document.getElementById("btn-preset-ultra"),
+  closeSupportBtn: document.getElementById("close-support-btn")
 };
 
 // 4. INITIALIZATION & BOOT LOADER
@@ -367,6 +380,7 @@ window.addEventListener("DOMContentLoaded", () => {
   bootSystemDiagnostics();
   renderTacticalMap();
   initializeEventListeners();
+  initializeGraphicsCalibration(); // Interactive Calibration Sliders
   startSystemTimeLoop();
   synchronizeUI();
   restoreSessionOnBoot(); // Restore session from localStorage if available
@@ -550,9 +564,14 @@ function initializeEventListeners() {
   });
 
   // Universal mouseover clicks & hovers for micro-chirps
-  document.querySelectorAll(".nav-op-btn, .hud-control-btn, .checkpoint-choice-btn, .simulator-trigger-btn").forEach(btn => {
+  document.querySelectorAll(".nav-op-btn, .hud-control-btn, .checkpoint-choice-btn, .simulator-trigger-btn, .settings-close-btn, .preset-profile-btn").forEach(btn => {
     btn.addEventListener("mouseenter", () => AUDIO.playHover());
     btn.addEventListener("click", () => AUDIO.playClick());
+  });
+
+  // Hover chirps for settings sliders
+  document.querySelectorAll(".settings-range-slider").forEach(slider => {
+    slider.addEventListener("mouseenter", () => AUDIO.playHover());
   });
 
   // Toggle Overlays inside map canvas
@@ -669,12 +688,20 @@ function calculateDistance(coords1, coords2) {
 }
 
 function toggleOverlay(type) {
-  SYSTEM_STATE.dropdowns[type] = !SYSTEM_STATE.dropdowns[type];
+  const targetState = !SYSTEM_STATE.dropdowns[type];
   
+  // Enforce mutual exclusivity - close the other overlay
+  const otherType = type === "garage" ? "support" : "garage";
+  SYSTEM_STATE.dropdowns[otherType] = false;
+  const otherMenu = otherType === "garage" ? UI_NODES.garageMenu : UI_NODES.supportMenu;
+  if (otherMenu) otherMenu.style.display = "none";
+  
+  // Set the selected overlay state
+  SYSTEM_STATE.dropdowns[type] = targetState;
   const menu = type === "garage" ? UI_NODES.garageMenu : UI_NODES.supportMenu;
-  menu.style.display = SYSTEM_STATE.dropdowns[type] ? "block" : "none";
+  if (menu) menu.style.display = targetState ? "block" : "none";
   
-  appendTerminalLine(`HUD: Map overlay '${type.toUpperCase()}' toggled.`, "info");
+  appendTerminalLine(`HUD: Map overlay '${type.toUpperCase()}' ${targetState ? "opened" : "closed"}.`, "info");
 }
 
 // 7. UI PRESENTATION SYNCHRONIZATION (Updating tickers, telemetry and speedometers)
@@ -1253,4 +1280,102 @@ async function restoreSessionOnBoot() {
       appendTerminalLine("AUTH: Gateway unreachable. Falling back to local offline sandbox...", "warn");
     }
   }
+}
+
+/**
+ * ==========================================================================
+ * TACTICAL GRAPHICS & CALIBRATION CONSOLE ENGINE
+ * ==========================================================================
+ */
+function initializeGraphicsCalibration() {
+  // A. Sliders input listeners to update CSS variables dynamically
+  if (UI_NODES.sliderVignette) {
+    UI_NODES.sliderVignette.addEventListener("input", (e) => {
+      const val = parseFloat(e.target.value).toFixed(2);
+      if (UI_NODES.valVignette) UI_NODES.valVignette.textContent = val;
+      document.documentElement.style.setProperty('--vignette-intensity', val);
+      clearActivePreset();
+    });
+  }
+
+  if (UI_NODES.sliderScanline) {
+    UI_NODES.sliderScanline.addEventListener("input", (e) => {
+      const val = parseFloat(e.target.value).toFixed(2);
+      if (UI_NODES.valScanline) UI_NODES.valScanline.textContent = val;
+      document.documentElement.style.setProperty('--scanline-alpha', val);
+      clearActivePreset();
+    });
+  }
+
+  if (UI_NODES.sliderCurvature) {
+    UI_NODES.sliderCurvature.addEventListener("input", (e) => {
+      const val = parseFloat(e.target.value).toFixed(1);
+      if (UI_NODES.valCurvature) UI_NODES.valCurvature.textContent = val;
+      document.documentElement.style.setProperty('--curvature-val', val);
+      clearActivePreset();
+    });
+  }
+
+  if (UI_NODES.sliderDensity) {
+    UI_NODES.sliderDensity.addEventListener("input", (e) => {
+      const val = e.target.value;
+      if (UI_NODES.valDensity) UI_NODES.valDensity.textContent = val + "px";
+      document.documentElement.style.setProperty('--scanline-spacing', val + "px");
+      clearActivePreset();
+    });
+  }
+
+  // B. Preset profiles
+  if (UI_NODES.btnPresetStandard) {
+    UI_NODES.btnPresetStandard.addEventListener("click", () => {
+      applyPresetProfile(0.60, 0.15, 6.0, 4);
+      UI_NODES.btnPresetStandard.classList.add("active-preset");
+      if (UI_NODES.btnPresetUltra) UI_NODES.btnPresetUltra.classList.remove("active-preset");
+      appendTerminalLine("SYSTEM: Graphics preset profile 'STANDARD (Battery)' applied.", "success");
+    });
+  }
+
+  if (UI_NODES.btnPresetUltra) {
+    UI_NODES.btnPresetUltra.addEventListener("click", () => {
+      applyPresetProfile(0.85, 0.30, 10.0, 6);
+      UI_NODES.btnPresetUltra.classList.add("active-preset");
+      if (UI_NODES.btnPresetStandard) UI_NODES.btnPresetStandard.classList.remove("active-preset");
+      appendTerminalLine("SYSTEM: Graphics preset profile 'ULTRA_HD (High-End)' applied.", "success");
+    });
+  }
+
+  // C. Support Overlay Close Button
+  if (UI_NODES.closeSupportBtn) {
+    UI_NODES.closeSupportBtn.addEventListener("click", () => {
+      // Toggle off the support overlay state
+      SYSTEM_STATE.dropdowns.support = false;
+      if (UI_NODES.supportMenu) UI_NODES.supportMenu.style.display = "none";
+      appendTerminalLine("HUD: Map overlay 'SUPPORT' closed.", "info");
+    });
+  }
+}
+
+function clearActivePreset() {
+  if (UI_NODES.btnPresetStandard) UI_NODES.btnPresetStandard.classList.remove("active-preset");
+  if (UI_NODES.btnPresetUltra) UI_NODES.btnPresetUltra.classList.remove("active-preset");
+}
+
+function applyPresetProfile(vignette, scanline, curvature, density) {
+  // Update UI slider inputs
+  if (UI_NODES.sliderVignette) UI_NODES.sliderVignette.value = vignette;
+  if (UI_NODES.sliderScanline) UI_NODES.sliderScanline.value = scanline;
+  if (UI_NODES.sliderCurvature) UI_NODES.sliderCurvature.value = curvature;
+  if (UI_NODES.sliderDensity) UI_NODES.sliderDensity.value = density;
+
+  // Update value display text
+  if (UI_NODES.valVignette) UI_NODES.valVignette.textContent = vignette.toFixed(2);
+  if (UI_NODES.valScanline) UI_NODES.valScanline.textContent = scanline.toFixed(2);
+  if (UI_NODES.valCurvature) UI_NODES.valCurvature.textContent = curvature.toFixed(1);
+  if (UI_NODES.valDensity) UI_NODES.valDensity.textContent = density + "px";
+
+  // Update CSS variables on :root
+  document.documentElement.style.setProperty('--vignette-intensity', vignette);
+  document.documentElement.style.setProperty('--scanline-alpha', scanline);
+  document.documentElement.style.setProperty('--curvature-val', curvature);
+  document.documentElement.style.setProperty('--scanline-spacing', density + "px");
 }
