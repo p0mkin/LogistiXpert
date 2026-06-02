@@ -6,7 +6,8 @@ extends Control
 # Fleet Value | Underworld Rep | Total Mileage | Heat Index | Auction Wins
 # ====================================================
 
-const BASE_URL = "http://localhost:3000"
+var BASE_URL: String:
+	get: return NetworkManager.HTTP_URL.replace("/api", "")
 
 var current_tab: String = "underworld-rep"
 var leaderboard_data: Dictionary = {}
@@ -27,6 +28,10 @@ const TABS = [
 
 func _ready() -> void:
 	_build_ui()
+	if http:
+		http.request_completed.connect(_on_leaderboard_response)
+	if my_rank_http:
+		my_rank_http.request_completed.connect(_on_my_rank_response)
 	_fetch_my_ranks()
 	_fetch_leaderboard(current_tab)
 
@@ -158,7 +163,7 @@ func _build_ui() -> void:
 # DATA FETCHING
 # ====================================================
 func _fetch_leaderboard(tab_id: String) -> void:
-	if http_active:
+	if http_active or http.get_http_client_status() != HTTPClient.STATUS_DISCONNECTED:
 		return
 	http_active = true
 	_set_loading(true)
@@ -167,7 +172,6 @@ func _fetch_leaderboard(tab_id: String) -> void:
 	var token = GameState.auth_token
 	var headers = ["Authorization: Bearer " + token]
 	http.request(BASE_URL + "/api/leaderboard/" + tab_id, headers, HTTPClient.METHOD_GET)
-	http.request_completed.connect(_on_leaderboard_response, CONNECT_ONE_SHOT)
 
 func _on_leaderboard_response(_result, response_code, _headers, body) -> void:
 	http_active = false
@@ -189,10 +193,11 @@ func _on_leaderboard_response(_result, response_code, _headers, body) -> void:
 	_render_table(entries, current_tab, tab_color)
 
 func _fetch_my_ranks() -> void:
+	if my_rank_http.get_http_client_status() != HTTPClient.STATUS_DISCONNECTED:
+		return
 	var token = GameState.auth_token
 	var headers = ["Authorization: Bearer " + token]
 	my_rank_http.request(BASE_URL + "/api/leaderboard/my-rank", headers, HTTPClient.METHOD_GET)
-	my_rank_http.request_completed.connect(_on_my_rank_response, CONNECT_ONE_SHOT)
 
 func _on_my_rank_response(_result, response_code, _headers, body) -> void:
 	if response_code != 200:
@@ -269,9 +274,13 @@ func _make_row(entry: Dictionary, tab_id: String, tab_color: Color) -> Control:
 	elif rank == 3:
 		bg_color = Color(0.10, 0.06, 0.03, 0.85)
 
-	var row = PanelContainer.new()
+	var row = Control.new()
 	row.custom_minimum_size = Vector2(1280, 52)
+	row.size = Vector2(1280, 52)
 
+	var bg_panel = PanelContainer.new()
+	bg_panel.position = Vector2.ZERO
+	bg_panel.size = Vector2(1280, 52)
 	var style = StyleBoxFlat.new()
 	style.bg_color = bg_color
 	if is_me:
@@ -280,7 +289,8 @@ func _make_row(entry: Dictionary, tab_id: String, tab_color: Color) -> Control:
 	elif rank <= 3:
 		style.border_color = _rank_medal_color(rank)
 		style.border_width_left = 3
-	row.add_theme_stylebox_override("panel", style)
+	bg_panel.add_theme_stylebox_override("panel", style)
+	row.add_child(bg_panel)
 
 	# Rank number
 	var rank_lbl = Label.new()
@@ -324,7 +334,7 @@ func _make_row(entry: Dictionary, tab_id: String, tab_color: Color) -> Control:
 	# Fleet size column
 	var fleet_val = entry.get("fleetSize", entry.get("truckCount", "—"))
 	var fleet_lbl = Label.new()
-	fleet_lbl.text = str(fleet_val) + (" trucks" if fleet_val != "—" else "")
+	fleet_lbl.text = str(fleet_val) + (" trucks" if str(fleet_val) != "—" else "")
 	fleet_lbl.add_theme_font_size_override("font_size", 13)
 	fleet_lbl.add_theme_color_override("font_color", Color(0.55, 0.55, 0.65, 1.0))
 	fleet_lbl.position = Vector2(940, 16)
@@ -419,9 +429,13 @@ func _show_error(msg: String) -> void:
 func _go_back() -> void:
 	SceneTransition.change_scene_to_file("res://scenes/game_map/GameMap.tscn")
 
-func _panel(pos: Vector2, sz: Vector2, color: Color) -> PanelContainer:
+func _panel(pos: Vector2, sz: Vector2, color: Color) -> Control:
+	var wrapper = Control.new()
+	wrapper.position = pos
+	wrapper.size = sz
+	
 	var p = PanelContainer.new()
-	p.position = pos
+	p.position = Vector2.ZERO
 	p.size = sz
 	var style = StyleBoxFlat.new()
 	style.bg_color = color
@@ -429,7 +443,9 @@ func _panel(pos: Vector2, sz: Vector2, color: Color) -> PanelContainer:
 	style.border_width_bottom = 1
 	style.border_width_top = 1
 	p.add_theme_stylebox_override("panel", style)
-	return p
+	
+	wrapper.add_child(p)
+	return wrapper
 
 func _button(label_text: String, pos: Vector2, sz: Vector2) -> Button:
 	var btn = Button.new()

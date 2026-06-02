@@ -25,7 +25,8 @@ var action_btn_3: Button = null
 @onready var dirty_lbl: Label = %DirtyLabel
 @onready var player_lbl: Label = %PlayerLabel
 
-var api_base: String = "http://127.0.0.1:3000/api"
+var api_base: String:
+	get: return NetworkManager.HTTP_URL
 var trucks_data: Array = []
 var drivers_data: Array = []
 var selected_truck: Dictionary = {}
@@ -110,6 +111,23 @@ class LineGraph extends Control:
 		for j in range(6):
 			var x_line = (size.x / 5.0) * j
 			draw_line(Vector2(x_line, 0), Vector2(x_line, size.y), grid_color, 1.0)
+			
+		# Draw tiny axis labels
+		var font = get_theme_font("font")
+		if font:
+			# Y-axis Max
+			draw_string(font, Vector2(6, 12), "$%.2f" % max_val, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(graph_color.r, graph_color.g, graph_color.b, 0.6))
+			# Y-axis Min
+			draw_string(font, Vector2(6, size.y - 4), "$%.2f" % min_val, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(graph_color.r, graph_color.g, graph_color.b, 0.6))
+			
+		# Tiny high-tech crosshairs at grid intersections
+		for i in range(1, 3):
+			var y_line = (size.y / 3.0) * i
+			for j in range(1, 5):
+				var x_line = (size.x / 5.0) * j
+				var inter = Vector2(x_line, y_line)
+				draw_line(inter - Vector2(4, 0), inter + Vector2(4, 0), Color(graph_color.r, graph_color.g, graph_color.b, 0.25), 1.0)
+				draw_line(inter - Vector2(0, 4), inter + Vector2(0, 4), Color(graph_color.r, graph_color.g, graph_color.b, 0.25), 1.0)
 			
 		# Map points onto the Control's coordinate space
 		var mapped_points: Array = []
@@ -372,6 +390,10 @@ func _on_drivers_response(result: int, response_code: int, headers: PackedString
 			drivers_data = data
 			_render_driver_list()
 			_log("Driver roster loaded: %d contractors on payroll." % drivers_data.size(), Color(0.180, 0.803, 0.443))
+		else:
+			_log("Driver roster loaded with invalid schema format.", Color(0.901, 0.298, 0.235))
+	else:
+		_log("Driver roster load failed (HTTP %d)." % response_code, Color(0.901, 0.298, 0.235))
 
 func _on_repair_response(result: int, response_code: int, headers: PackedStringArray, body: PackedByteArray, http: HTTPRequest) -> void:
 	http.queue_free()
@@ -552,8 +574,6 @@ func _build_truck_card(truck: Dictionary) -> PanelContainer:
 	vbox.add_child(vin_lbl)
 	
 	# Health bars
-	var engine_pct = int(truck.get("engineHealth", 100))
-	var tire_pct = int(truck.get("tireWear", 100))
 	var mileage = truck.get("mileage", 0)
 	
 	vbox.add_child(_build_health_bar("ENGINE", engine_pct))
@@ -597,11 +617,31 @@ func _build_truck_card(truck: Dictionary) -> PanelContainer:
 func _build_driver_card(driver: Dictionary) -> PanelContainer:
 	var panel = PanelContainer.new()
 	
-	# Color border by loyalty tier and fatigue
-	var loyalty = int(driver.get("loyalty", 0))
-	var fatigue = int(driver.get("fatigue", 0))
-	var border_color = Color(0.65, 0.45, 1.0) # Underworld Purple default
+	var driver_name = "Unknown Driver"
+	if driver.get("name") != null:
+		driver_name = str(driver.get("name", ""))
+	if driver_name.is_empty():
+		driver_name = "Unknown Driver"
+	var driver_trait = "BALANCED"
+	if driver.get("trait") != null:
+		driver_trait = str(driver.get("trait", ""))
+	if driver_trait.is_empty():
+		driver_trait = "BALANCED"
+	var loyalty = 0
+	if driver.get("loyalty") != null:
+		loyalty = int(driver.get("loyalty", 0))
+	var fatigue = 0
+	if driver.get("fatigue") != null:
+		fatigue = int(driver.get("fatigue", 0))
+	var stimulated = false
+	if driver.get("isStimulated") != null:
+		stimulated = bool(driver.get("isStimulated", false))
+	var tacho = 0.0
+	if driver.get("tachoHours") != null:
+		tacho = float(driver.get("tachoHours", 0.0))
 	
+	# Color border by loyalty tier and fatigue
+	var border_color = Color(0.65, 0.45, 1.0) # Underworld Purple default
 	if fatigue > 70:
 		border_color = Color(1.0, 0.25, 0.25) # Crimson (dangerous exhaustion)
 	elif loyalty >= 80:
@@ -621,7 +661,7 @@ func _build_driver_card(driver: Dictionary) -> PanelContainer:
 	# Driver name + trait badge
 	var header = HBoxContainer.new()
 	var name_lbl = Label.new()
-	name_lbl.text = driver.get("name", "Unknown Driver")
+	name_lbl.text = driver_name
 	name_lbl.add_theme_color_override("font_color", Color(1, 1, 1))
 	name_lbl.add_theme_font_size_override("font_size", 14)
 	header.add_child(name_lbl)
@@ -631,10 +671,9 @@ func _build_driver_card(driver: Dictionary) -> PanelContainer:
 	header.add_child(spacer)
 	
 	var trait_lbl = Label.new()
-	var trait = driver.get("trait", "BALANCED")
-	trait_lbl.text = "[%s]" % trait
+	trait_lbl.text = "[%s]" % driver_trait
 	trait_lbl.add_theme_font_size_override("font_size", 11)
-	match trait:
+	match driver_trait:
 		"LOYAL":
 			trait_lbl.add_theme_color_override("font_color", Color(0.607, 0.349, 0.713))
 		"LEAD_FOOT":
@@ -648,9 +687,6 @@ func _build_driver_card(driver: Dictionary) -> PanelContainer:
 	
 	# Fatigue + Stimulant state
 	var stim_lbl = Label.new()
-	var stimulated = driver.get("isStimulated", false)
-	var fatigue = int(driver.get("fatigue", 0))
-	var tacho = driver.get("tachoHours", 0.0)
 	
 	if stimulated:
 		stim_lbl.text = "⚗ STIMULANT ACTIVE"
@@ -696,8 +732,16 @@ func _build_health_bar(label: String, pct: int, is_bad_high: bool = false) -> HB
 	style_bg.set_corner_radius_all(4)
 	bg.add_theme_stylebox_override("panel", style_bg)
 	
+	# Intermediate plain Control wrapper to escape PanelContainer auto-layout override
+	var bar_area = Control.new()
+	bar_area.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	bg.add_child(bar_area)
+	
 	var fill = PanelContainer.new()
-	fill.size_flags_horizontal = Control.SIZE_FILL
+	fill.custom_minimum_size.y = 8
+	fill.set_anchors_preset(Control.PRESET_LEFT_WIDE)
+	fill.anchor_right = clampf(float(pct) / 100.0, 0.0, 1.0)
+	fill.offset_right = 0
 	
 	# Determine fill color based on percentage and type
 	var fill_color: Color
@@ -715,11 +759,7 @@ func _build_health_bar(label: String, pct: int, is_bad_high: bool = false) -> HB
 	style_fill.set_corner_radius_all(4)
 	fill.add_theme_stylebox_override("panel", style_fill)
 	
-	# Simulate width via stretch ratio (Godot % trick with anchors)
-	fill.anchor_right = float(pct) / 100.0
-	fill.offset_right = 0
-	
-	bg.add_child(fill)
+	bar_area.add_child(fill)
 	row.add_child(bg)
 	
 	var pct_lbl = Label.new()
@@ -837,23 +877,47 @@ func _select_driver(driver: Dictionary) -> void:
 	selected_truck = {}
 	mode = "drivers"
 	detail_panel.show()
-	detail_title.text = driver.get("name", "Driver")
-	detail_status.text = "TRAIT: " + driver.get("trait", "BALANCED")
+	
+	# Extract and coerce all fields safely to guard against nulls
+	var driver_name = "Driver"
+	if driver.get("name") != null:
+		driver_name = str(driver.get("name", ""))
+	if driver_name.is_empty():
+		driver_name = "Driver"
+	var driver_trait = "BALANCED"
+	if driver.get("trait") != null:
+		driver_trait = str(driver.get("trait", ""))
+	if driver_trait.is_empty():
+		driver_trait = "BALANCED"
+	var loyalty = 0
+	if driver.get("loyalty") != null:
+		loyalty = int(driver.get("loyalty", 0))
+	var fatigue = 0
+	if driver.get("fatigue") != null:
+		fatigue = int(driver.get("fatigue", 0))
+	var stimulated = false
+	if driver.get("isStimulated") != null:
+		stimulated = bool(driver.get("isStimulated", false))
+	var tacho = 0.0
+	if driver.get("tachoHours") != null:
+		tacho = float(driver.get("tachoHours", 0.0))
+	var charisma = 0
+	if driver.get("charisma") != null:
+		charisma = int(driver.get("charisma", 0))
+	
+	detail_title.text = driver_name
+	detail_status.text = "TRAIT: " + driver_trait
 	detail_status.add_theme_color_override("font_color", Color(0.607, 0.349, 0.713))
 	
 	for child in detail_body.get_children():
 		child.queue_free()
 	
-	var loyalty = int(driver.get("loyalty", 0))
-	var fatigue = int(driver.get("fatigue", 0))
-	var stimulated = driver.get("isStimulated", false)
-	
 	var info_lines = [
 		"Loyalty: %d / 100" % loyalty,
 		"Fatigue: %d%%" % fatigue,
-		"Tacho Hours: %.1f h" % driver.get("tachoHours", 0.0),
+		"Tacho Hours: %.1f h" % tacho,
 		"Stimulated: %s" % ("YES ⚗" if stimulated else "No"),
-		"Charisma: %d" % int(driver.get("charisma", 0)),
+		"Charisma: %d" % charisma,
 	]
 	
 	for line in info_lines:

@@ -6,10 +6,14 @@ extends Control
 @onready var register_btn: Button = %RegisterBtn
 @onready var status_label: Label = %StatusLabel
 
+var remember_check: CheckBox
+
 func _ready() -> void:
 	# Build sleek custom styling entirely in code to avoid heavy binary assets
 	_apply_visual_theme()
 	_setup_graphics_toggle_ui()
+	_setup_remember_me_ui()
+	_setup_known_profiles_ui()
 	
 	# Connect local button signals
 	login_btn.pressed.connect(_on_login_pressed)
@@ -106,6 +110,8 @@ func _on_auth_completed(success: bool, message: String) -> void:
 	
 	if success:
 		if message == "Login Successful!":
+			_save_credentials()
+			_save_to_known_profiles(user_edit.text.strip_edges(), pass_edit.text)
 			_set_status("Access Granted. Routing database state...", Color(0.180, 0.803, 0.443))
 			# Wait a split second to see the success message before loading map
 			await get_tree().create_timer(0.6).timeout
@@ -124,6 +130,8 @@ func _toggle_inputs(enabled: bool) -> void:
 	pass_edit.editable = enabled
 	login_btn.disabled = not enabled
 	register_btn.disabled = not enabled
+	if remember_check:
+		remember_check.disabled = not enabled
 
 # --- Graphics Settings UI Setup ---
 var graphics_btn: Button = null
@@ -166,12 +174,18 @@ func _apply_graphics_btn_style() -> void:
 	if GameState.graphics_quality == "ULTRA_HD":
 		style_normal.bg_color = Color(0.2, 0.9, 0.7, 0.15) # Cyber Cyan translucent
 		style_normal.border_color = Color(0.2, 0.9, 0.7, 0.8) # Cyber Cyan border
-		style_normal.border_width_all = 1
+		style_normal.border_width_left = 1
+		style_normal.border_width_top = 1
+		style_normal.border_width_right = 1
+		style_normal.border_width_bottom = 1
 		style_normal.set_corner_radius_all(18)
 		
 		style_hover.bg_color = Color(0.2, 0.9, 0.7, 0.3)
 		style_hover.border_color = Color(0.2, 0.9, 0.7, 1.0)
-		style_hover.border_width_all = 1
+		style_hover.border_width_left = 1
+		style_hover.border_width_top = 1
+		style_hover.border_width_right = 1
+		style_hover.border_width_bottom = 1
 		style_hover.set_corner_radius_all(18)
 		
 		graphics_btn.add_theme_color_override("font_color", Color(0.2, 0.9, 0.7))
@@ -179,12 +193,18 @@ func _apply_graphics_btn_style() -> void:
 	else:
 		style_normal.bg_color = Color(0.08, 0.1, 0.12, 0.6) # Dark slate
 		style_normal.border_color = Color(0.709, 0.768, 0.843, 0.25)
-		style_normal.border_width_all = 1
+		style_normal.border_width_left = 1
+		style_normal.border_width_top = 1
+		style_normal.border_width_right = 1
+		style_normal.border_width_bottom = 1
 		style_normal.set_corner_radius_all(18)
 		
 		style_hover.bg_color = Color(0.12, 0.15, 0.18, 0.8)
 		style_hover.border_color = Color(0.709, 0.768, 0.843, 0.5)
-		style_hover.border_width_all = 1
+		style_hover.border_width_left = 1
+		style_hover.border_width_top = 1
+		style_hover.border_width_right = 1
+		style_hover.border_width_bottom = 1
 		style_hover.set_corner_radius_all(18)
 		
 		graphics_btn.add_theme_color_override("font_color", Color(0.709, 0.768, 0.843, 0.8))
@@ -193,3 +213,133 @@ func _apply_graphics_btn_style() -> void:
 	graphics_btn.add_theme_stylebox_override("normal", style_normal)
 	graphics_btn.add_theme_stylebox_override("hover", style_hover)
 	graphics_btn.add_theme_stylebox_override("pressed", style_normal)
+
+func _setup_remember_me_ui() -> void:
+	remember_check = CheckBox.new()
+	remember_check.text = "Remember Credentials"
+	remember_check.add_theme_font_size_override("font_size", 12)
+	remember_check.add_theme_color_override("font_color", Color(0.709, 0.768, 0.843, 0.8))
+	remember_check.add_theme_color_override("font_hover_color", Color.WHITE)
+	remember_check.add_theme_color_override("font_pressed_color", Color(0.925, 0.607, 0.141))
+	
+	var form = user_edit.get_parent().get_parent()
+	form.add_child(remember_check)
+	form.move_child(remember_check, 2)
+	
+	_load_saved_credentials()
+
+func _save_credentials() -> void:
+	var config = ConfigFile.new()
+	if remember_check and remember_check.button_pressed:
+		config.set_value("auth", "username", user_edit.text.strip_edges())
+		config.set_value("auth", "password", pass_edit.text)
+		config.set_value("auth", "remember_me", true)
+	else:
+		config.set_value("auth", "remember_me", false)
+	config.save("user://auth_credentials.cfg")
+
+func _load_saved_credentials() -> void:
+	var config = ConfigFile.new()
+	var err = config.load("user://auth_credentials.cfg")
+	if err == OK:
+		var remember = config.get_value("auth", "remember_me", false)
+		if remember_check:
+			remember_check.button_pressed = remember
+		if remember:
+			user_edit.text = config.get_value("auth", "username", "")
+			pass_edit.text = config.get_value("auth", "password", "")
+
+func _save_to_known_profiles(username: String, password: String) -> void:
+	var config = ConfigFile.new()
+	config.load("user://known_profiles.cfg")
+	config.set_value("profiles", username, password)
+	config.save("user://known_profiles.cfg")
+
+func _setup_known_profiles_ui() -> void:
+	var config = ConfigFile.new()
+	var err = config.load("user://known_profiles.cfg")
+	if err != OK:
+		# If we don't have known profiles but have old credentials saved, migrate them!
+		var old_config = ConfigFile.new()
+		if old_config.load("user://auth_credentials.cfg") == OK:
+			var user = old_config.get_value("auth", "username", "")
+			var pswd = old_config.get_value("auth", "password", "")
+			if not user.is_empty():
+				_save_to_known_profiles(user, pswd)
+				config.load("user://known_profiles.cfg")
+				
+	var profiles = []
+	if config.has_section("profiles"):
+		profiles = config.get_section_keys("profiles")
+		
+	if profiles.is_empty():
+		return
+		
+	var parent_container = user_edit.get_parent().get_parent().get_parent() # This is LeftPanel
+	
+	var profile_box = VBoxContainer.new()
+	profile_box.name = "KnownProfilesBox"
+	profile_box.add_theme_constant_override("separation", 6)
+	
+	var label = Label.new()
+	label.text = "AUTHORIZED DECKS (QUICK ACCESS):"
+	label.add_theme_font_size_override("font_size", 10)
+	label.add_theme_color_override("font_color", Color(0.709, 0.768, 0.843, 0.45))
+	profile_box.add_child(label)
+	
+	var flow = HFlowContainer.new()
+	flow.add_theme_constant_override("h_separation", 8)
+	flow.add_theme_constant_override("v_separation", 6)
+	profile_box.add_child(flow)
+	
+	for profile in profiles:
+		var chip = Button.new()
+		chip.text = "◈ " + profile.to_upper()
+		chip.add_theme_font_size_override("font_size", 11)
+		
+		# Style chip like a sleek cyan indicator
+		var chip_style = StyleBoxFlat.new()
+		chip_style.bg_color = Color(0.2, 0.9, 0.7, 0.08)
+		chip_style.border_color = Color(0.2, 0.9, 0.7, 0.35)
+		chip_style.border_width_bottom = 1
+		chip_style.border_width_top = 1
+		chip_style.border_width_left = 1
+		chip_style.border_width_right = 1
+		chip_style.set_corner_radius_all(12)
+		chip_style.content_margin_left = 10
+		chip_style.content_margin_right = 10
+		chip_style.content_margin_top = 4
+		chip_style.content_margin_bottom = 4
+		
+		var chip_style_hover = StyleBoxFlat.new()
+		chip_style_hover.bg_color = Color(0.2, 0.9, 0.7, 0.2)
+		chip_style_hover.border_color = Color(0.2, 0.9, 0.7, 0.8)
+		chip_style_hover.border_width_left = 1
+		chip_style_hover.border_width_top = 1
+		chip_style_hover.border_width_right = 1
+		chip_style_hover.border_width_bottom = 1
+		chip_style_hover.set_corner_radius_all(12)
+		chip_style_hover.content_margin_left = 10
+		chip_style_hover.content_margin_right = 10
+		chip_style_hover.content_margin_top = 4
+		chip_style_hover.content_margin_bottom = 4
+		
+		chip.add_theme_stylebox_override("normal", chip_style)
+		chip.add_theme_stylebox_override("hover", chip_style_hover)
+		chip.add_theme_stylebox_override("pressed", chip_style)
+		chip.add_theme_color_override("font_color", Color(0.2, 0.9, 0.7))
+		
+		var saved_pass = config.get_value("profiles", profile, "")
+		chip.pressed.connect(func():
+			user_edit.text = profile
+			pass_edit.text = saved_pass
+			if remember_check:
+				remember_check.button_pressed = true
+			_on_login_pressed()
+		)
+		flow.add_child(chip)
+		
+	# Insert in LeftPanel before ButtonBox
+	var btn_idx = parent_container.get_node("ButtonBox").get_index()
+	parent_container.add_child(profile_box)
+	parent_container.move_child(profile_box, btn_idx)

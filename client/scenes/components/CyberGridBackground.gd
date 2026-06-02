@@ -119,7 +119,10 @@ func _draw() -> void:
 				tick_len = 10.0
 				# Draw mini coordinate coordinate markers
 				var font = ThemeDB.get_fallback_font()
-				draw_string(font, Vector2(16, ty + 3), "X:00.0%d" % (ty / 100), HORIZONTAL_ALIGNMENT_LEFT, -1, 6, tick_col * 0.7)
+				if not font:
+					font = get_theme_font("font")
+				if font:
+					draw_string(font, Vector2(16, ty + 3), "X:00.0%d" % (ty / 100), HORIZONTAL_ALIGNMENT_LEFT, -1, 6, tick_col * 0.7)
 			draw_line(Vector2(6, ty), Vector2(6 + tick_len, ty), tick_col, 1.0)
 			
 		# Horizontal bottom edge ticks

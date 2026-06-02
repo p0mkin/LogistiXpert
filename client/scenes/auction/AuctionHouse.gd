@@ -24,7 +24,8 @@ extends Control
 @onready var filter_all_btn: Button = %FilterAllBtn
 @onready var filter_mine_btn: Button = %FilterMineBtn
 
-var api_base: String = "http://127.0.0.1:3000/api"
+var api_base: String:
+	get: return NetworkManager.HTTP_URL
 var all_listings: Array = []
 var selected_listing: Dictionary = {}
 var countdown_timer: float = 0.0

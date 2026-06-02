@@ -6,7 +6,8 @@ extends Control
 # Real-time fleet health monitor with danger alerts
 # ====================================================
 
-const BASE_URL = "http://localhost:3000"
+var BASE_URL: String:
+	get: return NetworkManager.HTTP_URL.replace("/api", "")
 
 var fleet_data: Array = []
 var selected_truck: Dictionary = {}
@@ -19,6 +20,10 @@ var pending_action: String = ""  # "roadside" | "garage" | "release"
 
 func _ready() -> void:
 	_build_ui()
+	if fleet_http:
+		fleet_http.request_completed.connect(_on_fleet_response)
+	if action_http:
+		action_http.request_completed.connect(_on_action_response)
 	_fetch_fleet_status()
 
 # ====================================================
@@ -129,13 +134,14 @@ func _build_ui() -> void:
 # DATA FETCH
 # ====================================================
 func _fetch_fleet_status() -> void:
+	if fleet_http.get_http_client_status() != HTTPClient.STATUS_DISCONNECTED:
+		return
 	var token = GameState.auth_token
 	fleet_http.request(
 		BASE_URL + "/api/breakdown/fleet-status",
 		["Authorization: Bearer " + token],
 		HTTPClient.METHOD_GET
 	)
-	fleet_http.request_completed.connect(_on_fleet_response, CONNECT_ONE_SHOT)
 
 func _on_fleet_response(_r, code, _h, body) -> void:
 	if code != 200:
@@ -180,16 +186,21 @@ func _make_fleet_row(truck: Dictionary) -> Control:
 	var repair_est = truck.get("estimatedRepairCost", 0)
 	var is_selected = selected_truck.get("truckId", "") == truck.get("truckId", "")
 
-	var row = PanelContainer.new()
+	var row = Control.new()
 	row.custom_minimum_size = Vector2(800, 56)
 
+	var p = PanelContainer.new()
+	p.position = Vector2.ZERO
+	p.size = Vector2(800, 56)
+	p.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	var style = StyleBoxFlat.new()
 	style.bg_color = Color(0.11, 0.09, 0.15, 0.9) if is_selected else Color(0.08, 0.07, 0.11, 0.85)
 	style.border_color = _risk_color(risk) if truck.get("criticalAlert", false) else Color(0.2, 0.15, 0.3, 0.4)
 	style.border_width_left = 4 if truck.get("criticalAlert", false) else 1
 	style.border_width_bottom = 1
 	style.set_corner_radius_all(3)
-	row.add_theme_stylebox_override("panel", style)
+	p.add_theme_stylebox_override("panel", style)
+	row.add_child(p)
 
 	# Model + VIN
 	var model_lbl = Label.new()
@@ -471,6 +482,9 @@ func _render_action_panel(truck: Dictionary) -> void:
 # REPAIR ACTIONS
 # ====================================================
 func _do_repair(repair_type: String, truck: Dictionary) -> void:
+	if action_http.get_http_client_status() != HTTPClient.STATUS_DISCONNECTED:
+		_show_toast("✕ Action already in progress. Please wait...", Color(1.0, 0.3, 0.3, 1.0))
+		return
 	var eng_check = _find(scene_root, "EngineCheck")
 	var tire_check = _find(scene_root, "TireCheck")
 	var repair_engine = eng_check.button_pressed if eng_check else true
@@ -486,15 +500,16 @@ func _do_repair(repair_type: String, truck: Dictionary) -> void:
 	})
 	pending_action = repair_type
 	action_http.request(BASE_URL + endpoint, headers, HTTPClient.METHOD_POST, body)
-	action_http.request_completed.connect(_on_action_response, CONNECT_ONE_SHOT)
 	_show_toast("🔧 Requesting %s repair..." % repair_type, Color(1.0, 0.75, 0.2, 1.0))
 
 func _do_action(action_type: String, truck_id: String, _extra: Dictionary) -> void:
+	if action_http.get_http_client_status() != HTTPClient.STATUS_DISCONNECTED:
+		_show_toast("✕ Action already in progress. Please wait...", Color(1.0, 0.3, 0.3, 1.0))
+		return
 	var endpoint = "/api/breakdown/release-impound/" + truck_id
 	var token = GameState.auth_token
 	pending_action = action_type
 	action_http.request(BASE_URL + endpoint, ["Authorization: Bearer " + token], HTTPClient.METHOD_POST)
-	action_http.request_completed.connect(_on_action_response, CONNECT_ONE_SHOT)
 	_show_toast("💰 Processing impound release...", Color(1.0, 0.75, 0.2, 1.0))
 
 func _on_action_response(_r, code, _h, body) -> void:
@@ -557,9 +572,16 @@ func _show_toast(msg: String, color: Color = Color(1.0, 0.8, 0.2, 1.0)) -> void:
 	tw.tween_property(t, "modulate:a", 0.0, 1.0)
 	tw.tween_callback(t.queue_free)
 
-func _panel(pos: Vector2, sz: Vector2, col: Color) -> PanelContainer:
+func _panel(pos: Vector2, sz: Vector2, col: Color) -> Control:
+	var control = Control.new()
+	control.position = pos
+	control.size = sz
+	control.custom_minimum_size = sz
+	
 	var p = PanelContainer.new()
-	p.position = pos; p.size = sz
+	p.position = Vector2.ZERO
+	p.size = sz
+	p.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	var s = StyleBoxFlat.new()
 	s.bg_color = col
 	s.border_color = Color(0.22, 0.15, 0.32, 0.55)
@@ -567,7 +589,9 @@ func _panel(pos: Vector2, sz: Vector2, col: Color) -> PanelContainer:
 	s.border_width_left = 1; s.border_width_right = 1
 	s.set_corner_radius_all(5)
 	p.add_theme_stylebox_override("panel", s)
-	return p
+	
+	control.add_child(p)
+	return control
 
 func _btn(txt: String, pos: Vector2, sz: Vector2) -> Button:
 	var b = Button.new()

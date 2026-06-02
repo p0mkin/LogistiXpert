@@ -6,7 +6,8 @@ extends Control
 # Live truck health bars, blueprint visualizer, purchase flow
 # ====================================================
 
-const BASE_URL = "http://localhost:3000"
+var BASE_URL: String:
+	get: return NetworkManager.HTTP_URL.replace("/api", "")
 
 # ------ CATALOG (mirrors server PARTS_CATALOG) ------
 const CATALOG = [
@@ -89,6 +90,12 @@ var player_trucks: Array = []
 
 func _ready() -> void:
 	_build_ui()
+	if fleet_http:
+		fleet_http.request_completed.connect(_on_fleet_response)
+	if buy_http:
+		buy_http.request_completed.connect(_on_purchase_response)
+	if http:
+		http.request_completed.connect(_on_estimate_response)
 	_fetch_fleet()
 
 # ====================================================
@@ -210,13 +217,14 @@ func _build_ui() -> void:
 # FLEET FETCHING
 # ====================================================
 func _fetch_fleet() -> void:
+	if fleet_http.get_http_client_status() != HTTPClient.STATUS_DISCONNECTED:
+		return
 	var token = GameState.auth_token
 	fleet_http.request(
 		BASE_URL + "/api/garage",
 		["Authorization: Bearer " + token],
 		HTTPClient.METHOD_GET
 	)
-	fleet_http.request_completed.connect(_on_fleet_response, CONNECT_ONE_SHOT)
 
 func _on_fleet_response(_r, code, _h, body) -> void:
 	if code != 200:
@@ -670,13 +678,15 @@ func _purchase_item() -> void:
 	if selected_item.is_empty() or selected_truck_id.is_empty():
 		_show_toast("Select a truck and an item first.", Color(1.0, 0.6, 0.1, 1.0))
 		return
+	if buy_http.get_http_client_status() != HTTPClient.STATUS_DISCONNECTED:
+		_show_toast("✕ Purchase already in progress. Please wait...", Color(1.0, 0.3, 0.3, 1.0))
+		return
 
 	var token = GameState.auth_token
 	var headers = ["Content-Type: application/json", "Authorization: Bearer " + token]
 	var body = JSON.stringify({ "truckId": selected_truck_id, "partId": selected_item.id })
 
 	buy_http.request(BASE_URL + "/api/shop/buy", headers, HTTPClient.METHOD_POST, body)
-	buy_http.request_completed.connect(_on_purchase_response, CONNECT_ONE_SHOT)
 	_show_toast("Processing purchase...", Color(0.7, 0.6, 0.9, 1.0))
 
 func _on_purchase_response(_r, code, _h, body) -> void:
@@ -709,13 +719,14 @@ func _on_purchase_response(_r, code, _h, body) -> void:
 func _request_repair_estimate(truck_id: String) -> void:
 	if truck_id.is_empty():
 		return
+	if http.get_http_client_status() != HTTPClient.STATUS_DISCONNECTED:
+		return
 	var token = GameState.auth_token
 	http.request(
 		BASE_URL + "/api/breakdown/estimate/" + truck_id,
 		["Authorization: Bearer " + token],
 		HTTPClient.METHOD_GET
 	)
-	http.request_completed.connect(_on_estimate_response, CONNECT_ONE_SHOT)
 
 func _on_estimate_response(_r, code, _h, body) -> void:
 	if code != 200:
@@ -755,9 +766,13 @@ func _show_toast(msg: String, color: Color = Color(1.0, 0.85, 0.2, 1.0), duratio
 	tw.tween_property(t, "modulate:a", 0.0, 1.0)
 	tw.tween_callback(t.queue_free)
 
-func _panel(pos: Vector2, sz: Vector2, col: Color, b_col: Color = Color(0.2, 0.9, 0.7, 0.25)) -> PanelContainer:
+func _panel(pos: Vector2, sz: Vector2, col: Color, b_col: Color = Color(0.2, 0.9, 0.7, 0.25)) -> Control:
+	var wrapper = Control.new()
+	wrapper.position = pos
+	wrapper.size = sz
+	
 	var p = PanelContainer.new()
-	p.position = pos
+	p.position = Vector2.ZERO
 	p.size = sz
 	var s = StyleBoxFlat.new()
 	var alpha_col = col
@@ -768,7 +783,9 @@ func _panel(pos: Vector2, sz: Vector2, col: Color, b_col: Color = Color(0.2, 0.9
 	s.border_width_left = 1; s.border_width_right = 1
 	s.set_corner_radius_all(6)
 	p.add_theme_stylebox_override("panel", s)
-	return p
+	
+	wrapper.add_child(p)
+	return wrapper
 
 func _btn(txt: String, pos: Vector2, sz: Vector2) -> Button:
 	var b = Button.new()

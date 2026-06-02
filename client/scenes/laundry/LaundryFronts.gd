@@ -24,7 +24,8 @@ extends Control
 @onready var result_lbl: Label = %ResultLabel
 @onready var console_lbl: Label = %ConsoleLabel
 
-var api_base: String = "http://127.0.0.1:3000/api"
+var api_base: String:
+	get: return NetworkManager.HTTP_URL
 var fronts_data: Array = []
 var selected_front: Dictionary = {}
 

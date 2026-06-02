@@ -6,7 +6,8 @@ extends Control
 # and warehouse terminal upgrades.
 # ====================================================
 
-const BASE_URL = "http://localhost:3000"
+var BASE_URL: String:
+	get: return NetworkManager.HTTP_URL.replace("/api", "")
 
 var current_tab: String = "overview"
 var performance_reports: Array = []
@@ -681,21 +682,35 @@ func _render_terminals_tab(parent: Node) -> void:
 # ====================================================
 # CUSTOM DRAWING & PRIMITIVE HELPERS
 # ====================================================
-func _panel(pos: Vector2, sz: Vector2, color: Color) -> PanelContainer:
+func _panel(pos: Vector2, sz: Vector2, color: Color) -> Control:
+	var control = Control.new()
+	control.position = pos
+	control.size = sz
+	control.custom_minimum_size = sz
+	
 	var p = PanelContainer.new()
-	p.position = pos
+	p.position = Vector2.ZERO
 	p.size = sz
+	p.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	var style = StyleBoxFlat.new()
 	style.bg_color = color
 	style.border_color = Color(0.12, 0.12, 0.18, 0.8)
 	style.border_width_bottom = 1
 	style.border_width_top = 1
 	p.add_theme_stylebox_override("panel", style)
-	return p
+	
+	control.add_child(p)
+	return control
 
-func _card_panel(sz: Vector2, color: Color) -> PanelContainer:
+func _card_panel(sz: Vector2, color: Color) -> Control:
+	var control = Control.new()
+	control.size = sz
+	control.custom_minimum_size = sz
+	
 	var p = PanelContainer.new()
+	p.position = Vector2.ZERO
 	p.size = sz
+	p.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	var style = StyleBoxFlat.new()
 	style.bg_color = color
 	style.border_color = Color(0.15, 0.15, 0.22, 0.8)
@@ -708,7 +723,9 @@ func _card_panel(sz: Vector2, color: Color) -> PanelContainer:
 	style.corner_radius_bottom_left = 4
 	style.corner_radius_bottom_right = 4
 	p.add_theme_stylebox_override("panel", style)
-	return p
+	
+	control.add_child(p)
+	return control
 
 func _button(label_text: String, pos: Vector2, sz: Vector2) -> Button:
 	var btn = Button.new()

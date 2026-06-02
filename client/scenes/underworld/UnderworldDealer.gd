@@ -6,7 +6,8 @@ extends Control
 # and take Class A/B/C smuggling contracts
 # ====================================================
 
-const BASE_URL = "http://localhost:3000"
+var BASE_URL: String:
+	get: return NetworkManager.HTTP_URL.replace("/api", "")
 
 # Dealer flavor personalities — randomly assigned on scene load
 const DEALER_PERSONAS = [
@@ -48,6 +49,8 @@ var player_trucks: Array = []
 func _ready() -> void:
 	active_dealer = DEALER_PERSONAS[randi() % DEALER_PERSONAS.size()]
 	_build_ui()
+	if hire_http:
+		hire_http.request_completed.connect(_on_accept_response)
 	_fetch_garage_data()
 
 # ====================================================
@@ -592,6 +595,9 @@ func _accept_job() -> void:
 	if selected_job.is_empty():
 		_show_toast("No contract selected!")
 		return
+	if hire_http.get_http_client_status() != HTTPClient.STATUS_DISCONNECTED:
+		_show_toast("✕ Dispatch already in progress. Please wait...", Color(1.0, 0.3, 0.3, 1.0))
+		return
 
 	var ts = _find_node_recursive(scene_root, "TruckSelect")
 	if ts and ts is OptionButton:
@@ -625,7 +631,6 @@ func _accept_job() -> void:
 		HTTPClient.METHOD_POST,
 		body
 	)
-	hire_http.request_completed.connect(_on_accept_response, CONNECT_ONE_SHOT)
 	_show_toast("📨 Sending contract papers...")
 
 func _on_accept_response(_result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
@@ -661,12 +666,20 @@ func _go_back() -> void:
 # ====================================================
 # HELPER WIDGETS
 # ====================================================
-func _make_panel(pos: Vector2, sz: Vector2, color: Color) -> PanelContainer:
-	var panel = PanelContainer.new()
-	panel.position = pos
-	panel.size = sz
-	_style_panel(panel, Color(0.65, 0.45, 1.0))
-	return panel
+func _make_panel(pos: Vector2, sz: Vector2, color: Color) -> Control:
+	var control = Control.new()
+	control.position = pos
+	control.size = sz
+	control.custom_minimum_size = sz
+	
+	var p = PanelContainer.new()
+	p.position = Vector2.ZERO
+	p.size = sz
+	p.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_style_panel(p, Color(0.65, 0.45, 1.0))
+	
+	control.add_child(p)
+	return control
 
 func _make_button(label_text: String, pos: Vector2, sz: Vector2) -> Button:
 	var btn = Button.new()

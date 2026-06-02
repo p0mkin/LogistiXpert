@@ -30,7 +30,6 @@ grow_horizontal = 2
 grow_vertical = 2
 
 [node name="ViewportWrapper" type="Node2D" parent="MapContainer"]
-# Used to hold vector drawer and handle camera zoom / drag pans
 
 [node name="Camera" type="Camera2D" parent="MapContainer/ViewportWrapper"]
 unique_name_in_owner = true
@@ -218,6 +217,7 @@ theme_override_font_sizes/font_size = 12
 text = "LOGISTICS CONNECTIONS:"
 
 [node name="ConsoleBox" type="ColorRect" parent="HUD/SidePanel/Margin/VBox"]
+unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 120)
 layout_mode = 2
 color = Color(0.0470588, 0.0509804, 0.0588235, 1)

@@ -500,10 +500,16 @@ func _show_toast(msg: String, color: Color = Color(1.0, 0.85, 0.2, 1.0), duratio
 	tw.tween_property(t, "modulate:a", 0.0, 1.0)
 	tw.tween_callback(t.queue_free)
 
-func _panel(pos: Vector2, sz: Vector2, col: Color, b_col: Color = Color(0.18, 0.12, 0.28, 0.6)) -> PanelContainer:
+func _panel(pos: Vector2, sz: Vector2, col: Color, b_col: Color = Color(0.18, 0.12, 0.28, 0.6)) -> Control:
+	var control = Control.new()
+	control.position = pos
+	control.size = sz
+	control.custom_minimum_size = sz
+	
 	var p = PanelContainer.new()
-	p.position = pos
+	p.position = Vector2.ZERO
 	p.size = sz
+	p.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	var s = StyleBoxFlat.new()
 	var alpha_col = col
 	alpha_col.a = 0.85 # Sleek translucent glassmorphism
@@ -513,7 +519,9 @@ func _panel(pos: Vector2, sz: Vector2, col: Color, b_col: Color = Color(0.18, 0.
 	s.border_width_left = 1; s.border_width_right = 1
 	s.set_corner_radius_all(6)
 	p.add_theme_stylebox_override("panel", s)
-	return p
+	
+	control.add_child(p)
+	return control
 
 func _btn(txt: String, pos: Vector2, sz: Vector2) -> Button:
 	var b = Button.new()

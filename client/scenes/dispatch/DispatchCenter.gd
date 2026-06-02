@@ -22,7 +22,8 @@ extends Control
 @onready var tab_legal_btn: Button = %TabLegalBtn
 @onready var tab_contra_btn: Button = %TabContraBtn
 
-var api_base: String = "http://127.0.0.1:3000/api"
+var api_base: String:
+	get: return NetworkManager.HTTP_URL
 var available_trucks: Array = []
 var legal_contracts: Array = []
 var contraband_jobs: Array = []
