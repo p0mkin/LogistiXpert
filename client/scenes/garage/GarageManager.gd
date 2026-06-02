@@ -194,6 +194,31 @@ func _ready() -> void:
 	
 	# Dynamically inject the third action button into detail panel if not present
 	var detail_inner = detail_panel.get_node("DetailInner")
+	
+	# Programmatically inject a header container and close button inside DetailInner
+	var title_hbox = HBoxContainer.new()
+	title_hbox.name = "TitleHBox"
+	title_hbox.add_theme_constant_override("separation", 10)
+	detail_inner.remove_child(detail_title)
+	title_hbox.add_child(detail_title)
+	detail_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	
+	var close_btn = Button.new()
+	close_btn.name = "CloseBtn"
+	close_btn.text = " ✕ "
+	close_btn.flat = true
+	close_btn.add_theme_color_override("font_color", Color(0.901, 0.298, 0.235))
+	close_btn.add_theme_color_override("font_hover_color", Color(1.0, 0.4, 0.4))
+	close_btn.add_theme_font_size_override("font_size", 14)
+	close_btn.pressed.connect(func():
+		detail_panel.hide()
+		selected_truck = {}
+		selected_driver = {}
+	)
+	title_hbox.add_child(close_btn)
+	detail_inner.add_child(title_hbox)
+	detail_inner.move_child(title_hbox, 0)
+
 	if not detail_inner.has_node("ActionBtn3"):
 		action_btn_3 = Button.new()
 		action_btn_3.name = "ActionBtn3"
@@ -689,7 +714,7 @@ func _build_driver_card(driver: Dictionary) -> PanelContainer:
 	var stim_lbl = Label.new()
 	
 	if stimulated:
-		stim_lbl.text = "⚗ STIMULANT ACTIVE"
+		stim_lbl.text = "⚗ STIMULANT ACTIVE · Tacho: %.1fh" % tacho
 		stim_lbl.add_theme_color_override("font_color", Color(0.607, 0.349, 0.713))
 	else:
 		stim_lbl.text = "Tacho: %.1fh" % tacho

@@ -31,9 +31,9 @@ extends Control
 
 var is_dragging: bool = false
 var drag_start: Vector2 = Vector2.ZERO
-var zoom_level: float = 1.0
-const MIN_ZOOM = 0.5
-const MAX_ZOOM = 3.0
+var zoom_level: float = 0.45 # Start zoomed-out to showcase the entire theater
+const MIN_ZOOM = 0.25
+const MAX_ZOOM = 4.0
 
 # Map rendering calculations
 var cities_data: Dictionary = {}
@@ -47,8 +47,8 @@ var map_max_lat: float = 61.5
 var map_min_lon: float = 9.5
 var map_max_lon: float = 31.5
 const MAP_MARGIN = 150 # screen offset bounds
-var view_size = Vector2(850, 480)
-var view_offset = Vector2(100, 100)
+var view_size = Vector2(2500, 1600) # Massive virtual tactical canvas for high-density rendering
+var view_offset = Vector2(0, 0) # Unrestrict canvas coordinates to full resolution
 
 var time_passed: float = 0.0
 
