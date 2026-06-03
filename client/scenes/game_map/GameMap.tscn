@@ -84,21 +84,33 @@ theme_override_constants/margin_right = 324
 layout_mode = 2
 theme_override_constants/separation = 32
 
-[node name="UserSection" type="HBoxContainer" parent="HUD/TopBar/Margin/HBox"]
+[node name="UserSection" type="VBoxContainer" parent="HUD/TopBar/Margin/HBox"]
+layout_mode = 2
+theme_override_constants/separation = 2
+alignment = 1
+
+[node name="UserTop" type="HBoxContainer" parent="HUD/TopBar/Margin/HBox/UserSection"]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="Icon" type="Label" parent="HUD/TopBar/Margin/HBox/UserSection"]
+[node name="Icon" type="Label" parent="HUD/TopBar/Margin/HBox/UserSection/UserTop"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.92549, 0.607843, 0.141176, 1)
 text = "👤"
 
-[node name="PlayerName" type="Label" parent="HUD/TopBar/Margin/HBox/UserSection"]
+[node name="PlayerName" type="Label" parent="HUD/TopBar/Margin/HBox/UserSection/UserTop"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 1, 1, 1)
 theme_override_font_sizes/font_size = 14
 text = "OPERATOR_DEFAULTS"
+
+[node name="UplinkStatus" type="Label" parent="HUD/TopBar/Margin/HBox/UserSection"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.180392, 0.803922, 0.443137, 1)
+theme_override_font_sizes/font_size = 10
+text = "● UPLINK_SECURE"
+
 
 [node name="Divider" type="ColorRect" parent="HUD/TopBar/Margin/HBox"]
 layout_mode = 2
@@ -286,17 +298,17 @@ color = Color(1, 1, 1, 0.0784314)
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 42)
 layout_mode = 2
-text = "TERMINATE SESSION"
+text = "⏻ TERMINATE SESSION"
 theme_override_colors/font_color = Color(0.901961, 0.298039, 0.235294, 1)
 theme_override_font_sizes/font_size = 12
 
 [node name="RouteInfoPanel" type="PanelContainer" parent="HUD"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(320, 360)
+custom_minimum_size = Vector2(320, 480)
 offset_left = 20.0
 offset_top = 80.0
 offset_right = 340.0
-offset_bottom = 440.0
+offset_bottom = 560.0
 
 [node name="Margin" type="MarginContainer" parent="HUD/RouteInfoPanel"]
 layout_mode = 2
@@ -329,6 +341,26 @@ theme_override_colors/font_color = Color(0.180392, 0.803922, 0.443137, 1)
 theme_override_font_sizes/font_size = 12
 text = "ZONE: ACTIVE"
 
+[node name="SurchargeWarning" type="PanelContainer" parent="HUD/RouteInfoPanel/Margin/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+
+[node name="Margin" type="MarginContainer" parent="HUD/RouteInfoPanel/Margin/VBox/SurchargeWarning"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 4
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 4
+
+[node name="WarningLabel" type="Label" parent="HUD/RouteInfoPanel/Margin/VBox/SurchargeWarning/Margin"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.6, 0.1, 1)
+theme_override_font_sizes/font_size = 11
+text = "⚠️ CROSS-REGION SURCHARGE ACTIVE: +35% FUEL"
+horizontal_alignment = 1
+vertical_alignment = 1
+
 [node name="CityDivider" type="ColorRect" parent="HUD/RouteInfoPanel/Margin/VBox"]
 custom_minimum_size = Vector2(0, 1)
 layout_mode = 2
@@ -346,33 +378,31 @@ theme_override_colors/font_color = Color(0.470588, 0.521569, 0.596078, 1)
 theme_override_font_sizes/font_size = 11
 text = "LOGISTICS CONNECTIONS:"
 
-[node name="ConsoleBox" type="PanelContainer" parent="HUD"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(400, 120)
-layout_mode = 1
-anchors_preset = 2
-anchor_top = 1.0
-anchor_bottom = 1.0
-offset_left = 20.0
-offset_top = -140.0
-offset_right = 420.0
-offset_bottom = -20.0
-grow_vertical = 0
-
-[node name="Margin" type="MarginContainer" parent="HUD/ConsoleBox"]
+[node name="ConsoleDivider" type="ColorRect" parent="HUD/RouteInfoPanel/Margin/VBox"]
+custom_minimum_size = Vector2(0, 1)
 layout_mode = 2
-theme_override_constants/margin_left = 12
-theme_override_constants/margin_top = 12
-theme_override_constants/margin_right = 12
-theme_override_constants/margin_bottom = 12
+color = Color(1, 1, 1, 0.0784314)
 
-[node name="ConsoleLabel" type="Label" parent="HUD/ConsoleBox/Margin"]
+[node name="ConsoleBox" type="PanelContainer" parent="HUD/RouteInfoPanel/Margin/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 80)
+layout_mode = 2
+
+[node name="Margin" type="MarginContainer" parent="HUD/RouteInfoPanel/Margin/VBox/ConsoleBox"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 8
+
+[node name="ConsoleLabel" type="Label" parent="HUD/RouteInfoPanel/Margin/VBox/ConsoleBox/Margin"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.180392, 0.803922, 0.443137, 1)
 theme_override_font_sizes/font_size = 11
 text = "System Initialized. Logged in to logistics grid. Reconnection watchdog running."
 autowrap_mode = 3
+
 
 [node name="GarageDropdown" type="PanelContainer" parent="HUD"]
 unique_name_in_owner = true
@@ -702,32 +732,7 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 9
 text = "STANDARD"
 
-[node name="SurchargeWarning" type="PanelContainer" parent="HUD"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(360, 45)
-anchors_preset = 5
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = -180.0
-offset_top = 70.0
-offset_right = 180.0
-offset_bottom = 115.0
-grow_horizontal = 2
 
-[node name="Margin" type="MarginContainer" parent="HUD/SurchargeWarning"]
-layout_mode = 2
-theme_override_constants/margin_left = 12
-theme_override_constants/margin_top = 6
-theme_override_constants/margin_right = 12
-theme_override_constants/margin_bottom = 6
-
-[node name="WarningLabel" type="Label" parent="HUD/SurchargeWarning/Margin"]
-layout_mode = 2
-theme_override_colors/font_color = Color(1.0, 0.6, 0.1, 1)
-theme_override_font_sizes/font_size = 11
-text = "⚠️ CROSS-REGION SURCHARGE ACTIVE: +35% FUEL"
-horizontal_alignment = 1
-vertical_alignment = 1
 
 [node name="TelemetryPanel" type="PanelContainer" parent="HUD"]
 unique_name_in_owner = true
@@ -757,7 +762,7 @@ theme_override_constants/separation = 10
 
 [node name="TachographDraw" type="Control" parent="HUD/TelemetryPanel/Margin/HBox"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(100, 0)
+custom_minimum_size = Vector2(100, 100)
 layout_mode = 2
 
 [node name="VBox" type="VBoxContainer" parent="HUD/TelemetryPanel/Margin/HBox"]

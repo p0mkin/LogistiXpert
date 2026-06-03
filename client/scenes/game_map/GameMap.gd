@@ -55,7 +55,7 @@ var clock_lbl: Label = null
 
 var is_dragging: bool = false
 var drag_start: Vector2 = Vector2.ZERO
-var zoom_level: float = 0.45 # Start zoomed-out to showcase the entire theater
+var zoom_level: float = 1.0 # Start zoomed-out to showcase the entire theater
 const MIN_ZOOM = 0.25
 const MAX_ZOOM = 4.0
 
@@ -1137,6 +1137,35 @@ func _draw_vector_map() -> void:
 			map_drawer.draw_string(node_label_font, text_pos, label_text, HORIZONTAL_ALIGNMENT_LEFT, -1, draw_city_font_size, label_col)
  
 
+	# 8. CURSOR TELEMETRY HUD CROSSHAIRS AND COORDINATES
+	var mouse_pos = map_drawer.get_local_mouse_position()
+	var inside_viewport = mouse_pos.x >= visible_left and mouse_pos.x <= visible_right and mouse_pos.y >= visible_top and mouse_pos.y <= visible_bottom
+	if inside_viewport:
+		var tel_cross_col = Color(0.2, 0.9, 0.7, 0.16)
+		# Draw horizontal dashed crosshair line
+		_draw_dashed_line(Vector2(visible_left, mouse_pos.y), Vector2(visible_right, mouse_pos.y), tel_cross_col, 1.0 / zoom, 4.0 / zoom, 4.0 / zoom)
+		# Draw vertical dashed crosshair line
+		_draw_dashed_line(Vector2(mouse_pos.x, visible_top), Vector2(mouse_pos.x, visible_bottom), tel_cross_col, 1.0 / zoom, 4.0 / zoom, 4.0 / zoom)
+		
+		# Get Geographic coordinates at cursor
+		var geo_coord = _pos_to_coords(mouse_pos)
+		
+		var cursor_label_font = ThemeDB.get_fallback_font()
+		if not cursor_label_font:
+			cursor_label_font = get_theme_font("font")
+		if cursor_label_font:
+			# Left Margin Lat Box
+			var lat_text = "%.3f° N" % geo_coord.x
+			map_drawer.draw_rect(Rect2(Vector2(visible_left - 55.0 / zoom, mouse_pos.y - 8.0 / zoom), Vector2(50.0 / zoom, 15.0 / zoom)), Color(0.04, 0.04, 0.06, 0.85), true)
+			map_drawer.draw_rect(Rect2(Vector2(visible_left - 55.0 / zoom, mouse_pos.y - 8.0 / zoom), Vector2(50.0 / zoom, 15.0 / zoom)), Color(0.2, 0.9, 0.7, 0.3), false, 1.0 / zoom)
+			map_drawer.draw_string(cursor_label_font, Vector2(visible_left - 51.0 / zoom, mouse_pos.y + 3.0 / zoom), lat_text, HORIZONTAL_ALIGNMENT_LEFT, -1, clamp(int(7.0 / zoom), 5, 20), Color(0.2, 0.9, 0.7, 0.85))
+			
+			# Top Margin Lon Box
+			var lon_text = "%.3f° E" % geo_coord.y
+			map_drawer.draw_rect(Rect2(Vector2(mouse_pos.x - 26.0 / zoom, visible_top - 15.0 / zoom), Vector2(52.0 / zoom, 12.0 / zoom)), Color(0.04, 0.04, 0.06, 0.85), true)
+			map_drawer.draw_rect(Rect2(Vector2(mouse_pos.x - 26.0 / zoom, visible_top - 15.0 / zoom), Vector2(52.0 / zoom, 12.0 / zoom)), Color(0.2, 0.9, 0.7, 0.3), false, 1.0 / zoom)
+			map_drawer.draw_string(cursor_label_font, Vector2(mouse_pos.x - 22.0 / zoom, visible_top - 6.0 / zoom), lon_text, HORIZONTAL_ALIGNMENT_LEFT, -1, clamp(int(7.0 / zoom), 5, 20), Color(0.2, 0.9, 0.7, 0.85))
+
 
 # ==========================================
 # INTERACTIVE DRAGS AND SCROLLS
@@ -1236,13 +1265,14 @@ func _select_city(city_id: String) -> void:
 # UI THEME AND GAME STATE SYNC
 # ==========================================
 func _apply_hud_theme() -> void:
-	# ConsoleBox flat style with glowing red border & shadow
+	# ConsoleBox embedded style with left border accent and transparent background
 	var style_console = StyleBoxFlat.new()
-	style_console.bg_color = Color(0.05, 0.03, 0.03, 0.85)
-	style_console.border_color = Color(0.9, 0.2, 0.2, 0.5)
-	style_console.set_border_width_all(2)
-	style_console.shadow_color = Color(0.9, 0.2, 0.2, 0.25)
-	style_console.shadow_size = 6
+	style_console.bg_color = Color(0.04, 0.04, 0.05, 0.5) # clean translucent background
+	style_console.border_color = Color(0.925, 0.607, 0.141, 0.8) # warning orange left border accent
+	style_console.set_border_width_all(0)
+	style_console.border_width_left = 3 # left border accent
+	style_console.set_corner_radius_all(0)
+	style_console.shadow_size = 0
 	console_box.add_theme_stylebox_override("panel", style_console)
 	
 	# Style RouteInfoPanel
@@ -1334,15 +1364,36 @@ func _apply_hud_theme() -> void:
 	style_telemetry.shadow_size = 6
 	telemetry_panel.add_theme_stylebox_override("panel", style_telemetry)
 	
-	var style_btn = StyleBoxFlat.new()
-	style_btn.bg_color = Color(0, 0, 0, 0)
-	style_btn.border_color = Color(0.901, 0.298, 0.235, 0.4)
-	style_btn.border_width_bottom = 2
-	style_btn.border_width_top = 2
-	style_btn.border_width_left = 2
-	style_btn.border_width_right = 2
-	style_btn.set_corner_radius_all(4)
-	back_menu_btn.add_theme_stylebox_override("normal", style_btn)
+	# BackMenuBtn Normal/Hover/Pressed styled states
+	var style_btn_normal = StyleBoxFlat.new()
+	style_btn_normal.bg_color = Color(0.12, 0.04, 0.04, 0.6)
+	style_btn_normal.border_color = Color(0.95, 0.15, 0.15, 0.6) # high-contrast warning red
+	style_btn_normal.set_border_width_all(2)
+	style_btn_normal.set_corner_radius_all(4)
+	style_btn_normal.shadow_color = Color(0.95, 0.15, 0.15, 0.15) # soft red hazard dropshadow
+	style_btn_normal.shadow_size = 4
+	
+	var style_btn_hover = StyleBoxFlat.new()
+	style_btn_hover.bg_color = Color(0.24, 0.05, 0.05, 0.85)
+	style_btn_hover.border_color = Color(0.95, 0.15, 0.15, 1.0) # vibrant full warning red
+	style_btn_hover.set_border_width_all(2)
+	style_btn_hover.set_corner_radius_all(4)
+	style_btn_hover.shadow_color = Color(0.95, 0.15, 0.15, 0.45) # immediate intense red hover glow
+	style_btn_hover.shadow_size = 8
+	
+	var style_btn_pressed = StyleBoxFlat.new()
+	style_btn_pressed.bg_color = Color(0.15, 0.02, 0.02, 0.9)
+	style_btn_pressed.border_color = Color(0.95, 0.15, 0.15, 0.8)
+	style_btn_pressed.set_border_width_all(2)
+	style_btn_pressed.set_corner_radius_all(4)
+	style_btn_pressed.shadow_color = Color(0.95, 0.15, 0.15, 0.25)
+	style_btn_pressed.shadow_size = 4
+	
+	back_menu_btn.add_theme_stylebox_override("normal", style_btn_normal)
+	back_menu_btn.add_theme_stylebox_override("hover", style_btn_hover)
+	back_menu_btn.add_theme_stylebox_override("pressed", style_btn_pressed)
+	back_menu_btn.add_theme_color_override("font_color", Color(0.95, 0.25, 0.25, 1.0))
+	back_menu_btn.add_theme_color_override("font_hover_color", Color(1.0, 0.4, 0.4, 1.0))
 
 func _sync_hud_data() -> void:
 	player_name_lbl.text = GameState.username.to_upper()
@@ -1401,32 +1452,82 @@ func _draw_tachograph() -> void:
 		return
 		
 	var center = draw_control.size / 2.0
-	var radius = min(draw_control.size.x, draw_control.size.y) * 0.45
+	var radius = min(draw_control.size.x, draw_control.size.y) * 0.42
 	
-	# Draw background tachometer sweep arc
-	draw_control.draw_arc(center, radius, -PI * 0.8, PI * 0.8, 32, Color(0.18, 0.8, 0.44, 0.15), 4.0)
+	# Compute simulated telemetry speed (0 - 140 KM/H)
+	var has_active = GameState.active_routes.size() > 0
+	var target_speed = 0.0
 	
-	# Dynamic animation of sweep dial progress over time (flutters/fluctuates)
-	var dynamic_pct = 0.65 + sin(time_passed * 1.8) * 0.15 + (randf() - 0.5) * 0.02
-	dynamic_pct = clamp(dynamic_pct, 0.0, 1.0)
-	var sweep_angle = -PI * 0.8 + (PI * 1.6) * dynamic_pct
+	if has_active:
+		# Cruise speed with subtle vibrations
+		target_speed = 84.0 + sin(time_passed * 1.5) * 3.5 + cos(time_passed * 4.2) * 1.2
+	else:
+		# Self-test diagnostic sweep or stationary resting mode
+		var test_cycle = fmod(time_passed, 15.0)
+		if test_cycle < 3.0:
+			var t = test_cycle / 3.0
+			target_speed = 140.0 * (1.0 - cos(t * PI * 2.0)) * 0.5
+		else:
+			# Resting state with engine idle flutter
+			target_speed = abs(sin(time_passed * 8.0) * 0.6)
+			
+	var speed_pct = clamp(target_speed / 140.0, 0.0, 1.0)
+	var sweep_angle = -PI * 0.8 + (PI * 1.6) * speed_pct
 	
-	# Draw active progress arc
-	draw_control.draw_arc(center, radius, -PI * 0.8, sweep_angle, 32, Color(0.18, 0.8, 0.44, 0.75), 4.0)
-	
-	# Draw radial tick marks around the dial
-	for i in range(9):
-		var angle = -PI * 0.8 + (PI * 1.6) * (i / 8.0)
-		var dir = Vector2(cos(angle), sin(angle))
-		var outer_pt = center + dir * radius
-		var inner_pt = center + dir * (radius - 5.0)
-		var tick_col = Color(0.18, 0.8, 0.44, 0.5)
-		if i == 7 or i == 8: # warn limits in red/amber
-			tick_col = Color(0.9, 0.2, 0.2, 0.6)
-		draw_control.draw_line(inner_pt, outer_pt, tick_col, 2.0)
+	# Determine warning color states
+	var accent_color = Color(0.1, 0.8, 0.4, 0.8) # Secure green
+	if target_speed > 115.0:
+		accent_color = Color(0.95, 0.15, 0.15, 0.8) # Alert red
+	elif target_speed > 90.0:
+		accent_color = Color(0.92, 0.61, 0.14, 0.8) # Warning orange
 		
-	# Draw rotating/vibrating central needle pointing to current telemetry
+	# A. Dual-accented background concentric arcs
+	draw_control.draw_arc(center, radius, -PI * 0.8, PI * 0.8, 48, Color(0.1, 0.8, 0.4, 0.12), 4.0)
+	draw_control.draw_arc(center, radius - 6.0, -PI * 0.8, PI * 0.8, 48, Color(0.92, 0.61, 0.14, 0.06), 2.0)
+	
+	# B. Dual-accented active sweep arcs
+	draw_control.draw_arc(center, radius, -PI * 0.8, sweep_angle, 48, accent_color, 4.0)
+	draw_control.draw_arc(center, radius - 6.0, -PI * 0.8, sweep_angle, 48, accent_color * Color(1.0, 1.0, 1.0, 0.4), 2.0)
+	
+	# C. 12 tick mark subdivision lines with values
+	var font = ThemeDB.get_fallback_font()
+	if not font:
+		font = draw_control.get_theme_font("font")
+	var font_size = 8
+	
+	for i in range(12):
+		var angle = -PI * 0.8 + (PI * 1.6) * (i / 11.0)
+		var dir = Vector2(cos(angle), sin(angle))
+		
+		var is_major = (i % 2 == 0)
+		var tick_len = 8.0 if is_major else 4.0
+		var outer_pt = center + dir * radius
+		var inner_pt = center + dir * (radius - tick_len)
+		
+		# Set tick color based on warning zones
+		var tick_speed = (i / 11.0) * 140.0
+		var tick_col = Color(0.1, 0.8, 0.4, 0.45)
+		if tick_speed > 115.0:
+			tick_col = Color(0.95, 0.15, 0.15, 0.6)
+		elif tick_speed > 90.0:
+			tick_col = Color(0.92, 0.61, 0.14, 0.5)
+			
+		draw_control.draw_line(inner_pt, outer_pt, tick_col, 2.0 if is_major else 1.0)
+		
+		# Draw speed markers on major ticks
+		if is_major and font:
+			var val_str = str(int(tick_speed))
+			var text_sz = font.get_string_size(val_str, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
+			# Align labels centered relative to tick lines
+			var text_pos = center + dir * (radius - 18.0) - text_sz * 0.5 + Vector2(0, font_size * 0.3)
+			draw_control.draw_string(font, text_pos, val_str, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(0.709, 0.768, 0.843, 0.55))
+			
+	# D. Warning-aware indicator needle
 	var needle_dir = Vector2(cos(sweep_angle), sin(sweep_angle))
-	var needle_pt = center + needle_dir * (radius + 2.0)
-	draw_control.draw_line(center, needle_pt, Color(0.925, 0.607, 0.141, 0.95), 2.0)
-	draw_control.draw_circle(center, 3.5, Color(0.925, 0.607, 0.141, 1.0))
+	var needle_pt = center + needle_dir * (radius + 3.0)
+	
+	# Glow/shadow under the needle (dual line render)
+	draw_control.draw_line(center, needle_pt, Color(accent_color.r, accent_color.g, accent_color.b, 0.15), 5.0)
+	draw_control.draw_line(center, needle_pt, accent_color, 2.0)
+	draw_control.draw_circle(center, 4.0, accent_color)
+	draw_control.draw_circle(center, 2.0, Color(0.04, 0.04, 0.06, 1.0))
