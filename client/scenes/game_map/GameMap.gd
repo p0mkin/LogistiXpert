@@ -32,16 +32,16 @@ extends Control
 @onready var tachograph_draw: Control = %TachographDraw
 
 # Interactive Shader Calibration & System Preset Controls
-@onready var close_support_btn: Button = %CloseSupportBtn
-@onready var vignette_slider: HSlider = %VignetteSlider
-@onready var scanline_slider: HSlider = %ScanlineSlider
-@onready var curvature_slider: HSlider = %CurvatureSlider
-@onready var density_slider: HSlider = %DensitySlider
-@onready var vignette_val_lbl: Label = %VignetteValue
-@onready var scanline_val_lbl: Label = %ScanlineValue
-@onready var curvature_val_lbl: Label = %CurvatureValue
-@onready var density_val_lbl: Label = %DensityValue
-@onready var quality_preset_btn: Button = %QualityPresetBtn
+@onready var close_support_btn: Button = get_node_or_null("%CloseSupportBtn")
+@onready var vignette_slider: HSlider = get_node_or_null("%VignetteSlider")
+@onready var scanline_slider: HSlider = get_node_or_null("%ScanlineSlider")
+@onready var curvature_slider: HSlider = get_node_or_null("%CurvatureSlider")
+@onready var density_slider: HSlider = get_node_or_null("%DensitySlider")
+@onready var vignette_val_lbl: Label = get_node_or_null("%VignetteValue")
+@onready var scanline_val_lbl: Label = get_node_or_null("%ScanlineValue")
+@onready var curvature_val_lbl: Label = get_node_or_null("%CurvatureValue")
+@onready var density_val_lbl: Label = get_node_or_null("%DensityValue")
+@onready var quality_preset_btn: Button = get_node_or_null("%QualityPresetBtn")
 @onready var shader_overlay: ColorRect = $ShaderOverlayLayer/ShaderOverlay if has_node("ShaderOverlayLayer/ShaderOverlay") else null
 
 var clock_lbl: Label = null
@@ -362,24 +362,32 @@ func _ready() -> void:
 		
 		# Read starting states
 		var vig_val = mat.get_shader_parameter("vignette_intensity")
+		if vig_val == null:
+			vig_val = 1.2
 		if vignette_slider:
 			vignette_slider.value = vig_val
 		if vignette_val_lbl:
 			vignette_val_lbl.text = "%.2f" % vig_val
 			
 		var scan_val = mat.get_shader_parameter("scanline_alpha")
+		if scan_val == null:
+			scan_val = 0.35
 		if scanline_slider:
 			scanline_slider.value = scan_val
 		if scanline_val_lbl:
 			scanline_val_lbl.text = "%.2f" % scan_val
 			
 		var curv_val = mat.get_shader_parameter("curvature")
+		if curv_val == null:
+			curv_val = 6.0
 		if curvature_slider:
 			curvature_slider.value = curv_val
 		if curvature_val_lbl:
 			curvature_val_lbl.text = "%.1f" % curv_val
 			
 		var dens_val = mat.get_shader_parameter("scanline_count")
+		if dens_val == null:
+			dens_val = 360.0
 		if density_slider:
 			density_slider.value = dens_val
 		if density_val_lbl:
@@ -665,7 +673,9 @@ func _draw_polyline(points: Array, color: Color, width: float) -> void:
 # ==========================================
 func _draw_vector_map() -> void:
 	print("[DEBUG] _draw_vector_map() called! cities_data count: ", cities_data.size())
-	var font = get_theme_font("font")
+	var font = ThemeDB.get_fallback_font()
+	if not font:
+		font = get_theme_font("font")
 	var font_size = 10
 	var text_color = Color(0.2, 0.45, 0.55, 0.4)
 	
@@ -1093,7 +1103,9 @@ func _draw_vector_map() -> void:
 		
 		# --- DIRECT MAP TEXT LABELING ---
 		# Draw city names + code next to each coordinate node using clean tiny styling (zoom & scale-aware)
-		var node_label_font = get_theme_font("font")
+		var node_label_font = ThemeDB.get_fallback_font()
+		if not node_label_font:
+			node_label_font = get_theme_font("font")
 		if node_label_font:
 			var label_text = node_city.name.to_upper()
 			var label_col = Color(0.709, 0.768, 0.843, 0.85)
