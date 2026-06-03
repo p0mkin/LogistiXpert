@@ -1,8 +1,8 @@
 # LogistiXpert — Truck Manager Pro: Underworld Logistics
 
 <div align="center">
-  <img src="https://github.com/user-attachments/assets/bce43129-5b33-4cd8-a622-7ef5e1215f48" width="100%" alt="LogistiXpert Banner" />
-  
+  <img width="1276" height="756" alt="image" src="https://github.com/user-attachments/assets/1b774c23-ec03-4468-8449-3bb22cedd49b" />
+
   <p align="center">
     <strong>A high-stakes, real-time multiplayer logistics simulator set in Eastern Europe's Schengen highway network.</strong>
   </p>
