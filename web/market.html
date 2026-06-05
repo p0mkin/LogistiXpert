@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LogistiXpert: Underworld Market</title>
+  
+  <!-- Cyberpunk Typography -->
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=JetBrains+Mono:wght@300;400;500;700&family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+  
+  <!-- Design System Styles -->
+  <link rel="stylesheet" href="./styles.css">
+  <style>
+    .market-grid {
+      display: grid;
+      grid-template-columns: 350px 1fr;
+      gap: var(--space-4);
+      height: calc(100vh - 180px);
+      overflow: hidden;
+    }
+    .market-sidebar, .market-main-panel {
+      overflow-y: auto;
+      padding-right: var(--space-2);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-3);
+    }
+    .job-card {
+      background: rgba(13, 13, 17, 0.75);
+      border: 1px solid rgba(255, 102, 0, 0.15);
+      border-radius: var(--radius-md);
+      padding: var(--space-3);
+      cursor: pointer;
+      font-family: var(--font-mono);
+      transition: all var(--transition-fast);
+    }
+    .job-card:hover, .job-card.selected {
+      border-color: var(--neon-red);
+      box-shadow: 0 0 10px var(--neon-red-glow);
+    }
+    .job-class-tag {
+      font-size: 8px;
+      font-weight: bold;
+      padding: 1px 4px;
+      border-radius: var(--radius-sm);
+      display: inline-block;
+      margin-bottom: var(--space-2);
+    }
+    .tag-class-a { background: rgba(0, 229, 255, 0.1); border: 1px solid var(--neon-blue); color: var(--neon-blue); }
+    .tag-class-b { background: rgba(255, 102, 0, 0.1); border: 1px solid var(--neon-orange); color: var(--neon-orange); }
+    .tag-class-c { background: rgba(255, 0, 60, 0.1); border: 1px solid var(--neon-red); color: var(--neon-red); }
+
+    .job-header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: bold;
+    }
+    .job-payout {
+      color: var(--neon-orange);
+    }
+    .job-meta-row {
+      font-size: 10px;
+      color: var(--color-text-muted);
+      margin-top: var(--space-1);
+      line-height: 1.4;
+    }
+    .disp-block {
+      background: rgba(13, 13, 17, 0.6);
+      border: 1px solid rgba(255, 0, 60, 0.1);
+      border-radius: var(--radius-md);
+      padding: var(--space-4);
+      font-family: var(--font-mono);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-3);
+    }
+    .selector-label {
+      font-size: 10px;
+      color: var(--color-text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .selector-box {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: var(--radius-sm);
+      padding: var(--space-2);
+      color: var(--color-text-main);
+      font-family: var(--font-mono);
+      font-size: var(--fs-xs);
+      outline: none;
+      width: 100%;
+      cursor: pointer;
+    }
+    .selector-box option {
+      background: #0d0d11;
+      color: var(--color-text-main);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- CRT scanlines overlay -->
+  <div class="screen-overlay"></div>
+  <div class="grid-backplate"></div>
+
+  <div class="dashboard-layout">
+    
+    <!-- Top metrics bar identical to index.html -->
+    <header class="header-bar panel-cyber" style="--theme-color: var(--neon-red);">
+      <div class="operator-profile">
+        <div class="avatar-frame">
+          <svg viewBox="0 0 24 24">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15.93c-3.13-.47-5.5-3.14-5.5-6.43 0-1.79.69-3.41 1.81-4.63l1.41 1.41C9.64 9.17 9 10.5 9 12c0 2.21 1.79 4 4 4v1.93zm4.69-4.3C17.61 14.85 16 16.5 14 16.9v-1.93c1.1-.31 2-.96 2.5-1.85l1.19 1.51zM14 8.07V6.03c2 .4 3.61 2.05 4.31 4.18l-1.19 1.51c-.5-.89-1.4-1.54-2.5-1.85z"/>
+          </svg>
+        </div>
+        <div class="operator-details">
+          <h1 class="operator-name">DISPATCH_OPERATOR</h1>
+          <div class="operator-status">
+            <span class="pulse-dot"></span>
+            secure_link_established
+          </div>
+        </div>
+      </div>
+
+      <div class="header-telemetry">
+        <div class="telem-cell">
+          <span class="telem-cell-label">SYSTEM_EPOCH</span>
+          <span class="telem-cell-value">UNDERWORLD MARKET COMMAND</span>
+        </div>
+        <div class="telem-cell">
+          <span class="telem-cell-label">REP_FACTOR</span>
+          <div class="reputation-gauge">
+            <div class="star-grid" id="rep-star-grid">
+              <div class="star-row">
+                <svg class="rep-star" data-index="0" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+                <svg class="rep-star" data-index="1" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+                <svg class="rep-star" data-index="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+                <svg class="rep-star" data-index="3" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+                <svg class="rep-star" data-index="4" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+              </div>
+              <div class="star-row">
+                <svg class="rep-star" data-index="5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+                <svg class="rep-star" data-index="6" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+                <svg class="rep-star" data-index="7" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+                <svg class="rep-star" data-index="8" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+                <svg class="rep-star" data-index="9" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+              </div>
+            </div>
+            <span class="rep-score-display" id="rep-score-val">7.5</span>
+          </div>
+        </div>
+        <div class="telem-cell">
+          <span class="telem-cell-label">POLICE_HEAT_INDEX</span>
+          <div class="police-heat-meter">
+            <span class="heat-value" id="police-heat-val">25%</span>
+            <div class="heat-segments">
+              <div class="heat-segment"></div>
+              <div class="heat-segment"></div>
+              <div class="heat-segment"></div>
+              <div class="heat-segment"></div>
+              <div class="heat-segment"></div>
+              <div class="heat-segment"></div>
+              <div class="heat-segment"></div>
+              <div class="heat-segment"></div>
+              <div class="heat-segment"></div>
+              <div class="heat-segment"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="header-ledgers">
+        <div class="ledger-card clean">
+          <div class="ledger-icon">
+            <svg viewBox="0 0 24 24"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.2c-.07-2.24-1.6-3.9-3.7-4.3V3h-3v1.7c-1.93.41-3.5 1.63-3.5 3.75 0 2.47 2 3.7 5.2 4.2 2.55.4 3.03 1.15 3.03 2.15 0 .75-.53 1.65-2.7 1.65-2.2 0-2.87-.95-3-2.1h-2.2c.1 2.58 1.91 3.9 3.7 4.3V21h3v-1.7c1.95-.41 3.5-1.51 3.5-3.8 0-2.92-2.17-3.75-5.22-4.15z"/></svg>
+          </div>
+          <div class="ledger-meta">
+            <span class="ledger-label">CLEAN_RESERVES</span>
+            <span class="ledger-amount" id="clean-amount">$0.00</span>
+          </div>
+        </div>
+        <div class="ledger-card dirty">
+          <div class="ledger-icon">
+            <svg viewBox="0 0 24 24"><path d="M19.28 4.72A10 10 0 0 0 12 2a10 10 0 1 0 10 10 10 10 0 0 0-2.72-7.28zM12 18a6 6 0 1 1 6-6 6 6 0 0 1-6 6zm-3.5-6a3.5 3.5 0 1 0 3.5-3.5 3.5 3.5 0 0 0-3.5 3.5z"/></svg>
+          </div>
+          <div class="ledger-meta">
+            <span class="ledger-label">LAUNDERED_DIRTY</span>
+            <span class="ledger-amount" id="dirty-amount">$0.00</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Workspace Main -->
+    <main class="main-deck" style="display: flex; flex-direction: column; gap: var(--space-4);">
+      
+      <!-- Top nav strip -->
+      <div style="display: flex; gap: var(--space-3); border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: var(--space-3);">
+        <a href="index.html" class="nav-op-btn btn-white" style="width: auto; padding: var(--space-2) var(--space-4);">
+          ◀ RETURN TO TACTICAL MAP
+        </a>
+        <h2 style="font-family: var(--font-cyber); font-size: var(--fs-xl); color: var(--color-text-main); margin-left: auto;">
+          SYS_BLACK_BOARD
+        </h2>
+      </div>
+
+      <!-- Main grid -->
+      <div class="market-grid">
+        
+        <!-- Left: Smuggling Job Board -->
+        <section class="panel-cyber panel-orange" style="display: flex; flex-direction: column; padding: var(--space-4);">
+          <div class="panel-title-strip">
+            <h2 class="panel-title">CLASSIFIED DEMAND CONTRACTS</h2>
+            <span class="panel-serial">BOARD_JOBS</span>
+          </div>
+          <div class="market-sidebar" id="market-jobs-container" style="margin-top: var(--space-3); flex: 1;">
+            <!-- Contraband contracts -->
+          </div>
+        </section>
+
+        <!-- Right: Dispatch Command Launch -->
+        <section class="panel-cyber panel-red" style="display: flex; flex-direction: column; padding: var(--space-4);">
+          <div class="panel-title-strip">
+            <h2 class="panel-title">SMUGGLING ROUTE DISPATCH & ECU LINK</h2>
+            <span class="panel-serial">DISPATCH_GATE</span>
+          </div>
+
+          <div class="market-main-panel" style="margin-top: var(--space-3); flex: 1;">
+            
+            <div class="disp-block">
+              <div class="garage-section-title">// CONTRACT ROUTING DISPATCH SETUP</div>
+              
+              <div style="display: flex; flex-direction: column; gap: var(--space-3); font-family: var(--font-mono); font-size: var(--fs-xs);">
+                
+                <div>
+                  <span class="selector-label">SELECTED CONTRABAND TASK:</span>
+                  <div id="target-job-label" style="font-weight: bold; font-size: var(--fs-sm); color: var(--color-text-main); margin-top: 2px;">
+                    -- SELECT A CONTRABAND CONTRACT --
+                  </div>
+                </div>
+
+                <div>
+                  <span class="selector-label">SELECT IDLE FLEET RIG:</span>
+                  <select class="selector-box" id="select-idle-truck" style="margin-top: var(--space-1);">
+                    <option value="">-- NO SUITABLE IDLE TRUCKS FOUND --</option>
+                  </select>
+                </div>
+
+                <div>
+                  <span class="selector-label">CHOOSE STEERING AUTOPILOT POLICY:</span>
+                  <select class="selector-box" id="select-autopilot-policy" style="margin-top: var(--space-1);">
+                    <option value="SAFE">SAFE POLICY (NORMAL SPEED, NO HEAT SPIKES)</option>
+                    <option value="AVERAGE" selected>AVERAGE POLICY (MEDIUM SPEED)</option>
+                    <option value="GREEDY">GREEDY POLICY (MAX SPEED, TACHO VIOLATIONS)</option>
+                  </select>
+                </div>
+
+                <div style="margin-top: var(--space-3);">
+                  <button class="nav-op-btn btn-terminate" style="width: 100%; font-weight: bold; background: rgba(255, 0, 60, 0.1); border-color: var(--neon-red);" onclick="launchSmugglingRun()">
+                    INITIATE CONTRABAND TRANSIT ROUTE
+                  </button>
+                </div>
+
+              </div>
+
+            </div>
+
+          </div>
+        </section>
+
+      </div>
+    </main>
+
+  </div>
+
+  <script src="./shared.js"></script>
+  <script>
+    let selectedJob = null;
+    let idleTrucks = [];
+
+    async function loadMarketHQ() {
+      try {
+        // Fetch all contraband jobs
+        const resJobs = await fetch(`${SYSTEM_STATE.restUrl}/api/dispatch/contracts/contraband?all=true`, {
+          headers: { 'Authorization': `Bearer ${SYSTEM_STATE.token}` }
+        });
+        const jobs = resJobs.ok ? await resJobs.json() : [];
+        renderContrabandJobs(jobs);
+
+        // Fetch garages to list idle trucks
+        const resFleet = await fetch(`${SYSTEM_STATE.restUrl}/api/garage`, {
+          headers: { 'Authorization': `Bearer ${SYSTEM_STATE.token}` }
+        });
+        const garages = resFleet.ok ? await resFleet.json() : [];
+        
+        idleTrucks = [];
+        garages.forEach(g => {
+          if (!g.trucks) return;
+          g.trucks.forEach(t => {
+            if (!t.activeRoute && !t.isImpounded) {
+              idleTrucks.push({
+                id: t.id,
+                model: t.model,
+                city: g.city,
+                driver: t.driver ? t.driver.name : 'UNASSIGNED',
+                vin: t.vin
+              });
+            }
+          });
+        });
+
+        populateTrucksDropdown();
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    function renderContrabandJobs(jobs) {
+      const container = document.getElementById("market-jobs-container");
+      container.innerHTML = "";
+
+      jobs.forEach(job => {
+        const card = document.createElement("div");
+        card.className = "job-card";
+        
+        const cls = job.cargoClass.split('_')[1]; // CLASS_A -> A
+        let tagClass = `tag-class-${cls.toLowerCase()}`;
+
+        card.innerHTML = `
+          <span class="job-class-tag ${tagClass}">CONTRABAND CLASS ${cls}</span>
+          <div class="job-header-row">
+            <span>ROUTE: ${job.origin.toUpperCase()} ➔ ${job.destination.toUpperCase()}</span>
+            <span class="job-payout">$${parseFloat(job.payoutBlack).toLocaleString()}</span>
+          </div>
+          <div class="job-meta-row">
+            RISK MULTIPLIER: ${job.riskMultiplier}x<br>
+            LAUNDERED REVENUE BONUS: +$${parseFloat(job.payoutLegal).toLocaleString()}<br>
+            REQUIRED TERMINAL BASE: ${job.origin.toUpperCase()}
+          </div>
+        `;
+
+        card.addEventListener("click", () => {
+          AUDIO.playClick();
+          document.querySelectorAll(".job-card").forEach(el => el.classList.remove("selected"));
+          card.classList.add("selected");
+          selectJob(job);
+        });
+
+        container.appendChild(card);
+      });
+
+      if (jobs.length === 0) {
+        container.innerHTML = `<div style="font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--color-text-muted); text-align: center; margin-top: var(--space-5);">[ NO ACTIVE CLASSIFIED CONTRACTS DETECTED ]</div>`;
+      }
+    }
+
+    function selectJob(job) {
+      selectedJob = job;
+      document.getElementById("target-job-label").textContent = `CLASS ${job.cargoClass.split('_')[1]}: ${job.origin.toUpperCase()} ➔ ${job.destination.toUpperCase()} ($${parseFloat(job.payoutBlack).toLocaleString()})`;
+      populateTrucksDropdown();
+    }
+
+    function populateTrucksDropdown() {
+      const select = document.getElementById("select-idle-truck");
+      select.innerHTML = "";
+
+      // Filter idle trucks that are physically parked in the job's origin city
+      let candidates = idleTrucks;
+      if (selectedJob) {
+        candidates = idleTrucks.filter(t => t.city.toLowerCase() === selectedJob.origin.toLowerCase());
+      }
+
+      if (candidates.length === 0) {
+        select.innerHTML = `<option value="">-- NO IDLE FLEET RIGS AT ORIGIN ${selectedJob ? selectedJob.origin.toUpperCase() : 'SELECT JOB'} --</option>`;
+        return;
+      }
+
+      candidates.forEach(t => {
+        const opt = document.createElement("option");
+        opt.value = t.id;
+        opt.textContent = `${t.model} [VIN: ${t.vin.slice(0,6)}...] - Parked in ${t.city.toUpperCase()} (Driver: ${t.driver})`;
+        select.appendChild(opt);
+      });
+    }
+
+    async function launchSmugglingRun() {
+      AUDIO.playClick();
+      if (!selectedJob) {
+        alert("Must select an underworld contract job.");
+        return;
+      }
+      const select = document.getElementById("select-idle-truck");
+      const truckId = select.value;
+      if (!truckId) {
+        alert("No suitable vehicle selected or parked at the starting origin terminal.");
+        return;
+      }
+
+      const policySelect = document.getElementById("select-autopilot-policy");
+      const autopilotPolicy = policySelect.value;
+
+      try {
+        const response = await fetch(`${SYSTEM_STATE.restUrl}/api/dispatch/launch`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${SYSTEM_STATE.token}`
+          },
+          body: JSON.stringify({
+            truckId,
+            contrabandJobId: selectedJob.id,
+            autopilotPolicy
+          })
+        });
+
+        if (response.ok) {
+          AUDIO.playSuccess();
+          alert("Smuggling run successfully initiated! Track route in map console.");
+          selectedJob = null;
+          document.getElementById("target-job-label").textContent = "-- SELECT A CONTRABAND CONTRACT --";
+          loadMarketHQ();
+          fetchBalances();
+        } else {
+          const err = await response.json();
+          AUDIO.playFailure();
+          alert(`DISPATCH FAILURE: ${err.message || 'Verification rejected.'}`);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    window.addEventListener("DOMContentLoaded", () => {
+      setTimeout(loadMarketHQ, 100);
+    });
+  </script>
+</body>
+</html>

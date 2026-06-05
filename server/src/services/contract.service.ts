@@ -13,9 +13,16 @@ const CITIES_SCHENGEN = [
   'Gdansk',
   'Siauliai',
   'Klaipeda',
-  'Panevezys'
+  'Panevezys',
+  'Helsinki',
+  'Stockholm',
+  'Malmoe',
+  'Turku',
+  'Prague',
+  'Berlin',
+  'Hamburg'
 ];
-const CITIES_NON_SCHENGEN = ['Minsk', 'Brest', 'Grodno', 'Moscow', 'St. Petersburg', 'Kiev'];
+const CITIES_NON_SCHENGEN = ['Minsk', 'Brest', 'Grodno', 'Moscow', 'St. Petersburg', 'Kiev', 'Kaliningrad'];
 
 const HUB_SPOKE_CONNECTIONS = [
   { hub: 'Siauliai', spoke: 'Kursenai', distance: 25 },
@@ -40,6 +47,14 @@ export class ContractService {
   private static isRunning = false;
   private static intervalId: NodeJS.Timeout | null = null;
   private static REFRESH_INTERVAL_MS = 60000; // 1 minute for fast gameplay iteration
+
+  private static readonly CAPITAL_CITIES = new Set([
+    'Tallinn', 'Riga', 'Vilnius', 'Helsinki', 'Stockholm', 'Warsaw', 'Berlin', 'Prague', 'Minsk', 'Kiev', 'Kyiv'
+  ]);
+
+  private static isCapital(city: string): boolean {
+    return this.CAPITAL_CITIES.has(city) || Array.from(this.CAPITAL_CITIES).some(c => c.toLowerCase() === city.toLowerCase());
+  }
 
   /**
    * Starts the background contract regenerator
@@ -119,93 +134,166 @@ export class ContractService {
       console.log(`[Contracts] Cleared stale job board entries: ${deletedLegal.count} Legal, ${deletedContraband.count} Contraband.`);
     }
 
-    // 2. Ensure minimum pool sizes
-    const legalCount = await prisma.legalContract.count();
-    const contrabandCount = await prisma.contrabandJob.count();
+    // 2. Query all unique terminal cities in the database
+    const garages = await prisma.garage.findMany({
+      select: { city: true, terminalLevel: true }
+    });
 
-    const LEGAL_TARGET = 8;
-    const CONTRABAND_TARGET = 4;
+    // Group garages by city to find the max terminal level in each city
+    const cityLevels: Record<string, number> = {};
+    garages.forEach(g => {
+      const cityKey = g.city.trim().toLowerCase();
+      cityLevels[cityKey] = Math.max(cityLevels[cityKey] || 0, g.terminalLevel);
+    });
 
-    if (legalCount < LEGAL_TARGET) {
-      const needed = LEGAL_TARGET - legalCount;
-      await this.generateLegalContracts(needed);
+    // Default terminal cities if none exist in the database (fallback for starting setup)
+    let terminalCities = Object.keys(cityLevels);
+    if (terminalCities.length === 0) {
+      terminalCities = ['tallinn', 'riga', 'vilnius', 'klaipeda'];
+      terminalCities.forEach(c => {
+        cityLevels[c] = 1; // Default level 1
+      });
     }
 
-    if (contrabandCount < CONTRABAND_TARGET) {
-      const needed = CONTRABAND_TARGET - contrabandCount;
-      await this.generateContrabandJobs(needed);
-    }
-  }
+    // Normalized display names lookup
+    const canonicalCityNames: Record<string, string> = {
+      tallinn: 'Tallinn',
+      riga: 'Riga',
+      vilnius: 'Vilnius',
+      kaunas: 'Kaunas',
+      warsaw: 'Warsaw',
+      bialystok: 'Bialystok',
+      krakow: 'Krakow',
+      gdansk: 'Gdansk',
+      siauliai: 'Siauliai',
+      klaipeda: 'Klaipeda',
+      panevezys: 'Panevezys',
+      helsinki: 'Helsinki',
+      stockholm: 'Stockholm',
+      malmoe: 'Malmoe',
+      turku: 'Turku',
+      prague: 'Prague',
+      berlin: 'Berlin',
+      hamburg: 'Hamburg',
+      minsk: 'Minsk',
+      brest: 'Brest',
+      grodno: 'Grodno',
+      moscow: 'Moscow',
+      'st. petersburg': 'St. Petersburg',
+      kiev: 'Kiev',
+      kaliningrad: 'Kaliningrad'
+    };
 
-  private static async generateLegalContracts(count: number) {
-    const newContracts = [];
-    for (let i = 0; i < count; i++) {
-      const { contractType, remainingQuota, expiresAt } = this.rollContractType();
+    // For each terminal city, generate contracts up to the capacity limit
+    for (const cityKey of terminalCities) {
+      const originName = canonicalCityNames[cityKey] || cityKey.charAt(0).toUpperCase() + cityKey.slice(1);
+      const level = cityLevels[cityKey] || 1;
 
-      // 35% probability of generating a Hub-and-Spoke local connection
-      if (Math.random() < 0.35 && HUB_SPOKE_CONNECTIONS.length > 0) {
-        const conn = this.getRandomItem(HUB_SPOKE_CONNECTIONS);
-        // Decide direction: Hub -> Spoke or Spoke -> Hub
-        const isHubToSpoke = Math.random() > 0.5;
-        const origin = isHubToSpoke ? conn.hub : conn.spoke;
-        const destination = isHubToSpoke ? conn.spoke : conn.hub;
-        
-        const distanceKm = conn.distance;
-        const basePayout = distanceKm * 30; // Premium local rate of $30/km
-        const variance = 1.0 + (Math.random() * 0.4 - 0.2); // +/- 20%
-        const payoutLegal = Math.floor(basePayout * variance);
+      // Demand cap target = level-dependent
+      const targetLegal = level + 1; // Level 1 = 2, Level 2 = 3, Level 3 = 4, Level 4 = 5
+      const targetContraband = level; // Level 1 = 1, Level 2 = 2, Level 3 = 3, Level 4 = 4
 
-        newContracts.push({
-          cargoType: this.getRandomItem(LEGAL_CARGO_TYPES),
-          origin,
-          destination,
-          distanceKm,
-          payoutLegal,
-          deadlineHours: Math.floor(Math.random() * 12) + 6, // Local feed routes have shorter deadlines
-          contractType,
-          remainingQuota,
-          expiresAt
-        });
-      } else {
-        const origin = this.getRandomItem(CITIES_SCHENGEN);
-        let destination = this.getRandomItem(CITIES_SCHENGEN);
-        while (destination === origin) destination = this.getRandomItem(CITIES_SCHENGEN);
-        
-        const distanceKm = Math.floor(Math.random() * 400) + 100; // 100-500km
-        const basePayout = distanceKm * 15; // ~$15 per km
-        const variance = 1.0 + (Math.random() * 0.4 - 0.2); // +/- 20%
-        const payoutLegal = Math.floor(basePayout * variance);
-        
-        newContracts.push({
-          cargoType: this.getRandomItem(LEGAL_CARGO_TYPES),
-          origin,
-          destination,
-          distanceKm,
-          payoutLegal,
-          deadlineHours: Math.floor(Math.random() * 24) + 12,
-          contractType,
-          remainingQuota,
-          expiresAt
-        });
+      // Count existing contracts from this origin
+      const currentLegal = await prisma.legalContract.count({
+        where: { origin: originName }
+      });
+      const currentContraband = await prisma.contrabandJob.count({
+        where: { origin: originName }
+      });
+
+      if (currentLegal < targetLegal) {
+        const needed = targetLegal - currentLegal;
+        await this.generateLegalContractsForCity(originName, level, needed);
+      }
+
+      if (currentContraband < targetContraband) {
+        const needed = targetContraband - currentContraband;
+        await this.generateContrabandJobsForCity(originName, level, needed);
       }
     }
-
-    await prisma.legalContract.createMany({ data: newContracts });
-    console.log(`[Contracts] Generated ${count} new legal logistics contracts.`);
   }
 
-  private static async generateContrabandJobs(count: number) {
-    const newJobs = [];
-    const classes = [ContrabandClass.CLASS_A, ContrabandClass.CLASS_B, ContrabandClass.CLASS_C];
-    
+  private static async generateLegalContractsForCity(origin: string, level: number, count: number) {
+    const newContracts = [];
+
     for (let i = 0; i < count; i++) {
       const { contractType, remainingQuota, expiresAt } = this.rollContractType();
 
-      const isImport = Math.random() > 0.5;
-      const origin = isImport ? this.getRandomItem(CITIES_NON_SCHENGEN) : this.getRandomItem(CITIES_SCHENGEN);
-      const destination = isImport ? this.getRandomItem(CITIES_SCHENGEN) : this.getRandomItem(CITIES_NON_SCHENGEN);
-      
-      const cargoClass = this.getRandomItem(classes);
+      // Destination is another Schengen city
+      let destination = this.getRandomItem(CITIES_SCHENGEN);
+      while (destination.toLowerCase() === origin.toLowerCase()) {
+        destination = this.getRandomItem(CITIES_SCHENGEN);
+      }
+
+      // Constraints based on level
+      let maxDist = 9999;
+      let maxWeight = 999999;
+      let allowedCargos = LEGAL_CARGO_TYPES;
+
+      if (level === 1) {
+        maxDist = 200;
+        maxWeight = 10000;
+      } else if (level === 2) {
+        maxDist = 500;
+        maxWeight = 18000;
+      } else if (level === 3) {
+        maxWeight = 26000;
+        // Cannot carry steel coils or agricultural machinery
+        allowedCargos = LEGAL_CARGO_TYPES.filter(t => t !== CargoType.STEEL_COILS && t !== CargoType.AGRICULTURAL_MACHINERY);
+      }
+
+      const distanceKm = Math.min(maxDist, Math.floor(Math.random() * 400) + 100);
+      let basePayout = distanceKm * 15; // standard payout rate
+
+      // Capital City Premium
+      if (this.isCapital(origin) || this.isCapital(destination)) {
+        basePayout = basePayout * 1.25; // 25% premium
+      }
+
+      const variance = 1.0 + (Math.random() * 0.4 - 0.2); // +/- 20%
+      const payoutLegal = Math.floor(basePayout * variance);
+
+      newContracts.push({
+        cargoType: this.getRandomItem(allowedCargos),
+        origin,
+        destination,
+        distanceKm,
+        payoutLegal,
+        deadlineHours: Math.floor(Math.random() * 24) + 12,
+        contractType,
+        remainingQuota: remainingQuota ? Math.min(remainingQuota, maxWeight) : null,
+        expiresAt
+      });
+    }
+
+    if (newContracts.length > 0) {
+      await prisma.legalContract.createMany({ data: newContracts });
+      console.log(`[Contracts] Generated ${newContracts.length} new legal contracts for origin ${origin}.`);
+    }
+  }
+
+  private static async generateContrabandJobsForCity(origin: string, level: number, count: number) {
+    const newJobs = [];
+    const classes: ContrabandClass[] = [ContrabandClass.CLASS_A, ContrabandClass.CLASS_B, ContrabandClass.CLASS_C];
+    const originIsSchengen = CITIES_SCHENGEN.some(c => c.toLowerCase() === origin.toLowerCase());
+
+    for (let i = 0; i < count; i++) {
+      const { contractType, remainingQuota, expiresAt } = this.rollContractType();
+
+      // Smuggling route must cross Schengen border
+      let destination = "";
+      if (originIsSchengen) {
+        destination = this.getRandomItem(CITIES_NON_SCHENGEN);
+      } else {
+        destination = this.getRandomItem(CITIES_SCHENGEN);
+      }
+
+      // Constraints based on level
+      let allowedClasses: ContrabandClass[] = [ContrabandClass.CLASS_A];
+      if (level >= 2) allowedClasses.push(ContrabandClass.CLASS_B);
+      if (level >= 3) allowedClasses.push(ContrabandClass.CLASS_C);
+
+      const cargoClass = this.getRandomItem(allowedClasses);
       let riskMultiplier = 1.5;
       let baseBlackPayout = 10000;
       let baseLegalPayout = 0;
@@ -222,21 +310,29 @@ export class ContractService {
         baseBlackPayout = 12000 + Math.random() * 5000;
       }
 
+      // Capital premium
+      if (this.isCapital(origin) || this.isCapital(destination)) {
+        baseBlackPayout = baseBlackPayout * 1.25;
+        if (baseLegalPayout > 0) baseLegalPayout = baseLegalPayout * 1.25;
+      }
+
       newJobs.push({
         cargoClass,
         origin,
         destination,
         riskMultiplier: parseFloat(riskMultiplier.toFixed(2)),
         payoutBlack: Math.floor(baseBlackPayout),
-        payoutLegal: baseLegalPayout,
+        payoutLegal: Math.floor(baseLegalPayout),
         contractType,
         remainingQuota,
         expiresAt
       });
     }
 
-    await prisma.contrabandJob.createMany({ data: newJobs });
-    console.log(`[Contracts] Generated ${count} new underworld contraband jobs.`);
+    if (newJobs.length > 0) {
+      await prisma.contrabandJob.createMany({ data: newJobs });
+      console.log(`[Contracts] Generated ${newJobs.length} new contraband jobs for origin ${origin}.`);
+    }
   }
 
   private static getRandomItem<T>(arr: T[]): T {

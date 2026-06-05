@@ -159,125 +159,146 @@ class CyberAudioEngine {
 
 const AUDIO = new CyberAudioEngine();
 
-// 1. DATASETS & CONFIGURATIONS (Baltic & Eastern European Schengen Highway Nodes)
+// 1. DATASETS & CONFIGURATIONS — Expanded European Network
+// Country border polygon data for SVG overlay
+const COUNTRY_BORDERS = [
+  { name: "Finland",    color: "rgba(80,200,255,0.10)",  points: "380,20 530,20 530,140 460,190 380,140" },
+  { name: "Estonia",   color: "rgba(80,200,255,0.10)",  points: "450,140 560,130 570,190 480,210 440,185" },
+  { name: "Latvia",    color: "rgba(100,220,120,0.10)", points: "440,185 570,190 590,260 500,280 420,260" },
+  { name: "Lithuania", color: "rgba(100,220,120,0.10)", points: "400,260 500,280 620,300 630,380 460,390 370,360" },
+  { name: "Sweden",    color: "rgba(80,180,255,0.08)",  points: "130,80 280,60 340,200 300,400 130,380" },
+  { name: "Poland",    color: "rgba(220,80,80,0.08)",   points: "140,380 460,350 640,380 640,500 200,520 120,480" },
+  { name: "Germany",   color: "rgba(200,180,80,0.08)",  points: "50,380 140,380 140,520 50,520" },
+  { name: "Belarus",   color: "rgba(180,80,80,0.12)",   points: "620,300 760,300 800,480 650,490 600,400" },
+  { name: "Ukraine",   color: "rgba(220,160,20,0.08)",  points: "650,490 800,480 900,550 850,580 640,570" },
+  { name: "Russia-KGD",color: "rgba(255,60,60,0.12)",   points: "340,310 440,310 450,390 340,400" },
+];
+
 const CITIES_DATASET = {
-  tallinn: {
-    id: "tallinn",
-    name: "Tallinn",
-    country: "Estonia",
-    isSchengen: true,
-    coords: { x: 500, y: 120 },
-    heat: 15,
-    connections: ["helsinki", "riga", "gdansk"]
-  },
+  // === FINLAND ===
   helsinki: {
-    id: "helsinki",
-    name: "Helsinki",
-    country: "Finland",
-    isSchengen: true,
-    coords: { x: 500, y: 40 },
-    heat: 10,
+    id: "helsinki", name: "Helsinki", country: "Finland", isSchengen: true, isCapital: true,
+    purchasable: false, terminalCost: 0,
+    coords: { x: 500, y: 40 }, heat: 10,
     connections: ["tallinn", "turku"]
   },
   turku: {
-    id: "turku",
-    name: "Turku",
-    country: "Finland",
-    isSchengen: true,
-    coords: { x: 380, y: 50 },
-    heat: 5,
+    id: "turku", name: "Turku", country: "Finland", isSchengen: true, isCapital: false,
+    purchasable: true, terminalCost: 180000,
+    coords: { x: 400, y: 55 }, heat: 5,
     connections: ["helsinki", "stockholm"]
   },
+  // === SWEDEN ===
   stockholm: {
-    id: "stockholm",
-    name: "Stockholm",
-    country: "Sweden",
-    isSchengen: true,
-    coords: { x: 220, y: 150 },
-    heat: 12,
-    connections: ["turku", "gdansk"]
+    id: "stockholm", name: "Stockholm", country: "Sweden", isSchengen: true, isCapital: true,
+    purchasable: true, terminalCost: 320000,
+    coords: { x: 220, y: 130 }, heat: 12,
+    connections: ["turku", "gdansk", "malmoe"]
   },
+  malmoe: {
+    id: "malmoe", name: "Malmö", country: "Sweden", isSchengen: true, isCapital: false,
+    purchasable: true, terminalCost: 200000,
+    coords: { x: 190, y: 340 }, heat: 8,
+    connections: ["stockholm", "berlin"]
+  },
+  // === ESTONIA ===
+  tallinn: {
+    id: "tallinn", name: "Tallinn", country: "Estonia", isSchengen: true, isCapital: true,
+    purchasable: false, terminalCost: 0,
+    coords: { x: 500, y: 160 }, heat: 15,
+    connections: ["helsinki", "riga", "gdansk"]
+  },
+  // === LATVIA ===
   riga: {
-    id: "riga",
-    name: "Riga",
-    country: "Latvia",
-    isSchengen: true,
-    coords: { x: 520, y: 220 },
-    heat: 20,
+    id: "riga", name: "Riga", country: "Latvia", isSchengen: true, isCapital: true,
+    purchasable: false, terminalCost: 0,
+    coords: { x: 520, y: 230 }, heat: 20,
     connections: ["tallinn", "klaipeda", "vilnius"]
   },
+  // === LITHUANIA ===
+  vilnius: {
+    id: "vilnius", name: "Vilnius", country: "Lithuania", isSchengen: true, isCapital: true,
+    purchasable: false, terminalCost: 0,
+    coords: { x: 580, y: 330 }, heat: 30,
+    connections: ["riga", "klaipeda", "brest", "warsaw", "kaunas"]
+  },
   klaipeda: {
-    id: "klaipeda",
-    name: "Klaipėda",
-    country: "Lithuania",
-    isSchengen: true,
-    coords: { x: 440, y: 300 },
-    heat: 25,
+    id: "klaipeda", name: "Klaipėda", country: "Lithuania", isSchengen: true, isCapital: false,
+    purchasable: false, terminalCost: 0,
+    coords: { x: 440, y: 300 }, heat: 25,
     connections: ["riga", "vilnius", "kaliningrad"]
   },
-  vilnius: {
-    id: "vilnius",
-    name: "Vilnius",
-    country: "Lithuania",
-    isSchengen: true,
-    coords: { x: 580, y: 320 },
-    heat: 30,
-    connections: ["riga", "klaipeda", "brest", "warsaw"]
+  kaunas: {
+    id: "kaunas", name: "Kaunas", country: "Lithuania", isSchengen: true, isCapital: false,
+    purchasable: false, terminalCost: 0,
+    coords: { x: 530, y: 360 }, heat: 22,
+    connections: ["vilnius", "warsaw"]
   },
+  // === RUSSIA (KALININGRAD EXCLAVE) ===
   kaliningrad: {
-    id: "kaliningrad",
-    name: "Kaliningrad",
-    country: "Russia (External)",
-    isSchengen: false,
-    coords: { x: 380, y: 350 },
-    heat: 65,
+    id: "kaliningrad", name: "Kaliningrad", country: "Russia (External)", isSchengen: false, isCapital: false,
+    purchasable: true, terminalCost: 500000,
+    coords: { x: 380, y: 360 }, heat: 65,
     connections: ["klaipeda", "gdansk", "warsaw"]
   },
+  // === POLAND ===
   gdansk: {
-    id: "gdansk",
-    name: "Gdańsk",
-    country: "Poland",
-    isSchengen: true,
-    coords: { x: 320, y: 380 },
-    heat: 18,
+    id: "gdansk", name: "Gdańsk", country: "Poland", isSchengen: true, isCapital: false,
+    purchasable: true, terminalCost: 220000,
+    coords: { x: 330, y: 385 }, heat: 18,
     connections: ["tallinn", "stockholm", "kaliningrad", "warsaw"]
   },
   warsaw: {
-    id: "warsaw",
-    name: "Warsaw",
-    country: "Poland",
-    isSchengen: true,
-    coords: { x: 480, y: 440 },
-    heat: 22,
-    connections: ["gdansk", "kaliningrad", "vilnius", "brest", "berlin"]
+    id: "warsaw", name: "Warsaw", country: "Poland", isSchengen: true, isCapital: true,
+    purchasable: true, terminalCost: 350000,
+    coords: { x: 480, y: 450 }, heat: 22,
+    connections: ["gdansk", "kaliningrad", "vilnius", "kaunas", "brest", "berlin", "prague"]
   },
-  brest: {
-    id: "brest",
-    name: "Brest-Terespol Checkpoint",
-    country: "Belarus Border",
-    isSchengen: false,
-    coords: { x: 620, y: 460 },
-    heat: 85,
-    connections: ["vilnius", "warsaw", "kyiv"]
+  krakow: {
+    id: "krakow", name: "Kraków", country: "Poland", isSchengen: true, isCapital: false,
+    purchasable: true, terminalCost: 240000,
+    coords: { x: 430, y: 500 }, heat: 16,
+    connections: ["warsaw", "prague"]
   },
-  kyiv: {
-    id: "kyiv",
-    name: "Kyiv",
-    country: "Ukraine (External)",
-    isSchengen: false,
-    coords: { x: 780, y: 520 },
-    heat: 40,
-    connections: ["brest"]
-  },
+  // === GERMANY ===
   berlin: {
-    id: "berlin",
-    name: "Berlin",
-    country: "Germany",
-    isSchengen: true,
-    coords: { x: 140, y: 460 },
-    heat: 15,
-    connections: ["warsaw"]
-  }
+    id: "berlin", name: "Berlin", country: "Germany", isSchengen: true, isCapital: true,
+    purchasable: true, terminalCost: 600000,
+    coords: { x: 140, y: 450 }, heat: 15,
+    connections: ["warsaw", "malmoe", "prague", "hamburg"]
+  },
+  hamburg: {
+    id: "hamburg", name: "Hamburg", country: "Germany", isSchengen: true, isCapital: false,
+    purchasable: true, terminalCost: 380000,
+    coords: { x: 80, y: 380 }, heat: 10,
+    connections: ["berlin", "stockholm"]
+  },
+  prague: {
+    id: "prague", name: "Prague", country: "Czech Republic", isSchengen: true, isCapital: true,
+    purchasable: true, terminalCost: 420000,
+    coords: { x: 230, y: 490 }, heat: 14,
+    connections: ["berlin", "warsaw", "krakow"]
+  },
+  // === BELARUS BORDER ===
+  brest: {
+    id: "brest", name: "Brest-Terespol Checkpoint", country: "Belarus Border", isSchengen: false, isCapital: false,
+    purchasable: false, terminalCost: 0,
+    coords: { x: 640, y: 470 }, heat: 85,
+    connections: ["vilnius", "warsaw", "minsk", "kyiv"]
+  },
+  minsk: {
+    id: "minsk", name: "Minsk", country: "Belarus (External)", isSchengen: false, isCapital: true,
+    purchasable: true, terminalCost: 700000,
+    coords: { x: 720, y: 400 }, heat: 70,
+    connections: ["brest", "vilnius", "kyiv"]
+  },
+  // === UKRAINE ===
+  kyiv: {
+    id: "kyiv", name: "Kyiv", country: "Ukraine (External)", isSchengen: false, isCapital: true,
+    purchasable: true, terminalCost: 550000,
+    coords: { x: 810, y: 530 }, heat: 40,
+    connections: ["brest", "minsk"]
+  },
 };
 
 // 2. STATE MANAGEMENT & SYSTEM CONTEXT
@@ -314,21 +335,25 @@ const UI_NODES = {
   cleanAmount: document.getElementById("clean-amount"),
   dirtyAmount: document.getElementById("dirty-amount"),
   systemClock: document.getElementById("system-clock"),
-  speedometerFill: document.getElementById("speed-fill"),
-  speedometerNeedle: document.getElementById("speed-needle"),
-  speedometerText: document.getElementById("speed-digit"),
-  progressSegments: document.querySelectorAll(".progression-segment"),
-  progressPctText: document.getElementById("progress-pct"),
   policeHeatText: document.getElementById("police-heat-val"),
   policeHeatSegments: document.querySelectorAll(".heat-segment"),
-  
+  repStarGrid: document.getElementById("rep-star-grid"),
+  repScoreVal: document.getElementById("rep-score-val"),
+
   // Left Panel Dynamic Nodes
   citySelectorIdle: document.getElementById("selector-idle"),
   citySelectorActive: document.getElementById("selector-active"),
   activeCityName: document.getElementById("active-city-name"),
   activeCityZone: document.getElementById("active-city-zone"),
   activeConnectionsContainer: document.getElementById("active-connections-list"),
-  
+
+  // Right Sidebar City Widget
+  sidebarCityIdle: document.getElementById("sidebar-city-idle"),
+  sidebarCityActive: document.getElementById("sidebar-city-active"),
+  sidebarCityName: document.getElementById("sidebar-city-name"),
+  sidebarCityZoneBadge: document.getElementById("sidebar-city-zone-badge"),
+  sidebarConnectionsCount: document.getElementById("sidebar-connections-count"),
+
   // Floating dropdown menus
   garageMenu: document.getElementById("garage-overlay"),
   supportMenu: document.getElementById("support-overlay"),
@@ -419,12 +444,23 @@ function startSystemTimeLoop() {
 // 5. VECTOR ROUTE & NODE RENDERING Engine (SVG projection)
 function renderTacticalMap() {
   const svg = UI_NODES.mapSvg;
-  
+
   // Clean all previous routes & nodes, preserving defs filters
-  const prevPaths = svg.querySelectorAll("path, g, text:not([id])");
+  const prevPaths = svg.querySelectorAll("path, g, polygon, text:not([id])");
   prevPaths.forEach(node => node.remove());
 
-  // A. Draw Route connection lines (tactical transport channels)
+  // A. Draw Country Border Overlays
+  COUNTRY_BORDERS.forEach(border => {
+    const poly = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+    poly.setAttribute("points", border.points);
+    poly.setAttribute("fill", border.color);
+    poly.setAttribute("stroke", border.color.replace(/,[^,]+\)$/, ",0.35)"));
+    poly.setAttribute("stroke-width", "1");
+    poly.setAttribute("stroke-dasharray", "4,3");
+    svg.appendChild(poly);
+  });
+
+  // B. Draw Route connection lines (tactical transport channels)
   const renderedConnections = new Set();
   
   Object.keys(CITIES_DATASET).forEach(cityId => {
@@ -505,6 +541,9 @@ function renderTacticalMap() {
     const gGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
     gGroup.setAttribute("class", "map-node-group");
     gGroup.setAttribute("data-id", city.id);
+    if (city.purchasable) {
+      gGroup.setAttribute("data-purchasable", "true");
+    }
     gGroup.style.setProperty("--node-color", nodeColor);
 
     // Dynamic click handler
@@ -639,38 +678,49 @@ function handleCitySelection(cityId) {
   const city = CITIES_DATASET[cityId];
   if (!city) return;
 
-  // Play sci-fi terminal handshake beep
   AUDIO.playHandshake();
-
-  // Visual terminal updates
   appendTerminalLine(`HANDSHAKE: City node '${city.name.toUpperCase()}' selected. Querying databases...`, "info");
 
-  // Synchronize Left control panel
-  UI_NODES.citySelectorIdle.style.display = "none";
-  UI_NODES.citySelectorActive.classList.add("visible");
-  
-  UI_NODES.activeCityName.textContent = city.name.toUpperCase();
-  UI_NODES.activeCityZone.textContent = `ZONE: ${city.isSchengen ? "ACTIVE (SCHENGEN)" : "RESTRICTED (EXTERNAL)"}`;
-  UI_NODES.activeCityZone.style.color = city.isSchengen ? "var(--neon-green)" : "var(--neon-orange)";
-  UI_NODES.activeCityZone.style.borderColor = city.isSchengen ? "var(--neon-green)" : "var(--neon-orange)";
-  UI_NODES.activeCityZone.style.background = city.isSchengen ? "var(--neon-green-dark)" : "var(--neon-orange-dark)";
+  // Left panel update
+  if (UI_NODES.citySelectorIdle) UI_NODES.citySelectorIdle.style.display = "none";
+  if (UI_NODES.citySelectorActive) UI_NODES.citySelectorActive.classList.add("visible");
+  if (UI_NODES.activeCityName) UI_NODES.activeCityName.textContent = city.name.toUpperCase();
+  if (UI_NODES.activeCityZone) {
+    UI_NODES.activeCityZone.textContent = `ZONE: ${city.isSchengen ? "ACTIVE (SCHENGEN)" : "RESTRICTED (EXTERNAL)"}`;
+    UI_NODES.activeCityZone.style.color = city.isSchengen ? "var(--neon-green)" : "var(--neon-orange)";
+    UI_NODES.activeCityZone.style.borderColor = city.isSchengen ? "var(--neon-green)" : "var(--neon-orange)";
+    UI_NODES.activeCityZone.style.background = city.isSchengen ? "var(--neon-green-dark)" : "var(--neon-orange-dark)";
+  }
 
-  // Clear and list city direct highway connections
-  UI_NODES.activeConnectionsContainer.innerHTML = "";
-  city.connections.forEach(connId => {
-    const connCity = CITIES_DATASET[connId];
-    if (!connCity) return;
+  // Right sidebar city widget update
+  if (UI_NODES.sidebarCityIdle) UI_NODES.sidebarCityIdle.style.display = "none";
+  if (UI_NODES.sidebarCityActive) UI_NODES.sidebarCityActive.style.display = "block";
+  if (UI_NODES.sidebarCityName) UI_NODES.sidebarCityName.textContent = city.name.toUpperCase();
+  if (UI_NODES.sidebarCityZoneBadge) {
+    UI_NODES.sidebarCityZoneBadge.textContent = city.isSchengen ? "✓ SCHENGEN ZONE" : "⚠ EXTERNAL ZONE";
+    UI_NODES.sidebarCityZoneBadge.style.color = city.isSchengen ? "var(--neon-green)" : "var(--neon-orange)";
+  }
+  if (UI_NODES.sidebarConnectionsCount) {
+    UI_NODES.sidebarConnectionsCount.textContent = `${city.connections.length} CONNECTIONS`;
+  }
 
-    const row = document.createElement("div");
-    row.className = "connection-node-row";
-    row.innerHTML = `
-      <span class="connection-node-name">NODE_${connId.slice(0, 3).toUpperCase()} (${connCity.name})</span>
-      <span class="connection-node-dist">${calculateDistance(city.coords, connCity.coords)} KM</span>
-    `;
-    UI_NODES.activeConnectionsContainer.appendChild(row);
-  });
+  // Left panel connections list
+  if (UI_NODES.activeConnectionsContainer) {
+    UI_NODES.activeConnectionsContainer.innerHTML = "";
+    city.connections.forEach(connId => {
+      const connCity = CITIES_DATASET[connId];
+      if (!connCity) return;
+      const row = document.createElement("div");
+      row.className = "connection-node-row";
+      row.innerHTML = `
+        <span class="connection-node-name">NODE_${connId.slice(0, 3).toUpperCase()} (${connCity.name})</span>
+        <span class="connection-node-dist">${calculateDistance(city.coords, connCity.coords)} KM</span>
+      `;
+      UI_NODES.activeConnectionsContainer.appendChild(row);
+    });
+  }
 
-  // Visually animate / highlight selected node in SVG Map
+  // Highlight selected node in SVG
   document.querySelectorAll(".map-node-group").forEach(group => {
     const isSelected = group.getAttribute("data-id") === cityId;
     const core = group.querySelector("circle:nth-child(2)");
@@ -704,38 +754,37 @@ function toggleOverlay(type) {
   appendTerminalLine(`HUD: Map overlay '${type.toUpperCase()}' ${targetState ? "opened" : "closed"}.`, "info");
 }
 
-// 7. UI PRESENTATION SYNCHRONIZATION (Updating tickers, telemetry and speedometers)
+// 7. UI PRESENTATION SYNCHRONIZATION
 function synchronizeUI() {
-  // Sync financial accounts
+  // Financial accounts
   UI_NODES.cleanAmount.textContent = `$${SYSTEM_STATE.cleanFunds.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
   UI_NODES.dirtyAmount.textContent = `$${SYSTEM_STATE.dirtyFunds.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
 
-  // Sync speedometer dial (84 km/h represents ~50 deg rotate & stroke-dashoffset of 95)
-  const targetOffset = 219.9 - (219.9 * (SYSTEM_STATE.currentAutopilotSpeed / 140)); // speed range max 140
-  UI_NODES.speedometerFill.style.strokeDashoffset = targetOffset;
-  UI_NODES.speedometerNeedle.style.transform = `rotate(${SYSTEM_STATE.currentAutopilotSpeed - 34}deg)`;
-  UI_NODES.speedometerText.textContent = SYSTEM_STATE.currentAutopilotSpeed;
+  // SVG Star grid — fill top row L→R then bottom row L→R based on rep score (0–10)
+  const repScore = SYSTEM_STATE.reputationScore || 7.5;
+  if (UI_NODES.repStarGrid) {
+    const stars = UI_NODES.repStarGrid.querySelectorAll(".rep-star");
+    stars.forEach((star, i) => {
+      const threshold = i + 1; // star i+1 fills if score >= i+1
+      if (repScore >= threshold) {
+        star.classList.add("filled");
+        star.classList.remove("partial");
+      } else if (repScore > i && repScore < threshold) {
+        star.classList.add("partial");
+        star.classList.remove("filled");
+      } else {
+        star.classList.remove("filled", "partial");
+      }
+    });
+  }
+  if (UI_NODES.repScoreVal) UI_NODES.repScoreVal.textContent = repScore.toFixed(1);
 
-  // Sync progress segments (e.g. 74% progress lights up 7 segments of 10)
-  UI_NODES.progressPctText.textContent = `${SYSTEM_STATE.activeRouteProgress}%`;
-  const filledSegments = Math.round(SYSTEM_STATE.activeRouteProgress / 10);
-  UI_NODES.progressSegments.forEach((seg, index) => {
-    if (index < filledSegments) {
-      seg.classList.add("filled");
-    } else {
-      seg.classList.remove("filled");
-    }
-  });
-
-  // Sync police heat Level index (e.g., 25% lights up 3 segments)
-  UI_NODES.policeHeatText.textContent = `${SYSTEM_STATE.policeHeat}%`;
+  // Police heat segments
+  if (UI_NODES.policeHeatText) UI_NODES.policeHeatText.textContent = `${SYSTEM_STATE.policeHeat}%`;
   const filledHeat = Math.round(SYSTEM_STATE.policeHeat / 10);
   UI_NODES.policeHeatSegments.forEach((seg, index) => {
-    if (index < filledHeat) {
-      seg.classList.add("active");
-    } else {
-      seg.classList.remove("active");
-    }
+    if (index < filledHeat) seg.classList.add("active");
+    else seg.classList.remove("active");
   });
 }
 

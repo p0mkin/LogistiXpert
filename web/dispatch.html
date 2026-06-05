@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LogistiXpert: Dispatch Command Center</title>
+  
+  <!-- Cyberpunk Terminal Typography -->
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=JetBrains+Mono:wght@300;400;500;700&family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+  
+  <!-- Modular Design System Styles -->
+  <link rel="stylesheet" href="./styles.css">
+  <style>
+    .dispatch-layout-grid {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: var(--space-4);
+      height: calc(100vh - 180px);
+      overflow: hidden;
+    }
+    .dispatch-scroller {
+      overflow-y: auto;
+      padding-right: var(--space-2);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-3);
+    }
+    .truck-card {
+      background: rgba(13, 13, 17, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: var(--radius-md);
+      padding: var(--space-3);
+      cursor: pointer;
+      font-family: var(--font-mono);
+      transition: all var(--transition-fast);
+    }
+    .truck-card:hover, .truck-card.selected {
+      border-color: var(--neon-green);
+      box-shadow: 0 0 8px var(--neon-green-glow);
+    }
+    .truck-card-title {
+      font-weight: var(--fw-bold);
+      color: var(--color-text-main);
+    }
+    .truck-card-meta {
+      font-size: 10px;
+      color: var(--color-text-muted);
+      margin-top: var(--space-1);
+    }
+    .status-badge {
+      display: inline-block;
+      font-size: 8px;
+      padding: 1px 4px;
+      border-radius: var(--radius-sm);
+      margin-top: 4px;
+      font-weight: bold;
+    }
+    .status-idle { background: rgba(0, 255, 102, 0.1); border: 1px solid var(--neon-green); color: var(--neon-green); }
+    .status-active { background: rgba(0, 229, 255, 0.1); border: 1px solid var(--neon-blue); color: var(--neon-blue); }
+    .status-impounded { background: rgba(255, 0, 60, 0.1); border: 1px solid var(--neon-red); color: var(--neon-red); }
+
+    .dispatch-panel-main {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-4);
+      overflow-y: auto;
+    }
+    .setup-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-4);
+    }
+    .contract-item {
+      background: rgba(13, 13, 17, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: var(--radius-md);
+      padding: var(--space-3);
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-1);
+      font-family: var(--font-mono);
+      transition: all var(--transition-fast);
+    }
+    .contract-item:hover, .contract-item.selected {
+      border-color: var(--neon-orange);
+      box-shadow: 0 0 8px var(--neon-orange-glow);
+    }
+    .contract-item-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: bold;
+    }
+    .contract-payout-legal { color: var(--neon-green); }
+    .contract-payout-black { color: var(--neon-orange); }
+
+    .active-routes-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: var(--space-3);
+    }
+    .route-card {
+      background: rgba(13, 13, 17, 0.6);
+      border: 1px solid rgba(0, 255, 102, 0.2);
+      border-radius: var(--radius-md);
+      padding: var(--space-3);
+      font-family: var(--font-mono);
+    }
+    .route-progress-bar {
+      height: 6px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      margin-top: var(--space-2);
+    }
+    .route-progress-fill {
+      height: 100%;
+      background: var(--neon-green);
+      box-shadow: 0 0 8px var(--neon-green-glow);
+      transition: width 0.5s ease-out;
+    }
+    .policy-selector {
+      display: flex;
+      gap: var(--space-2);
+    }
+    .policy-btn {
+      flex: 1;
+      background: var(--color-bg-button);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: var(--radius-sm);
+      padding: var(--space-2);
+      font-family: var(--font-mono);
+      font-size: var(--fs-xs);
+      color: var(--color-text-muted);
+      cursor: pointer;
+      text-align: center;
+      transition: all var(--transition-fast);
+    }
+    .policy-btn.active {
+      border-color: var(--neon-orange);
+      color: var(--neon-orange);
+      background: rgba(255, 102, 0, 0.1);
+      box-shadow: 0 0 10px var(--neon-orange-glow);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- CRT effects -->
+  <div class="screen-overlay"></div>
+  <div class="grid-backplate"></div>
+
+  <div class="dashboard-layout">
+    
+    <!-- Top telemetry header identical to index.html -->
+    <header class="header-bar panel-cyber">
+      <div class="operator-profile">
+        <div class="avatar-frame">
+          <svg viewBox="0 0 24 24">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15.93c-3.13-.47-5.5-3.14-5.5-6.43 0-1.79.69-3.41 1.81-4.63l1.41 1.41C9.64 9.17 9 10.5 9 12c0 2.21 1.79 4 4 4v1.93zm4.69-4.3C17.61 14.85 16 16.5 14 16.9v-1.93c1.1-.31 2-.96 2.5-1.85l1.19 1.51zM14 8.07V6.03c2 .4 3.61 2.05 4.31 4.18l-1.19 1.51c-.5-.89-1.4-1.54-2.5-1.85z"/>
+          </svg>
+        </div>
+        <div class="operator-details">
+          <h1 class="operator-name">DISPATCH_OPERATOR</h1>
+          <div class="operator-status">
+            <span class="pulse-dot"></span>
+            secure_link_established
+          </div>
+        </div>
+      </div>
+
+      <div class="header-telemetry">
+        <div class="telem-cell">
+          <span class="telem-cell-label">SYSTEM_EPOCH</span>
+          <span class="telem-cell-value">DISPATCH COMMAND CENTER</span>
+        </div>
+        <div class="telem-cell">
+          <span class="telem-cell-label">REP_FACTOR</span>
+          <div class="reputation-gauge">
+            <div class="star-grid" id="rep-star-grid">
+              <div class="star-row">
+                <svg class="rep-star" data-index="0" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+                <svg class="rep-star" data-index="1" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+                <svg class="rep-star" data-index="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+                <svg class="rep-star" data-index="3" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+                <svg class="rep-star" data-index="4" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+              </div>
+              <div class="star-row">
+                <svg class="rep-star" data-index="5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+                <svg class="rep-star" data-index="6" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+                <svg class="rep-star" data-index="7" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+                <svg class="rep-star" data-index="8" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+                <svg class="rep-star" data-index="9" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+              </div>
+            </div>
+            <span class="rep-score-display" id="rep-score-val">7.5</span>
+          </div>
+        </div>
+        <div class="telem-cell">
+          <span class="telem-cell-label">POLICE_HEAT_INDEX</span>
+          <div class="police-heat-meter">
+            <span class="heat-value" id="police-heat-val">25%</span>
+            <div class="heat-segments">
+              <div class="heat-segment"></div>
+              <div class="heat-segment"></div>
+              <div class="heat-segment"></div>
+              <div class="heat-segment"></div>
+              <div class="heat-segment"></div>
+              <div class="heat-segment"></div>
+              <div class="heat-segment"></div>
+              <div class="heat-segment"></div>
+              <div class="heat-segment"></div>
+              <div class="heat-segment"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="header-ledgers">
+        <div class="ledger-card clean">
+          <div class="ledger-icon">
+            <svg viewBox="0 0 24 24"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.2c-.07-2.24-1.6-3.9-3.7-4.3V3h-3v1.7c-1.93.41-3.5 1.63-3.5 3.75 0 2.47 2 3.7 5.2 4.2 2.55.4 3.03 1.15 3.03 2.15 0 .75-.53 1.65-2.7 1.65-2.2 0-2.87-.95-3-2.1h-2.2c.1 2.58 1.91 3.9 3.7 4.3V21h3v-1.7c1.95-.41 3.5-1.51 3.5-3.8 0-2.92-2.17-3.75-5.22-4.15z"/></svg>
+          </div>
+          <div class="ledger-meta">
+            <span class="ledger-label">CLEAN_RESERVES</span>
+            <span class="ledger-amount" id="clean-amount">$0.00</span>
+          </div>
+        </div>
+        <div class="ledger-card dirty">
+          <div class="ledger-icon">
+            <svg viewBox="0 0 24 24"><path d="M19.28 4.72A10 10 0 0 0 12 2a10 10 0 1 0 10 10 10 10 0 0 0-2.72-7.28zM12 18a6 6 0 1 1 6-6 6 6 0 0 1-6 6zm-3.5-6a3.5 3.5 0 1 0 3.5-3.5 3.5 3.5 0 0 0-3.5 3.5z"/></svg>
+          </div>
+          <div class="ledger-meta">
+            <span class="ledger-label">LAUNDERED_DIRTY</span>
+            <span class="ledger-amount" id="dirty-amount">$0.00</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="main-deck" style="display: flex; flex-direction: column; gap: var(--space-4);">
+      
+      <!-- Nav strip -->
+      <div style="display: flex; gap: var(--space-3); border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: var(--space-3);">
+        <a href="index.html" class="nav-op-btn btn-white" style="width: auto; padding: var(--space-2) var(--space-4);">
+          ◀ RETURN TO TACTICAL MAP
+        </a>
+        <h2 style="font-family: var(--font-cyber); font-size: var(--fs-xl); color: var(--color-text-main); margin-left: auto;">
+          SYS_DISPATCH_BOARD
+        </h2>
+      </div>
+
+      <!-- Main split screen -->
+      <div class="dispatch-layout-grid">
+        
+        <!-- Left Sidebar: Fleet list -->
+        <section class="panel-cyber panel-green" style="display: flex; flex-direction: column; padding: var(--space-4);">
+          <div class="panel-title-strip">
+            <h2 class="panel-title">TRANSPORT FLEET</h2>
+            <span class="panel-serial">ACTIVE_VEHICLES</span>
+          </div>
+          <div class="dispatch-scroller" id="fleet-list-container" style="margin-top: var(--space-3); flex: 1;">
+            <!-- Rendered truck fleet list -->
+          </div>
+        </section>
+
+        <!-- Right Main: Dispatch form & current actions -->
+        <div class="dispatch-panel-main">
+          
+          <!-- Dispatch Config Panel -->
+          <section class="panel-cyber panel-orange" style="padding: var(--space-4);">
+            <div class="panel-title-strip">
+              <h2 class="panel-title">ROUTING COMMAND & AUTO-DELEGATION</h2>
+              <span class="panel-serial">LAUNCH_CONFIG</span>
+            </div>
+
+            <div class="setup-grid" style="margin-top: var(--space-3);">
+              
+              <!-- Left Setup: Selection Status -->
+              <div style="display: flex; flex-direction: column; gap: var(--space-3); font-family: var(--font-mono); font-size: var(--fs-xs);">
+                <div>
+                  <span style="color: var(--color-text-muted);">ACTIVE VEHICLE:</span>
+                  <div id="disp-truck-val" style="font-weight: bold; font-size: var(--fs-sm); color: var(--color-text-main); margin-top: 2px;">-- SELECT AN IDLE VEHICLE --</div>
+                </div>
+                <div>
+                  <span style="color: var(--color-text-muted);">ASSIGNED DRIVER & TRAITS:</span>
+                  <div id="disp-driver-val" style="font-weight: bold; margin-top: 2px;">--</div>
+                </div>
+                <div>
+                  <span style="color: var(--color-text-muted);">AUTOPILOT STEERING PROFILE:</span>
+                  <div class="policy-selector" style="margin-top: var(--space-2);">
+                    <button class="policy-btn active" id="btn-policy-safe" onclick="setPolicy('SAFE')">SAFE POLICY</button>
+                    <button class="policy-btn" id="btn-policy-average" onclick="setPolicy('AVERAGE')">AVERAGE</button>
+                    <button class="policy-btn" id="btn-policy-greedy" onclick="setPolicy('GREEDY')">GREEDY</button>
+                  </div>
+                </div>
+                <div style="margin-top: var(--space-3); display: flex; gap: var(--space-2);">
+                  <button class="nav-op-btn btn-orange" style="width: auto; flex:1;" id="btn-launch-route" onclick="launchFleetRoute()">LAUNCH TRANSIT LINK</button>
+                  <button class="nav-op-btn btn-white" style="width: auto; font-size: 10px;" onclick="getSuggestedRoute()">SUGGEST BEST</button>
+                </div>
+              </div>
+
+              <!-- Right Setup: Available Jobs at Location -->
+              <div style="display: flex; flex-direction: column; gap: var(--space-2);">
+                <div class="garage-section-title" id="jobs-title">// AVAILABLE CONTRACTS AT ORIGIN</div>
+                <div class="dispatch-scroller" id="available-contracts-container" style="max-height: 220px;">
+                  <!-- Populate list of available contracts -->
+                  <div style="font-family: var(--font-mono); font-size: 10px; color: var(--color-text-muted); text-align: center; margin-top: var(--space-4);">Select an idle truck first to load terminal contract feeds</div>
+                </div>
+              </div>
+
+            </div>
+          </section>
+
+          <!-- Current Active Transits Progress List -->
+          <section class="panel-cyber panel-blue" style="padding: var(--space-4); display: flex; flex-direction: column; flex: 1; min-height: 200px;">
+            <div class="panel-title-strip">
+              <h2 class="panel-title">MONITORED TRANSITS (ECU SENSORS FEED)</h2>
+              <span class="panel-serial">LIVE_GPS_LINKS</span>
+            </div>
+            <div class="active-routes-grid" id="active-routes-feed-container" style="margin-top: var(--space-3); overflow-y: auto; flex: 1;">
+              <!-- Active routes GPS updates -->
+            </div>
+          </section>
+
+        </div>
+
+      </div>
+    </main>
+
+  </div>
+
+  <script src="./shared.js"></script>
+  <script>
+    let selectedTruck = null;
+    let selectedContract = null;
+    let selectedPolicy = 'SAFE';
+
+    async function loadDispatchDashboard() {
+      try {
+        const response = await fetch(`${SYSTEM_STATE.restUrl}/api/garage`, {
+          headers: { 'Authorization': `Bearer ${SYSTEM_STATE.token}` }
+        });
+        if (!response.ok) throw new Error("Garage fetch error.");
+        const garages = await response.json();
+        
+        renderTrucks(garages);
+        loadActiveRoutes();
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    function renderTrucks(garages) {
+      const container = document.getElementById("fleet-list-container");
+      container.innerHTML = "";
+
+      let count = 0;
+      garages.forEach(garage => {
+        if (!garage.trucks) return;
+        garage.trucks.forEach(truck => {
+          count++;
+          const card = document.createElement("div");
+          card.className = "truck-card";
+          if (selectedTruck && selectedTruck.id === truck.id) {
+            card.classList.add("selected");
+          }
+
+          let statusClass = "status-idle";
+          let statusText = "IDLE";
+          if (truck.isImpounded) {
+            statusClass = "status-impounded";
+            statusText = "IMPOUNDED";
+          } else if (truck.activeRoute) {
+            statusClass = "status-active";
+            statusText = "EN_ROUTE";
+          }
+
+          card.innerHTML = `
+            <div class="truck-card-title">${truck.model}</div>
+            <div class="truck-card-meta">
+              VIN: ${truck.vin.slice(0, 10)}...<br>
+              TERMINAL: ${garage.city.toUpperCase()}<br>
+              DRIVER: ${truck.driver ? truck.driver.name : 'UNASSIGNED'}<br>
+              WEAR: Tires ${(truck.tireWear || 100)}% / Engine ${(truck.engineHealth || 100)}%
+            </div>
+            <span class="status-badge ${statusClass}">${statusText}</span>
+          `;
+
+          card.addEventListener("click", () => {
+            if (truck.isImpounded || truck.activeRoute) {
+              AUDIO.playFailure();
+              alert("Rig is not available for dispatch operations.");
+              return;
+            }
+            AUDIO.playClick();
+            document.querySelectorAll(".truck-card").forEach(el => el.classList.remove("selected"));
+            card.classList.add("selected");
+            selectTruck(truck, garage.city);
+          });
+
+          container.appendChild(card);
+        });
+      });
+
+      if (count === 0) {
+        container.innerHTML = `<div style="font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--color-text-muted); text-align: center; margin-top: var(--space-5);">[ NO FLEET VEHICLES REGISTERED ]</div>`;
+      }
+    }
+
+    function selectTruck(truck, city) {
+      selectedTruck = truck;
+      selectedContract = null;
+      document.getElementById("disp-truck-val").textContent = `${truck.model.toUpperCase()} [${city.toUpperCase()}]`;
+      if (truck.driver) {
+        document.getElementById("disp-driver-val").textContent = `${truck.driver.name.toUpperCase()} (Loyalty: ${truck.driver.loyalty}%, Fatigue: ${truck.driver.fatigue}h)`;
+      } else {
+        document.getElementById("disp-driver-val").textContent = "NO DRIVER ASSIGNED";
+      }
+
+      loadAvailableJobs(truck.id, city);
+    }
+
+    async function loadAvailableJobs(truckId, originCity) {
+      const container = document.getElementById("available-contracts-container");
+      document.getElementById("jobs-title").textContent = `// AVAILABLE CONTRACTS originating in ${originCity.toUpperCase()}`;
+      container.innerHTML = `<div style="font-family: var(--font-mono); font-size: 10px; color: var(--color-text-muted); text-align: center; margin-top: var(--space-4);">Securing feeds...</div>`;
+
+      try {
+        // Query legal contracts originating in this city
+        const resLegal = await fetch(`${SYSTEM_STATE.restUrl}/api/dispatch/contracts/legal?truckId=${truckId}`, {
+          headers: { 'Authorization': `Bearer ${SYSTEM_STATE.token}` }
+        });
+        const legalJobs = resLegal.ok ? await resLegal.json() : [];
+
+        // Query contraband jobs originating in this city
+        const resContra = await fetch(`${SYSTEM_STATE.restUrl}/api/dispatch/contracts/contraband?truckId=${truckId}`, {
+          headers: { 'Authorization': `Bearer ${SYSTEM_STATE.token}` }
+        });
+        const contrabandJobs = resContra.ok ? await resContra.json() : [];
+
+        container.innerHTML = "";
+
+        // Render legal
+        legalJobs.forEach(job => {
+          const item = document.createElement("div");
+          item.className = "contract-item";
+          item.innerHTML = `
+            <div class="contract-item-header">
+              <span>✓ LEGAL: ${job.cargoType}</span>
+              <span class="contract-payout-legal">$${parseFloat(job.payoutLegal).toLocaleString()}</span>
+            </div>
+            <div style="font-size: 9px; color: var(--color-text-muted); margin-top: 2px;">
+              DEST: ${job.destination.toUpperCase()} (${job.distanceKm} KM)<br>
+              DEADLINE: ${job.deadlineHours} hrs
+            </div>
+          `;
+          item.addEventListener("click", () => {
+            AUDIO.playClick();
+            document.querySelectorAll(".contract-item").forEach(el => el.classList.remove("selected"));
+            item.classList.add("selected");
+            selectedContract = { type: 'LEGAL', id: job.id };
+          });
+          container.appendChild(item);
+        });
+
+        // Render contraband
+        contrabandJobs.forEach(job => {
+          const item = document.createElement("div");
+          item.className = "contract-item";
+          item.style.borderColor = "rgba(255, 102, 0, 0.2)";
+          item.innerHTML = `
+            <div class="contract-item-header">
+              <span style="color: var(--neon-orange);">⚠ CONTRABAND: Class ${job.cargoClass.split('_')[1]}</span>
+              <span class="contract-payout-black">$${parseFloat(job.payoutBlack).toLocaleString()}</span>
+            </div>
+            <div style="font-size: 9px; color: var(--color-text-muted); margin-top: 2px;">
+              DEST: ${job.destination.toUpperCase()}<br>
+              RISK MULTIPLIER: ${job.riskMultiplier}x
+            </div>
+          `;
+          item.addEventListener("click", () => {
+            AUDIO.playClick();
+            document.querySelectorAll(".contract-item").forEach(el => el.classList.remove("selected"));
+            item.classList.add("selected");
+            selectedContract = { type: 'CONTRABAND', id: job.id };
+          });
+          container.appendChild(item);
+        });
+
+        if (container.children.length === 0) {
+          container.innerHTML = `<div style="font-family: var(--font-mono); font-size: 10px; color: var(--color-text-muted); text-align: center; margin-top: var(--space-4);">No active demand registered for this terminal city zone</div>`;
+        }
+
+      } catch (err) {
+        console.error(err);
+        container.innerHTML = `<div style="font-family: var(--font-mono); font-size: 10px; color: var(--neon-red); text-align: center; margin-top: var(--space-4);">Terminal payload load failure.</div>`;
+      }
+    }
+
+    function setPolicy(policy) {
+      AUDIO.playClick();
+      selectedPolicy = policy;
+      document.getElementById("btn-policy-safe").classList.toggle("active", policy === 'SAFE');
+      document.getElementById("btn-policy-average").classList.toggle("active", policy === 'AVERAGE');
+      document.getElementById("btn-policy-greedy").classList.toggle("active", policy === 'GREEDY');
+    }
+
+    async function getSuggestedRoute() {
+      AUDIO.playClick();
+      if (!selectedTruck) {
+        alert("Please select a truck to get suggestions.");
+        return;
+      }
+      try {
+        const response = await fetch(`${SYSTEM_STATE.restUrl}/api/dispatch/suggest-route?truckId=${selectedTruck.id}`, {
+          headers: { 'Authorization': `Bearer ${SYSTEM_STATE.token}` }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          if (data.suggestion) {
+            alert(`SUGGESTION FOUND: Best yield hourly route is to dispatch to ${data.suggestion.destination} ($${data.suggestion.payout.toLocaleString()}).`);
+            // Automatically select if loaded
+            const items = document.querySelectorAll(".contract-item");
+            // Check matching destination
+            items.forEach(item => {
+              if (item.textContent.includes(data.suggestion.destination.toUpperCase())) {
+                item.click();
+              }
+            });
+          } else {
+            alert("No available routes to suggest.");
+          }
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    async function launchFleetRoute() {
+      AUDIO.playClick();
+      if (!selectedTruck) {
+        alert("Must select a vehicle first.");
+        return;
+      }
+      if (!selectedContract) {
+        alert("Must select an origin demand contract.");
+        return;
+      }
+
+      const body = {
+        truckId: selectedTruck.id,
+        autopilotPolicy: selectedPolicy
+      };
+
+      if (selectedContract.type === 'LEGAL') {
+        body.legalContractId = selectedContract.id;
+      } else {
+        body.contrabandJobId = selectedContract.id;
+      }
+
+      try {
+        const response = await fetch(`${SYSTEM_STATE.restUrl}/api/dispatch/launch`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${SYSTEM_STATE.token}`
+          },
+          body: JSON.stringify(body)
+        });
+
+        if (response.ok) {
+          AUDIO.playSuccess();
+          alert("Fleet truck dispatched successfully!");
+          
+          // Clear selections
+          selectedTruck = null;
+          selectedContract = null;
+          document.getElementById("disp-truck-val").textContent = "-- SELECT AN IDLE VEHICLE --";
+          document.getElementById("disp-driver-val").textContent = "--";
+          document.getElementById("available-contracts-container").innerHTML = `<div style="font-family: var(--font-mono); font-size: 10px; color: var(--color-text-muted); text-align: center; margin-top: var(--space-4);">Select an idle truck first to load terminal contract feeds</div>`;
+
+          loadDispatchDashboard();
+        } else {
+          const err = await response.json();
+          AUDIO.playFailure();
+          alert(`DISPATCH FAILURE: ${err.message}`);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    async function loadActiveRoutes() {
+      try {
+        const response = await fetch(`${SYSTEM_STATE.restUrl}/api/dispatch/active`, {
+          headers: { 'Authorization': `Bearer ${SYSTEM_STATE.token}` }
+        });
+        if (!response.ok) throw new Error("Failed to load active routes.");
+        const routes = await response.json();
+
+        const container = document.getElementById("active-routes-feed-container");
+        container.innerHTML = "";
+
+        routes.forEach(route => {
+          const card = document.createElement("div");
+          card.className = "route-card";
+
+          const cargo = route.legalContract ? route.legalContract.cargoType : `Contraband Class ${route.contrabandJob.cargoClass.split('_')[1]}`;
+          const dest = route.legalContract ? route.legalContract.destination : route.contrabandJob.destination;
+
+          card.innerHTML = `
+            <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:var(--fs-xs);">
+              <span>${route.truck.model}</span>
+              <span style="color: var(--neon-blue);">${route.progressPct.toFixed(1)}%</span>
+            </div>
+            <div style="font-size: 10px; color: var(--color-text-muted); margin-top: 4px; line-height: 1.4;">
+              CARGO: ${cargo}<br>
+              ROUTE: ${route.currentCity.toUpperCase()} ➔ ${dest.toUpperCase()}<br>
+              DRIVER: ${route.driver.name} (Fatigue: ${route.driver.fatigue.toFixed(1)}h)<br>
+              POLICY: ${route.autopilotPolicy} | WEATHER: ${route.currentWeather}
+            </div>
+            <div class="route-progress-bar">
+              <div class="route-progress-fill" style="width: ${route.progressPct}%"></div>
+            </div>
+          `;
+          container.appendChild(card);
+        });
+
+        if (routes.length === 0) {
+          container.innerHTML = `<div style="font-family: var(--font-mono); font-size: 10px; color: var(--color-text-muted); text-align: center; margin-top: var(--space-4);">No corporate assets currently transit en-route links</div>`;
+        }
+
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    window.addEventListener("DOMContentLoaded", () => {
+      setTimeout(loadDispatchDashboard, 100);
+      // Refresh active routes telemetry feed every 5 seconds
+      setInterval(loadActiveRoutes, 5000);
+    });
+  </script>
+</body>
+</html>

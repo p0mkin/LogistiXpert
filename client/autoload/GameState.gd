@@ -54,6 +54,69 @@ var fleet: Array = [
 var active_routes: Dictionary = {} # truckId -> route details
 var drivers: Array = []
 
+# Employee / Staff Mechanics
+const STAFF_RANK_MULTIPLIERS = {
+	1: -0.25, # Apprentice: Actively harms operations
+	2: 0.20,  # Junior: Slight bonus
+	3: 0.50,  # Senior: Solid bonus
+	4: 0.85,  # Expert: High bonus
+	5: 1.25   # LogistiXpert/Master: Maximum potential
+}
+
+var staff = {
+	"purchasing_agent": {
+		"name": "Purchasing Agent",
+		"desc": "Automates buying and secures discounts on market prices.",
+		"unlocked": true,
+		"rank": 1,
+		"seminar_level": 1,
+		"base_value": 5.0 # Base 5% discount
+	},
+	"lead_mechanic": {
+		"name": "Lead Mechanic",
+		"desc": "Speeds up fleet repairs and reduces maintenance costs.",
+		"unlocked": false,
+		"rank": 1,
+		"seminar_level": 1,
+		"base_value": 10.0 # Base 10% speed
+	},
+	"router": {
+		"name": "LogistiXpert",
+		"desc": "Auto-assigns trucks to optimal routes for max profit.",
+		"unlocked": false,
+		"rank": 1,
+		"seminar_level": 1,
+		"base_value": 15.0 # Base 15% profit boost
+	}
+}
+
+func get_employee_bonus(role_id: String) -> float:
+	if not staff.has(role_id): return 0.0
+	var emp = staff[role_id]
+	if not emp.unlocked: return 0.0
+	var multiplier = STAFF_RANK_MULTIPLIERS.get(emp.rank, 0.0)
+	return emp.base_value * multiplier
+
+func purchase_seminar(role_id: String, cost: float) -> bool:
+	if legal_balance >= cost:
+		update_balances(-cost, 0.0)
+		staff[role_id].seminar_level += 1
+		# Base value scales linearly with seminar level
+		if role_id == "purchasing_agent": staff[role_id].base_value = 5.0 * staff[role_id].seminar_level
+		elif role_id == "lead_mechanic": staff[role_id].base_value = 10.0 * staff[role_id].seminar_level
+		elif role_id == "router": staff[role_id].base_value = 15.0 * staff[role_id].seminar_level
+		staff_updated.emit(role_id)
+		return true
+	return false
+
+func promote_staff(role_id: String, cost: float) -> bool:
+	if legal_balance >= cost and staff[role_id].rank < 5:
+		update_balances(-cost, 0.0)
+		staff[role_id].rank += 1
+		staff_updated.emit(role_id)
+		return true
+	return false
+
 # Auth token alias (mirrors NetworkManager.auth_token for convenience in scenes)
 var auth_token: String:
 	get: return NetworkManager.auth_token
@@ -64,6 +127,7 @@ signal reputation_updated(score, heat)
 signal fleet_updated()
 signal route_progress_updated(truck_id, progress)
 signal company_updated(id, name)
+signal staff_updated(role_id)
 
 func _ready() -> void:
 	pass

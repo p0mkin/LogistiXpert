@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LogistiXpert: Parts & Rigging Shop</title>
+  
+  <!-- Cyberpunk Typography -->
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=JetBrains+Mono:wght@300;400;500;700&family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+  
+  <!-- Design System Styles -->
+  <link rel="stylesheet" href="./styles.css">
+  <style>
+    .shop-grid {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: var(--space-4);
+      height: calc(100vh - 180px);
+      overflow: hidden;
+    }
+    .shop-sidebar, .shop-main-panel {
+      overflow-y: auto;
+      padding-right: var(--space-2);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-3);
+    }
+    .rig-card {
+      background: rgba(13, 13, 17, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: var(--radius-md);
+      padding: var(--space-3);
+      cursor: pointer;
+      font-family: var(--font-mono);
+      transition: all var(--transition-fast);
+    }
+    .rig-card:hover, .rig-card.selected {
+      border-color: var(--neon-blue);
+      box-shadow: 0 0 8px var(--neon-blue-glow);
+    }
+    .rig-card-title {
+      font-weight: var(--fw-bold);
+      color: var(--color-text-main);
+    }
+    .rig-card-meta {
+      font-size: 10px;
+      color: var(--color-text-muted);
+      margin-top: var(--space-1);
+      line-height: 1.4;
+    }
+    .mod-section {
+      background: rgba(13, 13, 17, 0.6);
+      border: 1px solid rgba(0, 229, 255, 0.1);
+      border-radius: var(--radius-md);
+      padding: var(--space-4);
+      font-family: var(--font-mono);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-3);
+    }
+    .mod-option-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: var(--space-2) 0;
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+    }
+    .mod-desc-block {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .mod-title {
+      font-weight: bold;
+      color: var(--color-text-main);
+      font-size: var(--fs-sm);
+    }
+    .mod-desc {
+      font-size: 9px;
+      color: var(--color-text-muted);
+    }
+    .mod-price {
+      color: var(--neon-orange);
+      font-weight: bold;
+      font-size: var(--fs-xs);
+    }
+    .upgrade-action-box {
+      margin-top: var(--space-3);
+      padding-top: var(--space-3);
+      border-top: 1px dashed rgba(255,255,255,0.05);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- CRT scanline overlay -->
+  <div class="screen-overlay"></div>
+  <div class="grid-backplate"></div>
+
+  <div class="dashboard-layout">
+    
+    <!-- Top metrics bar identical to index.html -->
+    <header class="header-bar panel-cyber">
+      <div class="operator-profile">
+        <div class="avatar-frame">
+          <svg viewBox="0 0 24 24">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15.93c-3.13-.47-5.5-3.14-5.5-6.43 0-1.79.69-3.41 1.81-4.63l1.41 1.41C9.64 9.17 9 10.5 9 12c0 2.21 1.79 4 4 4v1.93zm4.69-4.3C17.61 14.85 16 16.5 14 16.9v-1.93c1.1-.31 2-.96 2.5-1.85l1.19 1.51zM14 8.07V6.03c2 .4 3.61 2.05 4.31 4.18l-1.19 1.51c-.5-.89-1.4-1.54-2.5-1.85z"/>
+          </svg>
+        </div>
+        <div class="operator-details">
+          <h1 class="operator-name">DISPATCH_OPERATOR</h1>
+          <div class="operator-status">
+            <span class="pulse-dot"></span>
+            secure_link_established
+          </div>
+        </div>
+      </div>
+
+      <div class="header-telemetry">
+        <div class="telem-cell">
+          <span class="telem-cell-label">SYSTEM_EPOCH</span>
+          <span class="telem-cell-value">PARTS & RIGGING DEPOT</span>
+        </div>
+        <div class="telem-cell">
+          <span class="telem-cell-label">REP_FACTOR</span>
+          <div class="reputation-gauge">
+            <div class="star-grid" id="rep-star-grid">
+              <div class="star-row">
+                <svg class="rep-star" data-index="0" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+                <svg class="rep-star" data-index="1" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+                <svg class="rep-star" data-index="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+                <svg class="rep-star" data-index="3" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+                <svg class="rep-star" data-index="4" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+              </div>
+              <div class="star-row">
+                <svg class="rep-star" data-index="5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+                <svg class="rep-star" data-index="6" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+                <svg class="rep-star" data-index="7" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+                <svg class="rep-star" data-index="8" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+                <svg class="rep-star" data-index="9" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+              </div>
+            </div>
+            <span class="rep-score-display" id="rep-score-val">7.5</span>
+          </div>
+        </div>
+        <div class="telem-cell">
+          <span class="telem-cell-label">POLICE_HEAT_INDEX</span>
+          <div class="police-heat-meter">
+            <span class="heat-value" id="police-heat-val">25%</span>
+            <div class="heat-segments">
+              <div class="heat-segment"></div>
+              <div class="heat-segment"></div>
+              <div class="heat-segment"></div>
+              <div class="heat-segment"></div>
+              <div class="heat-segment"></div>
+              <div class="heat-segment"></div>
+              <div class="heat-segment"></div>
+              <div class="heat-segment"></div>
+              <div class="heat-segment"></div>
+              <div class="heat-segment"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="header-ledgers">
+        <div class="ledger-card clean">
+          <div class="ledger-icon">
+            <svg viewBox="0 0 24 24"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.2c-.07-2.24-1.6-3.9-3.7-4.3V3h-3v1.7c-1.93.41-3.5 1.63-3.5 3.75 0 2.47 2 3.7 5.2 4.2 2.55.4 3.03 1.15 3.03 2.15 0 .75-.53 1.65-2.7 1.65-2.2 0-2.87-.95-3-2.1h-2.2c.1 2.58 1.91 3.9 3.7 4.3V21h3v-1.7c1.95-.41 3.5-1.51 3.5-3.8 0-2.92-2.17-3.75-5.22-4.15z"/></svg>
+          </div>
+          <div class="ledger-meta">
+            <span class="ledger-label">CLEAN_RESERVES</span>
+            <span class="ledger-amount" id="clean-amount">$0.00</span>
+          </div>
+        </div>
+        <div class="ledger-card dirty">
+          <div class="ledger-icon">
+            <svg viewBox="0 0 24 24"><path d="M19.28 4.72A10 10 0 0 0 12 2a10 10 0 1 0 10 10 10 10 0 0 0-2.72-7.28zM12 18a6 6 0 1 1 6-6 6 6 0 0 1-6 6zm-3.5-6a3.5 3.5 0 1 0 3.5-3.5 3.5 3.5 0 0 0-3.5 3.5z"/></svg>
+          </div>
+          <div class="ledger-meta">
+            <span class="ledger-label">LAUNDERED_DIRTY</span>
+            <span class="ledger-amount" id="dirty-amount">$0.00</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-deck" style="display: flex; flex-direction: column; gap: var(--space-4);">
+      
+      <!-- Nav Header Strip -->
+      <div style="display: flex; gap: var(--space-3); border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: var(--space-3);">
+        <a href="index.html" class="nav-op-btn btn-white" style="width: auto; padding: var(--space-2) var(--space-4);">
+          ◀ RETURN TO TACTICAL MAP
+        </a>
+        <h2 style="font-family: var(--font-cyber); font-size: var(--fs-xl); color: var(--color-text-main); margin-left: auto;">
+          SYS_RIGGING_DEPOT
+        </h2>
+      </div>
+
+      <!-- Shop layouts -->
+      <div class="shop-grid">
+        
+        <!-- Left: Choose truck -->
+        <section class="panel-cyber panel-green" style="display: flex; flex-direction: column; padding: var(--space-4);">
+          <div class="panel-title-strip">
+            <h2 class="panel-title">SELECT FREIGHT VEHICLE</h2>
+            <span class="panel-serial">FLEET_RESOURCES</span>
+          </div>
+          <div class="shop-sidebar" id="shop-trucks-container" style="margin-top: var(--space-3); flex: 1;">
+            <!-- Owned trucks list -->
+          </div>
+        </section>
+
+        <!-- Right: Apply upgrades -->
+        <section class="panel-cyber panel-blue" style="display: flex; flex-direction: column; padding: var(--space-4);">
+          <div class="panel-title-strip">
+            <h2 class="panel-title">RIGGING SPECIFICATIONS & SHIELDING CONFIG</h2>
+            <span class="panel-serial">MECHANICAL_MODS</span>
+          </div>
+
+          <div class="shop-main-panel" id="mods-configuration-panel" style="margin-top: var(--space-3); flex: 1;">
+            <!-- Select truck prompt or configs -->
+            <div style="font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--color-text-muted); text-align: center; margin-top: var(--space-5);">Select a vehicle from the fleet panel to view upgrades</div>
+          </div>
+        </section>
+
+      </div>
+    </main>
+
+  </div>
+
+  <script src="./shared.js"></script>
+  <script>
+    let activeTruck = null;
+
+    async function loadShopDepot() {
+      try {
+        const response = await fetch(`${SYSTEM_STATE.restUrl}/api/garage`, {
+          headers: { 'Authorization': `Bearer ${SYSTEM_STATE.token}` }
+        });
+        if (!response.ok) throw new Error("Failed to load fleet.");
+        const garages = await response.json();
+        renderTruckList(garages);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    function renderTruckList(garages) {
+      const container = document.getElementById("shop-trucks-container");
+      container.innerHTML = "";
+
+      let count = 0;
+      garages.forEach(garage => {
+        if (!garage.trucks) return;
+        garage.trucks.forEach(truck => {
+          count++;
+          const card = document.createElement("div");
+          card.className = "rig-card";
+          if (activeTruck && activeTruck.id === truck.id) {
+            card.classList.add("selected");
+            activeTruck = truck; // update reference
+            renderUpgradePanel();
+          }
+
+          card.innerHTML = `
+            <div class="rig-card-title">${truck.model}</div>
+            <div class="rig-card-meta">
+              VIN: ${truck.vin.slice(0,10)}...<br>
+              TERMINAL: ${garage.city.toUpperCase()}<br>
+              FUEL MOD: ${truck.fuelTankMod}<br>
+              LEAD SHIELD: Level ${truck.scannerShielding}
+            </div>
+          `;
+
+          card.addEventListener("click", () => {
+            AUDIO.playClick();
+            document.querySelectorAll(".rig-card").forEach(el => el.classList.remove("selected"));
+            card.classList.add("selected");
+            activeTruck = truck;
+            renderUpgradePanel();
+          });
+
+          container.appendChild(card);
+        });
+      });
+
+      if (count === 0) {
+        container.innerHTML = `<div style="font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--color-text-muted); text-align: center; margin-top: var(--space-5);">[ NO ACTIVE RIGS FOUND IN DATABASE ]</div>`;
+      }
+    }
+
+    function renderUpgradePanel() {
+      const panel = document.getElementById("mods-configuration-panel");
+      if (!activeTruck) return;
+
+      const hasFalseBottom = activeTruck.fuelTankMod === 'FALSE_BOTTOM';
+      const hasChassisCavity = activeTruck.fuelTankMod === 'CHASSIS_CAVITY';
+      const isStock = activeTruck.fuelTankMod === 'STOCK';
+
+      panel.innerHTML = `
+        <div class="mod-section">
+          <div class="garage-section-title">// FUEL TANK STASH ROOM OPTIONS</div>
+          
+          <!-- False bottom option -->
+          <div class="mod-option-row">
+            <div class="mod-desc-block">
+              <span class="mod-title">FALSE-BOTTOM FUEL TANK</span>
+              <span class="mod-desc">Hides 50L of capacity inside a secret dual compartment. Safely stores Class A or Class B contraband.</span>
+            </div>
+            <div style="display:flex; align-items:center; gap: var(--space-3);">
+              <span class="mod-price">$5,000 DIRTY</span>
+              <button class="btn-upgrade" ${hasFalseBottom ? 'disabled style="border-color:var(--color-text-muted); color:var(--color-text-muted); background:none;"' : ''} onclick="applyMod('FALSE_BOTTOM', ${activeTruck.scannerShielding})">
+                ${hasFalseBottom ? 'INSTALLED' : 'EQUIP RIG'}
+              </button>
+            </div>
+          </div>
+
+          <!-- Chassis cavity option -->
+          <div class="mod-option-row">
+            <div class="mod-desc-block">
+              <span class="mod-title">CHASSIS HOLLOW CAVITY</span>
+              <span class="mod-desc">Double size storage inside rig's mainframe. Hurts truck handling stability (-20% handling, -10% fuel economy).</span>
+            </div>
+            <div style="display:flex; align-items:center; gap: var(--space-3);">
+              <span class="mod-price">$12,000 DIRTY</span>
+              <button class="btn-upgrade" ${hasChassisCavity ? 'disabled style="border-color:var(--color-text-muted); color:var(--color-text-muted); background:none;"' : ''} onclick="applyMod('CHASSIS_CAVITY', ${activeTruck.scannerShielding})">
+                ${hasChassisCavity ? 'INSTALLED' : 'EQUIP RIG'}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="mod-section">
+          <div class="garage-section-title">// LEAD-SHIELDING ELECTROMAGNETIC BLOCKERS</div>
+          
+          <div class="mod-option-row">
+            <div class="mod-desc-block">
+              <span class="mod-title">ANTI-RAD LEAD SENSOR BLOCKING SHIELDS</span>
+              <span class="mod-desc">Increments shielding level against border customs X-ray scanners. Max level 5.</span>
+            </div>
+            <div style="display:flex; align-items:center; gap: var(--space-3);">
+              <span class="mod-price" id="shield-upgrade-cost-label">
+                ${activeTruck.scannerShielding >= 5 ? 'MAX LEVEL' : `$3,500 DIRTY`}
+              </span>
+              <button class="btn-upgrade" ${activeTruck.scannerShielding >= 5 ? 'disabled style="border-color:var(--color-text-muted); color:var(--color-text-muted); background:none;"' : ''} onclick="applyMod('${activeTruck.fuelTankMod}', ${activeTruck.scannerShielding + 1})">
+                ${activeTruck.scannerShielding >= 5 ? 'FULLY RIGGED' : `UPGRADE LEVEL [${activeTruck.scannerShielding} ➔ ${activeTruck.scannerShielding + 1}]`}
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    async function applyMod(fuelTankMod, scannerShielding) {
+      AUDIO.playClick();
+      if (!activeTruck) return;
+      if (activeTruck.isImpounded) {
+        alert("Cannot modify vehicles currently in impound.");
+        return;
+      }
+
+      try {
+        const response = await fetch(`${SYSTEM_STATE.restUrl}/api/garage/trucks/${activeTruck.id}/mod`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${SYSTEM_STATE.token}`
+          },
+          body: JSON.stringify({ fuelTankMod, scannerShielding })
+        });
+
+        if (response.ok) {
+          AUDIO.playSuccess();
+          alert("Modification applied successfully to rig chassis!");
+          loadShopDepot();
+          fetchBalances();
+        } else {
+          const err = await response.json();
+          AUDIO.playFailure();
+          alert(`RIGGING ERROR: ${err.message}`);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    window.addEventListener("DOMContentLoaded", () => {
+      setTimeout(loadShopDepot, 100);
+    });
+  </script>
+</body>
+</html>

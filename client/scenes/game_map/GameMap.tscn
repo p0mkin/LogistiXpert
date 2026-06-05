@@ -217,14 +217,118 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/margin_left = 20
-theme_override_constants/margin_top = 76
-theme_override_constants/margin_right = 20
-theme_override_constants/margin_bottom = 20
+theme_override_constants/margin_left = 14
+theme_override_constants/margin_top = 70
+theme_override_constants/margin_right = 14
+theme_override_constants/margin_bottom = 14
 
 [node name="VBox" type="VBoxContainer" parent="HUD/SidePanel/Margin"]
 layout_mode = 2
-theme_override_constants/separation = 14
+size_flags_vertical = 3
+theme_override_constants/separation = 8
+
+[node name="RouteInfoPanel" type="PanelContainer" parent="HUD/SidePanel/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="Margin" type="MarginContainer" parent="HUD/SidePanel/Margin/VBox/RouteInfoPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="VBox" type="VBoxContainer" parent="HUD/SidePanel/Margin/VBox/RouteInfoPanel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="SectionLabel" type="Label" parent="HUD/SidePanel/Margin/VBox/RouteInfoPanel/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.92549, 0.607843, 0.141176, 1)
+theme_override_font_sizes/font_size = 10
+text = "NODE INTELLIGENCE"
+
+[node name="CityName" type="Label" parent="HUD/SidePanel/Margin/VBox/RouteInfoPanel/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 18
+text = "Select a City Node..."
+autowrap_mode = 2
+
+[node name="SchengenVal" type="Label" parent="HUD/SidePanel/Margin/VBox/RouteInfoPanel/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.180392, 0.803922, 0.443137, 1)
+theme_override_font_sizes/font_size = 11
+text = "ZONE: —"
+
+[node name="SurchargeWarning" type="PanelContainer" parent="HUD/SidePanel/Margin/VBox/RouteInfoPanel/Margin/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 32)
+layout_mode = 2
+
+[node name="Margin" type="MarginContainer" parent="HUD/SidePanel/Margin/VBox/RouteInfoPanel/Margin/VBox/SurchargeWarning"]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 4
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 4
+
+[node name="WarningLabel" type="Label" parent="HUD/SidePanel/Margin/VBox/RouteInfoPanel/Margin/VBox/SurchargeWarning/Margin"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.6, 0.1, 1)
+theme_override_font_sizes/font_size = 10
+text = "⚠ CROSS-REGION SURCHARGE: +35% FUEL"
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2
+
+[node name="CityDivider" type="ColorRect" parent="HUD/SidePanel/Margin/VBox/RouteInfoPanel/Margin/VBox"]
+custom_minimum_size = Vector2(0, 1)
+layout_mode = 2
+color = Color(1, 1, 1, 0.07843)
+
+[node name="ConnectionList" type="VBoxContainer" parent="HUD/SidePanel/Margin/VBox/RouteInfoPanel/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 5
+
+[node name="Label" type="Label" parent="HUD/SidePanel/Margin/VBox/RouteInfoPanel/Margin/VBox/ConnectionList"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.470588, 0.521569, 0.596078, 1)
+theme_override_font_sizes/font_size = 10
+text = "LOGISTICS CONNECTIONS:"
+
+[node name="ConsoleDivider" type="ColorRect" parent="HUD/SidePanel/Margin/VBox/RouteInfoPanel/Margin/VBox"]
+custom_minimum_size = Vector2(0, 1)
+layout_mode = 2
+color = Color(1, 1, 1, 0.04)
+
+[node name="ConsoleBox" type="PanelContainer" parent="HUD/SidePanel/Margin/VBox/RouteInfoPanel/Margin/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 32)
+layout_mode = 2
+
+[node name="Margin" type="MarginContainer" parent="HUD/SidePanel/Margin/VBox/RouteInfoPanel/Margin/VBox/ConsoleBox"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 5
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 5
+
+[node name="ConsoleLabel" type="Label" parent="HUD/SidePanel/Margin/VBox/RouteInfoPanel/Margin/VBox/ConsoleBox/Margin"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.180392, 0.803922, 0.443137, 1)
+theme_override_font_sizes/font_size = 9
+text = "GRID: CONNECTED"
+autowrap_mode = 3
+
+[node name="NavSpacer" type="Control" parent="HUD/SidePanel/Margin/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
 
 [node name="NavTitle" type="Label" parent="HUD/SidePanel/Margin/VBox"]
 layout_mode = 2
@@ -301,107 +405,6 @@ layout_mode = 2
 text = "⏻ TERMINATE SESSION"
 theme_override_colors/font_color = Color(0.901961, 0.298039, 0.235294, 1)
 theme_override_font_sizes/font_size = 12
-
-[node name="RouteInfoPanel" type="PanelContainer" parent="HUD"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(320, 480)
-offset_left = 20.0
-offset_top = 80.0
-offset_right = 340.0
-offset_bottom = 560.0
-
-[node name="Margin" type="MarginContainer" parent="HUD/RouteInfoPanel"]
-layout_mode = 2
-theme_override_constants/margin_left = 14
-theme_override_constants/margin_top = 14
-theme_override_constants/margin_right = 14
-theme_override_constants/margin_bottom = 14
-
-[node name="VBox" type="VBoxContainer" parent="HUD/RouteInfoPanel/Margin"]
-layout_mode = 2
-theme_override_constants/separation = 10
-
-[node name="SectionLabel" type="Label" parent="HUD/RouteInfoPanel/Margin/VBox"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.92549, 0.607843, 0.141176, 1)
-theme_override_font_sizes/font_size = 11
-text = "ROUTE INFORMATION CONTROL"
-
-[node name="CityName" type="Label" parent="HUD/RouteInfoPanel/Margin/VBox"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_colors/font_color = Color(1, 1, 1, 1)
-theme_override_font_sizes/font_size = 20
-text = "Select a City Node..."
-
-[node name="SchengenVal" type="Label" parent="HUD/RouteInfoPanel/Margin/VBox"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_colors/font_color = Color(0.180392, 0.803922, 0.443137, 1)
-theme_override_font_sizes/font_size = 12
-text = "ZONE: ACTIVE"
-
-[node name="SurchargeWarning" type="PanelContainer" parent="HUD/RouteInfoPanel/Margin/VBox"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 36)
-layout_mode = 2
-
-[node name="Margin" type="MarginContainer" parent="HUD/RouteInfoPanel/Margin/VBox/SurchargeWarning"]
-layout_mode = 2
-theme_override_constants/margin_left = 10
-theme_override_constants/margin_top = 4
-theme_override_constants/margin_right = 10
-theme_override_constants/margin_bottom = 4
-
-[node name="WarningLabel" type="Label" parent="HUD/RouteInfoPanel/Margin/VBox/SurchargeWarning/Margin"]
-layout_mode = 2
-theme_override_colors/font_color = Color(1, 0.6, 0.1, 1)
-theme_override_font_sizes/font_size = 11
-text = "⚠️ CROSS-REGION SURCHARGE ACTIVE: +35% FUEL"
-horizontal_alignment = 1
-vertical_alignment = 1
-
-[node name="CityDivider" type="ColorRect" parent="HUD/RouteInfoPanel/Margin/VBox"]
-custom_minimum_size = Vector2(0, 1)
-layout_mode = 2
-color = Color(1, 1, 1, 0.0784314)
-
-[node name="ConnectionList" type="VBoxContainer" parent="HUD/RouteInfoPanel/Margin/VBox"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_vertical = 3
-theme_override_constants/separation = 8
-
-[node name="Label" type="Label" parent="HUD/RouteInfoPanel/Margin/VBox/ConnectionList"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.470588, 0.521569, 0.596078, 1)
-theme_override_font_sizes/font_size = 11
-text = "LOGISTICS CONNECTIONS:"
-
-[node name="ConsoleDivider" type="ColorRect" parent="HUD/RouteInfoPanel/Margin/VBox"]
-custom_minimum_size = Vector2(0, 1)
-layout_mode = 2
-color = Color(1, 1, 1, 0.0784314)
-
-[node name="ConsoleBox" type="PanelContainer" parent="HUD/RouteInfoPanel/Margin/VBox"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 80)
-layout_mode = 2
-
-[node name="Margin" type="MarginContainer" parent="HUD/RouteInfoPanel/Margin/VBox/ConsoleBox"]
-layout_mode = 2
-theme_override_constants/margin_left = 10
-theme_override_constants/margin_top = 8
-theme_override_constants/margin_right = 10
-theme_override_constants/margin_bottom = 8
-
-[node name="ConsoleLabel" type="Label" parent="HUD/RouteInfoPanel/Margin/VBox/ConsoleBox/Margin"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_colors/font_color = Color(0.180392, 0.803922, 0.443137, 1)
-theme_override_font_sizes/font_size = 11
-text = "System Initialized. Logged in to logistics grid. Reconnection watchdog running."
-autowrap_mode = 3
 
 
 [node name="GarageDropdown" type="PanelContainer" parent="HUD"]
@@ -734,68 +737,4 @@ text = "STANDARD"
 
 
 
-[node name="TelemetryPanel" type="PanelContainer" parent="HUD"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(260, 140)
-anchors_preset = 3
-anchor_left = 1.0
-anchor_top = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = -600.0
-offset_top = -160.0
-offset_right = -340.0
-offset_bottom = -20.0
-grow_horizontal = 0
-grow_vertical = 0
 
-[node name="Margin" type="MarginContainer" parent="HUD/TelemetryPanel"]
-layout_mode = 2
-theme_override_constants/margin_left = 10
-theme_override_constants/margin_top = 10
-theme_override_constants/margin_right = 10
-theme_override_constants/margin_bottom = 10
-
-[node name="HBox" type="HBoxContainer" parent="HUD/TelemetryPanel/Margin"]
-layout_mode = 2
-theme_override_constants/separation = 10
-
-[node name="TachographDraw" type="Control" parent="HUD/TelemetryPanel/Margin/HBox"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(100, 100)
-layout_mode = 2
-
-[node name="VBox" type="VBoxContainer" parent="HUD/TelemetryPanel/Margin/HBox"]
-layout_mode = 2
-size_flags_horizontal = 3
-alignment = 1
-
-[node name="AutopilotLbl" type="Label" parent="HUD/TelemetryPanel/Margin/HBox/VBox"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.180392, 0.803922, 0.443137, 1)
-theme_override_font_sizes/font_size = 9
-text = "ACTIVE AUTOPILOT: ONLINE"
-
-[node name="SpeedLbl" type="Label" parent="HUD/TelemetryPanel/Margin/HBox/VBox"]
-layout_mode = 2
-theme_override_colors/font_color = Color(1, 1, 1, 0.85)
-theme_override_font_sizes/font_size = 9
-text = "SPEED: 84 KM/H"
-
-[node name="ConsumptionLbl" type="Label" parent="HUD/TelemetryPanel/Margin/HBox/VBox"]
-layout_mode = 2
-theme_override_colors/font_color = Color(1, 1, 1, 0.85)
-theme_override_font_sizes/font_size = 9
-text = "CONSUMP: 32.4 L/100KM"
-
-[node name="WearLbl" type="Label" parent="HUD/TelemetryPanel/Margin/HBox/VBox"]
-layout_mode = 2
-theme_override_colors/font_color = Color(1, 1, 1, 0.85)
-theme_override_font_sizes/font_size = 9
-text = "WEAR: +0.05% / HR"
-
-[node name="ProgressLbl" type="Label" parent="HUD/TelemetryPanel/Margin/HBox/VBox"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.92549, 0.607843, 0.141176, 1)
-theme_override_font_sizes/font_size = 9
-text = "ROUTE PROGRESS: 74%"

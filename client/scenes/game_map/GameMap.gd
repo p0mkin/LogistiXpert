@@ -28,8 +28,7 @@ extends Control
 @onready var factory_showroom_btn: Button = %FactoryShowroomBtn
 @onready var rd_tech_tree_btn: Button = %RDTechTreeBtn
 @onready var surcharge_warning: PanelContainer = %SurchargeWarning
-@onready var telemetry_panel: PanelContainer = %TelemetryPanel
-@onready var tachograph_draw: Control = %TachographDraw
+@onready var route_info_panel: PanelContainer = %RouteInfoPanel
 
 # Interactive Shader Calibration & System Preset Controls
 @onready var close_support_btn: Button = get_node_or_null("%CloseSupportBtn")
@@ -464,10 +463,7 @@ func _ready() -> void:
 		SceneTransition.change_scene_to_file("res://scenes/research/TechTree.tscn")
 	)
 	
-	# Connect tachograph draw
-	if tachograph_draw:
-		tachograph_draw.draw.connect(_draw_tachograph)
-	
+
 	# Instruct map drawer to implement our custom vector _draw call
 	print("[DEBUG] Connecting _draw_vector_map to map_drawer.draw. map_drawer: ", map_drawer, " camera: ", camera)
 	map_drawer.draw.connect(_draw_vector_map)
@@ -1259,7 +1255,7 @@ func _select_city(city_id: String) -> void:
 		conn_lbl.text = "➔ %s : %d km%s" % [dest_city, conn.distance_km, border_txt]
 		connection_list_box.add_child(conn_lbl)
 		
-	_log_console("Inspecting hub: %s." % city.name, Color(0.925, 0.607, 0.141))
+	surcharge_warning.hide()
 
 # ==========================================
 # UI THEME AND GAME STATE SYNC
@@ -1354,16 +1350,14 @@ func _apply_hud_theme() -> void:
 	style_warning.shadow_size = 4
 	surcharge_warning.add_theme_stylebox_override("panel", style_warning)
 	
-	# Style TelemetryPanel
-	var style_telemetry = StyleBoxFlat.new()
-	style_telemetry.bg_color = Color(0.05, 0.07, 0.05, 0.85)
-	style_telemetry.border_color = Color(0.18, 0.8, 0.44, 0.4)
-	style_telemetry.set_border_width_all(2)
-	style_telemetry.set_corner_radius_all(4)
-	style_telemetry.shadow_color = Color(0.18, 0.8, 0.44, 0.15)
-	style_telemetry.shadow_size = 6
-	telemetry_panel.add_theme_stylebox_override("panel", style_telemetry)
-	
+	# Style RouteInfoPanel (formerly separate)
+	var style_route = StyleBoxFlat.new()
+	style_route.bg_color = Color(0.04, 0.05, 0.06, 0.5)
+	style_route.border_color = Color(0.3, 0.85, 1.0, 0.15)
+	style_route.set_border_width_all(1)
+	style_route.set_corner_radius_all(3)
+	route_info_panel.add_theme_stylebox_override("panel", style_route)
+
 	# BackMenuBtn Normal/Hover/Pressed styled states
 	var style_btn_normal = StyleBoxFlat.new()
 	style_btn_normal.bg_color = Color(0.12, 0.04, 0.04, 0.6)
@@ -1446,88 +1440,3 @@ func _draw_aberrated_line(from: Vector2, to: Vector2, base_color: Color, width: 
 	map_drawer.draw_line(from + Vector2(offset_val, 0), to + Vector2(offset_val, 0), Color(0.1, 0.3, 1.0, base_color.a * 0.45), width, true)
 	map_drawer.draw_line(from, to, base_color, width, true)
 
-func _draw_tachograph() -> void:
-	var draw_control = tachograph_draw
-	if not draw_control:
-		return
-		
-	var center = draw_control.size / 2.0
-	var radius = min(draw_control.size.x, draw_control.size.y) * 0.42
-	
-	# Compute simulated telemetry speed (0 - 140 KM/H)
-	var has_active = GameState.active_routes.size() > 0
-	var target_speed = 0.0
-	
-	if has_active:
-		# Cruise speed with subtle vibrations
-		target_speed = 84.0 + sin(time_passed * 1.5) * 3.5 + cos(time_passed * 4.2) * 1.2
-	else:
-		# Self-test diagnostic sweep or stationary resting mode
-		var test_cycle = fmod(time_passed, 15.0)
-		if test_cycle < 3.0:
-			var t = test_cycle / 3.0
-			target_speed = 140.0 * (1.0 - cos(t * PI * 2.0)) * 0.5
-		else:
-			# Resting state with engine idle flutter
-			target_speed = abs(sin(time_passed * 8.0) * 0.6)
-			
-	var speed_pct = clamp(target_speed / 140.0, 0.0, 1.0)
-	var sweep_angle = -PI * 0.8 + (PI * 1.6) * speed_pct
-	
-	# Determine warning color states
-	var accent_color = Color(0.1, 0.8, 0.4, 0.8) # Secure green
-	if target_speed > 115.0:
-		accent_color = Color(0.95, 0.15, 0.15, 0.8) # Alert red
-	elif target_speed > 90.0:
-		accent_color = Color(0.92, 0.61, 0.14, 0.8) # Warning orange
-		
-	# A. Dual-accented background concentric arcs
-	draw_control.draw_arc(center, radius, -PI * 0.8, PI * 0.8, 48, Color(0.1, 0.8, 0.4, 0.12), 4.0)
-	draw_control.draw_arc(center, radius - 6.0, -PI * 0.8, PI * 0.8, 48, Color(0.92, 0.61, 0.14, 0.06), 2.0)
-	
-	# B. Dual-accented active sweep arcs
-	draw_control.draw_arc(center, radius, -PI * 0.8, sweep_angle, 48, accent_color, 4.0)
-	draw_control.draw_arc(center, radius - 6.0, -PI * 0.8, sweep_angle, 48, accent_color * Color(1.0, 1.0, 1.0, 0.4), 2.0)
-	
-	# C. 12 tick mark subdivision lines with values
-	var font = ThemeDB.get_fallback_font()
-	if not font:
-		font = draw_control.get_theme_font("font")
-	var font_size = 8
-	
-	for i in range(12):
-		var angle = -PI * 0.8 + (PI * 1.6) * (i / 11.0)
-		var dir = Vector2(cos(angle), sin(angle))
-		
-		var is_major = (i % 2 == 0)
-		var tick_len = 8.0 if is_major else 4.0
-		var outer_pt = center + dir * radius
-		var inner_pt = center + dir * (radius - tick_len)
-		
-		# Set tick color based on warning zones
-		var tick_speed = (i / 11.0) * 140.0
-		var tick_col = Color(0.1, 0.8, 0.4, 0.45)
-		if tick_speed > 115.0:
-			tick_col = Color(0.95, 0.15, 0.15, 0.6)
-		elif tick_speed > 90.0:
-			tick_col = Color(0.92, 0.61, 0.14, 0.5)
-			
-		draw_control.draw_line(inner_pt, outer_pt, tick_col, 2.0 if is_major else 1.0)
-		
-		# Draw speed markers on major ticks
-		if is_major and font:
-			var val_str = str(int(tick_speed))
-			var text_sz = font.get_string_size(val_str, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
-			# Align labels centered relative to tick lines
-			var text_pos = center + dir * (radius - 18.0) - text_sz * 0.5 + Vector2(0, font_size * 0.3)
-			draw_control.draw_string(font, text_pos, val_str, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(0.709, 0.768, 0.843, 0.55))
-			
-	# D. Warning-aware indicator needle
-	var needle_dir = Vector2(cos(sweep_angle), sin(sweep_angle))
-	var needle_pt = center + needle_dir * (radius + 3.0)
-	
-	# Glow/shadow under the needle (dual line render)
-	draw_control.draw_line(center, needle_pt, Color(accent_color.r, accent_color.g, accent_color.b, 0.15), 5.0)
-	draw_control.draw_line(center, needle_pt, accent_color, 2.0)
-	draw_control.draw_circle(center, 4.0, accent_color)
-	draw_control.draw_circle(center, 2.0, Color(0.04, 0.04, 0.06, 1.0))

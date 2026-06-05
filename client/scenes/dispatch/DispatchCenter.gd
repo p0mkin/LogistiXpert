@@ -441,18 +441,19 @@ func _render_active_routes() -> void:
 func _build_contract_card(contract: Dictionary) -> PanelContainer:
 	var panel = PanelContainer.new()
 	var style = StyleBoxFlat.new()
-	style.bg_color = Color(0.055, 0.063, 0.078, 1.0)
+	style.bg_color = Color(0.02, 0.02, 0.03, 0.75)
 	
 	if is_contraband_mode:
-		style.border_color = Color(0.607, 0.349, 0.713, 0.4)
+		style.border_color = Color(0.607, 0.349, 0.713, 0.6)
 	else:
-		style.border_color = Color(0.18, 0.803, 0.443, 0.3)
-	style.border_width_left = 3
-	style.set_corner_radius_all(6)
-	style.content_margin_left = 14
-	style.content_margin_right = 14
-	style.content_margin_top = 10
-	style.content_margin_bottom = 10
+		style.border_color = Color(0.18, 0.803, 0.443, 0.5)
+	style.border_width_left = 2
+	style.border_width_bottom = 1
+	style.set_corner_radius_all(2)
+	style.content_margin_left = 12
+	style.content_margin_right = 12
+	style.content_margin_top = 8
+	style.content_margin_bottom = 8
 	panel.add_theme_stylebox_override("panel", style)
 	
 	var vbox = VBoxContainer.new()
@@ -483,24 +484,29 @@ func _build_contract_card(contract: Dictionary) -> PanelContainer:
 		var badge = _create_badge_capsule("LIMITED", Color(0.9, 0.45, 0.0, 0.15), Color(1.0, 0.6, 0.1, 0.5))
 		header_row.add_child(badge)
 	
+	# Details row for cargo, distance and payout
+	var details_row = HBoxContainer.new()
+	details_row.add_theme_constant_override("separation", 15)
+	vbox.add_child(details_row)
+
 	# Cargo + distance
 	var cargo_lbl = Label.new()
-	cargo_lbl.text = "Cargo: %s  |  %d km" % [contract.get("cargoType", "?"), int(contract.get("distanceKm", 0))]
-	cargo_lbl.add_theme_color_override("font_color", Color(0.709, 0.768, 0.843, 0.7))
-	cargo_lbl.add_theme_font_size_override("font_size", 11)
-	vbox.add_child(cargo_lbl)
+	cargo_lbl.text = "CARGO: %s  //  %d KM" % [contract.get("cargoType", "?"), int(contract.get("distanceKm", 0))]
+	cargo_lbl.add_theme_color_override("font_color", Color(0.709, 0.768, 0.843, 0.6))
+	cargo_lbl.add_theme_font_size_override("font_size", 10)
+	details_row.add_child(cargo_lbl)
 	
 	# Payout
 	var pay_lbl = Label.new()
 	var payout = contract.get("payoutCash", 0)
 	if is_contraband_mode:
-		pay_lbl.text = "BLACK MARKET: $%d" % payout
+		pay_lbl.text = "[ DIRTY: $%d ]" % payout
 		pay_lbl.add_theme_color_override("font_color", Color(0.607, 0.349, 0.713))
 	else:
-		pay_lbl.text = "LEGAL PAYOUT: $%d" % payout
+		pay_lbl.text = "[ CLEAN: $%d ]" % payout
 		pay_lbl.add_theme_color_override("font_color", Color(0.18, 0.803, 0.443))
-	pay_lbl.add_theme_font_size_override("font_size", 12)
-	vbox.add_child(pay_lbl)
+	pay_lbl.add_theme_font_size_override("font_size", 11)
+	details_row.add_child(pay_lbl)
 	
 	# Risk (contraband)
 	if is_contraband_mode:
@@ -534,20 +540,31 @@ func _build_contract_card(contract: Dictionary) -> PanelContainer:
 				timer_lbl.add_theme_font_size_override("font_size", 10)
 				vbox.add_child(timer_lbl)
 	
+	var bottom_row = HBoxContainer.new()
+	vbox.add_child(bottom_row)
+	
+	var spacer = Control.new()
+	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	bottom_row.add_child(spacer)
+
 	var btn = Button.new()
-	btn.text = "▶ SELECT CONTRACT"
-	btn.custom_minimum_size = Vector2(0, 32)
-	btn.add_theme_font_size_override("font_size", 13)
+	btn.text = " ▶ SELECT "
+	btn.custom_minimum_size = Vector2(100, 24)
+	btn.add_theme_font_size_override("font_size", 11)
 	var btn_color = Color(0.607, 0.349, 0.713) if is_contraband_mode else Color(0.18, 0.803, 0.443)
 	btn.add_theme_color_override("font_color", btn_color)
 	var style_btn = StyleBoxFlat.new()
-	style_btn.bg_color = Color(btn_color.r, btn_color.g, btn_color.b, 0.08)
-	style_btn.border_color = Color(btn_color.r, btn_color.g, btn_color.b, 0.35)
-	style_btn.border_width_bottom = 1
-	style_btn.set_corner_radius_all(4)
+	style_btn.bg_color = Color(0.0, 0.0, 0.0, 0.4)
+	style_btn.border_color = Color(btn_color.r, btn_color.g, btn_color.b, 0.5)
+	style_btn.border_width_all = 1
+	style_btn.set_corner_radius_all(2)
 	btn.add_theme_stylebox_override("normal", style_btn)
+	
+	var style_btn_hover = style_btn.duplicate()
+	style_btn_hover.bg_color = Color(btn_color.r, btn_color.g, btn_color.b, 0.15)
+	btn.add_theme_stylebox_override("hover", style_btn_hover)
 	btn.pressed.connect(_select_contract.bind(contract))
-	vbox.add_child(btn)
+	bottom_row.add_child(btn)
 	
 	return panel
 
@@ -981,6 +998,22 @@ func _apply_theme() -> void:
 		style_tel.set_border_width_all(2)
 		style_tel.set_corner_radius_all(6)
 		%LiveTelemetryPanel.add_theme_stylebox_override("panel", style_tel)
+		
+	if has_node("%TruckSelectBox"):
+		var opt_style = StyleBoxFlat.new()
+		opt_style.bg_color = Color(0.02, 0.02, 0.03, 0.9)
+		opt_style.border_color = Color(0.925, 0.607, 0.141, 0.5)
+		opt_style.border_width_all = 1
+		opt_style.set_corner_radius_all(2)
+		opt_style.content_margin_left = 8
+		opt_style.content_margin_right = 8
+		opt_style.content_margin_top = 4
+		opt_style.content_margin_bottom = 4
+		%TruckSelectBox.add_theme_stylebox_override("normal", opt_style)
+		%TruckSelectBox.add_theme_stylebox_override("hover", opt_style)
+		%TruckSelectBox.add_theme_stylebox_override("pressed", opt_style)
+		%TruckSelectBox.add_theme_color_override("font_color", Color(0.709, 0.768, 0.843, 0.9))
+		%TruckSelectBox.add_theme_font_size_override("font_size", 11)
 
 # ==========================================
 # BORDER INSPECTION MINI-GAME UI

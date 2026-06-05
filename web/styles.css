@@ -1820,3 +1820,85 @@ body {
   color: #ffffff;
   box-shadow: 0 0 10px var(--neon-blue-glow);
 }
+
+/* Reputation Star Grid & Ratings */
+.reputation-gauge {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.star-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.star-row {
+  display: flex;
+  gap: 2px;
+}
+.rep-star {
+  width: 14px;
+  height: 14px;
+  fill: #141419;
+  stroke: rgba(255, 255, 255, 0.15);
+  stroke-width: 1.5;
+  transition: all var(--transition-fast);
+}
+.rep-star.filled {
+  fill: var(--neon-orange);
+  stroke: var(--neon-orange);
+  filter: drop-shadow(0 0 3px var(--neon-orange-glow));
+}
+.rep-star.partial {
+  fill: #853c00;
+  stroke: var(--neon-orange);
+  opacity: 0.8;
+}
+
+/* Sidebar Selected City Node widget */
+.sidebar-city-node {
+  background: rgba(13, 13, 17, 0.6);
+  border: 1px solid rgba(255, 102, 0, 0.20);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  margin-bottom: var(--space-3);
+  font-family: var(--font-mono);
+  box-shadow: inset 0 0 10px rgba(255, 102, 0, 0.05);
+}
+.sidebar-city-idle {
+  color: var(--color-text-muted);
+  font-size: var(--fs-xs);
+}
+.sidebar-city-active {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.sidebar-city-name {
+  font-family: var(--font-cyber);
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-black);
+  color: var(--color-text-main);
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.2);
+}
+.sidebar-city-zone-badge {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: var(--fw-bold);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 102, 0, 0.1);
+  border: 1px solid rgba(255, 102, 0, 0.3);
+  width: fit-content;
+}
+.sidebar-connections-count {
+  font-size: var(--fs-xs);
+  color: var(--color-text-muted);
+}
+
+/* Purchasable Map Nodes styling indicator */
+.map-node-group[data-purchasable="true"] circle:first-child {
+  stroke-dasharray: 3, 3;
+  animation: rotate-scanner 15s linear infinite;
+}
+

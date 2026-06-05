@@ -247,4 +247,103 @@ router.post('/:id/upgrade-storage', async (req: AuthRequest, res: Response) => {
   }
 });
 
+// 5. PURCHASE NEW NODE TERMINAL (GARAGE)
+router.post('/purchase-terminal', async (req: AuthRequest, res: Response) => {
+  const companyId = req.user!.companyId;
+  const { cityId } = req.body;
+
+  if (!cityId) {
+    return res.status(400).json({ error: 'INVALID_INPUT', message: 'City ID must be provided.' });
+  }
+
+  const PURCHASABLE_TERMINALS: Record<string, { city: string, cost: number }> = {
+    turku: { city: 'Turku', cost: 180000 },
+    stockholm: { city: 'Stockholm', cost: 320000 },
+    malmoe: { city: 'Malmö', cost: 200000 },
+    kaliningrad: { city: 'Kaliningrad', cost: 500000 },
+    gdansk: { city: 'Gdańsk', cost: 220000 },
+    warsaw: { city: 'Warsaw', cost: 350000 },
+    krakow: { city: 'Kraków', cost: 240000 },
+    berlin: { city: 'Berlin', cost: 600000 },
+    hamburg: { city: 'Hamburg', cost: 380000 },
+    prague: { city: 'Prague', cost: 420000 },
+    minsk: { city: 'Minsk', cost: 700000 },
+    kyiv: { city: 'Kyiv', cost: 550000 }
+  };
+
+  const normalizedKey = cityId.trim().toLowerCase();
+  const term = PURCHASABLE_TERMINALS[normalizedKey];
+
+  if (!term) {
+    return res.status(400).json({ error: 'NOT_PURCHASABLE', message: `City terminal '${cityId}' is not purchasable.` });
+  }
+
+  try {
+    // 1. Check if company already owns a terminal in this city
+    const existing = await prisma.garage.findFirst({
+      where: {
+        companyId,
+        city: { equals: term.city, mode: 'insensitive' }
+      }
+    });
+
+    if (existing) {
+      return res.status(400).json({ error: 'ALREADY_OWNED', message: `You already own a terminal in ${term.city}.` });
+    }
+
+    // 2. Verify company legal balance
+    const company = await prisma.company.findUnique({ where: { id: companyId } });
+    if (!company) {
+      return res.status(404).json({ error: 'COMPANY_NOT_FOUND', message: 'Company profile not resolved.' });
+    }
+
+    if (company.legalBalance.toNumber() < term.cost) {
+      return res.status(400).json({
+        error: 'INSUFFICIENT_FUNDS',
+        message: `Establishing a terminal in ${term.city} costs $${term.cost.toLocaleString()} Clean Cash. Your balance is insufficient.`,
+      });
+    }
+
+    // 3. Purchase terminal inside a transaction
+    const newGarage = await prisma.$transaction(async (tx) => {
+      // Deduct funds from company
+      await tx.company.update({
+        where: { id: companyId },
+        data: { legalBalance: { decrement: term.cost } },
+      });
+
+      // Create garage
+      const garage = await tx.garage.create({
+        data: {
+          companyId,
+          city: term.city,
+          capacity: 3,
+          upgradeLevel: 1,
+          terminalLevel: 1,
+          dieselStorage: 0.0,
+          maxDiesel: 5000.0,
+          electricityStorage: 0.0,
+          maxElectricity: 1000.0,
+          adblueStorage: 0.0,
+          maxAdblue: 500.0,
+          co2Allowances: 0.0,
+          hasStashRoom: false
+        }
+      });
+
+      return garage;
+    });
+
+    res.status(201).json({
+      message: `Node terminal established in ${term.city} successfully!`,
+      garage: newGarage
+    });
+
+  } catch (error) {
+    console.error('Purchase terminal error:', error);
+    res.status(500).json({ error: 'SERVER_ERROR', message: 'Failed to purchase terminal.' });
+  }
+});
+
 export default router;
+

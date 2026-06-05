@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LogistiXpert: Garage Operations Center</title>
+  
+  <!-- Cyberpunk Terminal Typography -->
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=JetBrains+Mono:wght@300;400;500;700&family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+  
+  <!-- Modular Design System Styles -->
+  <link rel="stylesheet" href="./styles.css">
+  <style>
+    .garage-main-grid {
+      display: grid;
+      grid-template-columns: 350px 1fr;
+      gap: var(--space-4);
+      height: calc(100vh - 180px);
+      overflow: hidden;
+    }
+    .purchase-list, .garage-cards-container {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-3);
+      overflow-y: auto;
+      padding-right: var(--space-2);
+    }
+    .purchase-card {
+      background: rgba(13, 13, 17, 0.7);
+      border: 1px solid rgba(0, 229, 255, 0.15);
+      border-radius: var(--radius-md);
+      padding: var(--space-3);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-2);
+      transition: all var(--transition-fast);
+    }
+    .purchase-card:hover {
+      border-color: var(--neon-blue);
+      box-shadow: 0 0 10px var(--neon-blue-glow);
+    }
+    .purchase-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .purchase-card-title {
+      font-family: var(--font-cyber);
+      font-size: var(--fs-md);
+      font-weight: var(--fw-black);
+      color: var(--color-text-main);
+    }
+    .purchase-card-cost {
+      font-family: var(--font-mono);
+      font-size: var(--fs-sm);
+      font-weight: var(--fw-bold);
+      color: var(--neon-green);
+    }
+    .purchase-card-meta {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--color-text-muted);
+      display: flex;
+      justify-content: space-between;
+    }
+    .btn-purchase {
+      margin-top: var(--space-1);
+      width: 100%;
+      background: rgba(0, 229, 255, 0.1);
+      border: 1px solid var(--neon-blue);
+      color: var(--neon-blue);
+      font-family: var(--font-mono);
+      font-weight: var(--fw-bold);
+      font-size: var(--fs-xs);
+      padding: var(--space-2);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      transition: all var(--transition-fast);
+    }
+    .btn-purchase:hover {
+      background: var(--neon-blue);
+      color: #0d0d11;
+      box-shadow: 0 0 15px var(--neon-blue-glow);
+    }
+    .garage-card {
+      background: rgba(13, 13, 17, 0.7);
+      border: 1px solid rgba(0, 255, 102, 0.15);
+      border-radius: var(--radius-md);
+      padding: var(--space-4);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-3);
+      box-shadow: inset 0 0 20px rgba(0, 255, 102, 0.02);
+    }
+    .garage-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      padding-bottom: var(--space-2);
+    }
+    .garage-card-title-group {
+      display: flex;
+      flex-direction: column;
+    }
+    .garage-card-city {
+      font-family: var(--font-cyber);
+      font-size: var(--fs-xl);
+      font-weight: var(--fw-black);
+      color: var(--color-text-main);
+      letter-spacing: 0.5px;
+    }
+    .garage-card-level {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--neon-green);
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      margin-top: 2px;
+    }
+    .garage-card-capacity {
+      font-family: var(--font-mono);
+      font-size: var(--fs-sm);
+      color: var(--color-text-muted);
+    }
+    .garage-details-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-4);
+    }
+    .garage-section-title {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--color-text-muted);
+      border-bottom: 1px dashed rgba(255,255,255,0.05);
+      padding-bottom: 4px;
+      margin-bottom: var(--space-2);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .commodity-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: var(--font-mono);
+      font-size: var(--fs-xs);
+      padding: var(--space-1) 0;
+    }
+    .commodity-label {
+      color: var(--color-text-muted);
+    }
+    .commodity-value {
+      font-weight: var(--fw-bold);
+      color: var(--color-text-main);
+    }
+    .btn-upgrade {
+      background: rgba(0, 255, 102, 0.08);
+      border: 1px solid var(--neon-green);
+      color: var(--neon-green);
+      font-family: var(--font-mono);
+      font-size: 9px;
+      font-weight: var(--fw-bold);
+      padding: 2px 6px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+    .btn-upgrade:hover {
+      background: var(--neon-green);
+      color: #0d0d11;
+      box-shadow: 0 0 10px var(--neon-green-glow);
+    }
+    .contraband-stash-box {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: var(--space-2);
+      margin-top: var(--space-1);
+    }
+    .contraband-stash-cell {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: var(--radius-sm);
+      padding: var(--space-2);
+      text-align: center;
+      font-family: var(--font-mono);
+    }
+    .contraband-stash-label {
+      font-size: 8px;
+      color: var(--color-text-muted);
+    }
+    .contraband-stash-val {
+      font-size: var(--fs-sm);
+      font-weight: var(--fw-bold);
+      margin-top: var(--space-1);
+    }
+    .val-class-a { color: var(--neon-blue); }
+    .val-class-b { color: var(--neon-orange); }
+    .val-class-c { color: var(--neon-red); }
+  </style>
+</head>
+<body>
+
+  <!-- Fine CRT horizontal scanning & ambient shadow overlay -->
+  <div class="screen-overlay"></div>
+  <div class="grid-backplate"></div>
+
+  <div class="dashboard-layout">
+
+    <!-- Header bar identical to index.html -->
+    <header class="header-bar panel-cyber">
+      <div class="operator-profile">
+        <div class="avatar-frame">
+          <svg viewBox="0 0 24 24">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15.93c-3.13-.47-5.5-3.14-5.5-6.43 0-1.79.69-3.41 1.81-4.63l1.41 1.41C9.64 9.17 9 10.5 9 12c0 2.21 1.79 4 4 4v1.93zm4.69-4.3C17.61 14.85 16 16.5 14 16.9v-1.93c1.1-.31 2-.96 2.5-1.85l1.19 1.51zM14 8.07V6.03c2 .4 3.61 2.05 4.31 4.18l-1.19 1.51c-.5-.89-1.4-1.54-2.5-1.85z"/>
+          </svg>
+        </div>
+        <div class="operator-details">
+          <h1 class="operator-name">DISPATCH_OPERATOR</h1>
+          <div class="operator-status">
+            <span class="pulse-dot"></span>
+            secure_link_established
+          </div>
+        </div>
+      </div>
+
+      <div class="header-telemetry">
+        <div class="telem-cell">
+          <span class="telem-cell-label">SYSTEM_EPOCH</span>
+          <span class="telem-cell-value">GARAGE OPERATIONS CENTER</span>
+        </div>
+        <div class="telem-cell">
+          <span class="telem-cell-label">REP_FACTOR</span>
+          <div class="reputation-gauge">
+            <div class="star-grid" id="rep-star-grid">
+              <div class="star-row">
+                <svg class="rep-star" data-index="0" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+                <svg class="rep-star" data-index="1" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+                <svg class="rep-star" data-index="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+                <svg class="rep-star" data-index="3" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+                <svg class="rep-star" data-index="4" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+              </div>
+              <div class="star-row">
+                <svg class="rep-star" data-index="5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+                <svg class="rep-star" data-index="6" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+                <svg class="rep-star" data-index="7" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+                <svg class="rep-star" data-index="8" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+                <svg class="rep-star" data-index="9" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+              </div>
+            </div>
+            <span class="rep-score-display" id="rep-score-val">7.5</span>
+          </div>
+        </div>
+        <div class="telem-cell">
+          <span class="telem-cell-label">POLICE_HEAT_INDEX</span>
+          <div class="police-heat-meter">
+            <span class="heat-value" id="police-heat-val">25%</span>
+            <div class="heat-segments">
+              <div class="heat-segment"></div>
+              <div class="heat-segment"></div>
+              <div class="heat-segment"></div>
+              <div class="heat-segment"></div>
+              <div class="heat-segment"></div>
+              <div class="heat-segment"></div>
+              <div class="heat-segment"></div>
+              <div class="heat-segment"></div>
+              <div class="heat-segment"></div>
+              <div class="heat-segment"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="header-ledgers">
+        <div class="ledger-card clean">
+          <div class="ledger-icon">
+            <svg viewBox="0 0 24 24"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.2c-.07-2.24-1.6-3.9-3.7-4.3V3h-3v1.7c-1.93.41-3.5 1.63-3.5 3.75 0 2.47 2 3.7 5.2 4.2 2.55.4 3.03 1.15 3.03 2.15 0 .75-.53 1.65-2.7 1.65-2.2 0-2.87-.95-3-2.1h-2.2c.1 2.58 1.91 3.9 3.7 4.3V21h3v-1.7c1.95-.41 3.5-1.51 3.5-3.8 0-2.92-2.17-3.75-5.22-4.15z"/></svg>
+          </div>
+          <div class="ledger-meta">
+            <span class="ledger-label">CLEAN_RESERVES</span>
+            <span class="ledger-amount" id="clean-amount">$0.00</span>
+          </div>
+        </div>
+        <div class="ledger-card dirty">
+          <div class="ledger-icon">
+            <svg viewBox="0 0 24 24"><path d="M19.28 4.72A10 10 0 0 0 12 2a10 10 0 1 0 10 10 10 10 0 0 0-2.72-7.28zM12 18a6 6 0 1 1 6-6 6 6 0 0 1-6 6zm-3.5-6a3.5 3.5 0 1 0 3.5-3.5 3.5 3.5 0 0 0-3.5 3.5z"/></svg>
+          </div>
+          <div class="ledger-meta">
+            <span class="ledger-label">LAUNDERED_DIRTY</span>
+            <span class="ledger-amount" id="dirty-amount">$0.00</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Workspace Area -->
+    <main class="main-deck" style="display: flex; flex-direction: column; gap: var(--space-4);">
+      
+      <!-- Top Action Navigation Strip -->
+      <div style="display: flex; gap: var(--space-3); border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: var(--space-3);">
+        <a href="index.html" class="nav-op-btn btn-white" style="width: auto; padding: var(--space-2) var(--space-4);">
+          ◀ RETURN TO TACTICAL MAP
+        </a>
+        <h2 style="font-family: var(--font-cyber); font-size: var(--fs-xl); color: var(--color-text-main); margin-left: auto;">
+          SYS_OPERATIONAL_HQ
+        </h2>
+      </div>
+
+      <!-- Garage grid details -->
+      <div class="garage-main-grid">
+        
+        <!-- LEFT COLUMN: PURCHASABLE CITY TERMINALS -->
+        <section class="panel-cyber panel-blue" style="display: flex; flex-direction: column; padding: var(--space-4);">
+          <div class="panel-title-strip">
+            <h2 class="panel-title">ACQUIRE TERMINALS</h2>
+            <span class="panel-serial">REST_BUY_GATE</span>
+          </div>
+          <div class="purchase-list" id="purchase-list-container" style="margin-top: var(--space-3); flex: 1;">
+            <!-- Dynamically populated purchasable nodes -->
+          </div>
+        </section>
+
+        <!-- CENTER/RIGHT COLUMN: OWNED TERMINALS LIST -->
+        <section class="panel-cyber panel-green" style="display: flex; flex-direction: column; padding: var(--space-4);">
+          <div class="panel-title-strip">
+            <h2 class="panel-title">ESTABLISHED TERMINALS & LOGISTICS SHIELDING</h2>
+            <span class="panel-serial">SYS_GARAGES_04</span>
+          </div>
+          <div class="garage-cards-container" id="owned-garages-container" style="margin-top: var(--space-3); flex: 1;">
+            <!-- Dynamically populated owned garages -->
+          </div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+  <script src="./shared.js"></script>
+  <script>
+    // Logic specific to garage.html page
+    async function loadGarageHQ() {
+      if (!SYSTEM_STATE.token) return;
+
+      try {
+        // Fetch garages from API
+        const response = await fetch(`${SYSTEM_STATE.restUrl}/api/garage`, {
+          headers: {
+            'Authorization': `Bearer ${SYSTEM_STATE.token}`
+          }
+        });
+        if (!response.ok) throw new Error("Failed to load fleets.");
+        const garages = await response.json();
+        
+        const ownedCities = new Set(garages.map(g => g.city.toLowerCase()));
+        
+        renderPurchasableTerminals(ownedCities);
+        renderOwnedGarages(garages);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    function renderPurchasableTerminals(ownedCities) {
+      const container = document.getElementById("purchase-list-container");
+      container.innerHTML = "";
+
+      Object.keys(CITIES_DATASET).forEach(key => {
+        const city = CITIES_DATASET[key];
+        if (!city.purchasable || ownedCities.has(key)) return;
+
+        const card = document.createElement("div");
+        card.className = "purchase-card";
+        card.innerHTML = `
+          <div class="purchase-card-header">
+            <span class="purchase-card-title">${city.name.toUpperCase()}</span>
+            <span class="purchase-card-cost">$${city.terminalCost.toLocaleString()}</span>
+          </div>
+          <div class="purchase-card-meta">
+            <span>REGION: ${city.country}</span>
+            <span style="color: ${city.isSchengen ? 'var(--neon-green)' : 'var(--neon-orange)'}">
+              ${city.isSchengen ? 'SCHENGEN' : 'RESTRICTED'}
+            </span>
+          </div>
+          <button class="btn-purchase" onclick="purchaseTerminal('${city.id}')">SECURE NODE TERMINAL</button>
+        `;
+        container.appendChild(card);
+      });
+
+      if (container.children.length === 0) {
+        container.innerHTML = `<div style="font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--color-text-muted); text-align: center; margin-top: var(--space-5);">[ ALL CURRENT DIRECT NODES ACQUIRED ]</div>`;
+      }
+    }
+
+    function renderOwnedGarages(garages) {
+      const container = document.getElementById("owned-garages-container");
+      container.innerHTML = "";
+
+      garages.forEach(garage => {
+        const card = document.createElement("div");
+        card.className = "garage-card";
+
+        // Determine upgrade level text/button
+        let upgradeBtnHtml = "";
+        if (garage.terminalLevel < 4) {
+          let cost = garage.terminalLevel === 1 ? 100000 : garage.terminalLevel === 2 ? 500000 : 2500000;
+          upgradeBtnHtml = `<button class="btn-upgrade" onclick="upgradeTerminal('${garage.id}')">UPGRADE TERMINAL ($${cost.toLocaleString()})</button>`;
+        } else {
+          upgradeBtnHtml = `<span style="font-family: var(--font-mono); font-size: 9px; color: var(--color-text-muted);">MAX LEVEL</span>`;
+        }
+
+        // Determine vehicles count
+        const trucksCount = garage.trucks ? garage.trucks.length : 0;
+
+        card.innerHTML = `
+          <div class="garage-card-header">
+            <div class="garage-card-title-group">
+              <span class="garage-card-city">${garage.city.toUpperCase()} TERMINAL</span>
+              <span class="garage-card-level">
+                LEVEL: ${garage.terminalLevel}
+                ${upgradeBtnHtml}
+              </span>
+            </div>
+            <span class="garage-card-capacity">FLEET CAPACITY: ${trucksCount} / ${garage.capacity} RIGS</span>
+          </div>
+
+          <div class="garage-details-grid">
+            <!-- Commodity Reserves -->
+            <div>
+              <div class="garage-section-title">// COMMODITY BUFFER STOCKS</div>
+              <div class="commodity-row">
+                <span class="commodity-label">DIESEL STORAGE:</span>
+                <span class="commodity-value">${garage.dieselStorage.toFixed(0)} / ${garage.maxDiesel} L</span>
+                <button class="btn-upgrade" style="font-size: 8px; padding: 1px 4px;" onclick="upgradeStorage('${garage.id}', 'DIESEL')">+1000L ($12.5k)</button>
+              </div>
+              <div class="commodity-row">
+                <span class="commodity-label">ELECTRIC CHARGE:</span>
+                <span class="commodity-value">${garage.electricityStorage.toFixed(0)} / ${garage.maxElectricity} kWh</span>
+                <button class="btn-upgrade" style="font-size: 8px; padding: 1px 4px;" onclick="upgradeStorage('${garage.id}', 'ELECTRICITY')">+500kWh ($8k)</button>
+              </div>
+              <div class="commodity-row">
+                <span class="commodity-label">ADBLUE CATALYST:</span>
+                <span class="commodity-value">${garage.adblueStorage.toFixed(0)} / ${garage.maxAdblue} L</span>
+                <button class="btn-upgrade" style="font-size: 8px; padding: 1px 4px;" onclick="upgradeStorage('${garage.id}', 'ADBLUE')">+250L ($5k)</button>
+              </div>
+            </div>
+
+            <!-- Contraband stash room -->
+            <div>
+              <div class="garage-section-title">// SECURED STASH ROOM</div>
+              <div class="contraband-stash-box">
+                <div class="contraband-stash-cell">
+                  <div class="contraband-stash-label">CLASS_A</div>
+                  <div class="contraband-stash-val val-class-a">${garage.contrabandStorageA || 0} U</div>
+                </div>
+                <div class="contraband-stash-cell">
+                  <div class="contraband-stash-label">CLASS_B</div>
+                  <div class="contraband-stash-val val-class-b">${garage.contrabandStorageB || 0} U</div>
+                </div>
+                <div class="contraband-stash-cell">
+                  <div class="contraband-stash-label">CLASS_C</div>
+                  <div class="contraband-stash-val val-class-c">${garage.contrabandStorageC || 0} U</div>
+                </div>
+              </div>
+              <div style="font-family: var(--font-mono); font-size: 9px; color: var(--color-text-muted); margin-top: var(--space-2); display:flex; justify-content:space-between;">
+                <span>STASH VOLUME: ${((garage.contrabandStorageA||0)+(garage.contrabandStorageB||0)+(garage.contrabandStorageC||0)).toFixed(0)} / ${garage.maxContrabandStash} UNITS</span>
+                <span style="color: ${garage.hasStashRoom ? 'var(--neon-green)' : 'var(--neon-orange)'}">
+                  ${garage.hasStashRoom ? '✓ INFILTRATION SHIELDED' : '⚠ NO LEAD SHIELDING'}
+                </span>
+              </div>
+            </div>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    async function purchaseTerminal(cityId) {
+      AUDIO.playClick();
+      if (!confirm(`Are you sure you want to purchase a terminal node in ${cityId.toUpperCase()}?`)) return;
+
+      try {
+        const response = await fetch(`${SYSTEM_STATE.restUrl}/api/garage/purchase-terminal`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${SYSTEM_STATE.token}`
+          },
+          body: JSON.stringify({ cityId })
+        });
+
+        if (response.ok) {
+          AUDIO.playSuccess();
+          alert("Terminal successfully established!");
+          loadGarageHQ();
+          fetchBalances();
+        } else {
+          const errData = await response.json();
+          AUDIO.playFailure();
+          alert(`PURCHASE ERROR: ${errData.message || 'Verification failed.'}`);
+        }
+      } catch (err) {
+        console.error("Purchase error:", err);
+      }
+    }
+
+    async function upgradeTerminal(garageId) {
+      AUDIO.playClick();
+      try {
+        const response = await fetch(`${SYSTEM_STATE.restUrl}/api/garage/${garageId}/upgrade-terminal`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${SYSTEM_STATE.token}`
+          }
+        });
+        if (response.ok) {
+          AUDIO.playSuccess();
+          loadGarageHQ();
+          fetchBalances();
+        } else {
+          const err = await response.json();
+          AUDIO.playFailure();
+          alert(`UPGRADE FAILED: ${err.message}`);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    async function upgradeStorage(garageId, commodityType) {
+      AUDIO.playClick();
+      try {
+        const response = await fetch(`${SYSTEM_STATE.restUrl}/api/garage/${garageId}/upgrade-storage`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${SYSTEM_STATE.token}`
+          },
+          body: JSON.stringify({ commodityType })
+        });
+        if (response.ok) {
+          AUDIO.playSuccess();
+          loadGarageHQ();
+          fetchBalances();
+        } else {
+          const err = await response.json();
+          AUDIO.playFailure();
+          alert(`UPGRADE FAILED: ${err.message}`);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    window.addEventListener("DOMContentLoaded", () => {
+      setTimeout(loadGarageHQ, 100);
+    });
+  </script>
+</body>
+</html>
