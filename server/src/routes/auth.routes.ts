@@ -4,6 +4,7 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { CONFIG } from '../config';
 import { seedDatabase } from '../seed';
+import { generateSecureVin } from '../utils/vinGenerator';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -64,7 +65,7 @@ router.post('/register', async (req: Request, res: Response) => {
       });
 
       // 4. Generate initial VIN and Starter Truck
-      const starterVin = `TRK-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+      const starterVin = generateSecureVin('TRK-');
       await tx.truck.create({
         data: {
           companyId: company.id,

@@ -3,6 +3,7 @@ import { PrismaClient, FuelTankMod } from '@prisma/client';
 import { authenticateJWT, AuthRequest } from '../middleware/auth';
 import { FinanceService } from '../services/finance.service';
 import { LockService } from '../services/lock.service';
+import { generateSecureVin } from '../utils/vinGenerator';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -173,11 +174,7 @@ router.post('/buy', async (req: AuthRequest, res: Response) => {
       }
 
       // 4. Generate random VIN
-      const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-      let uniqueVin = `VIN-${manufacturer.substring(0, 3).toUpperCase()}-`;
-      for (let i = 0; i < 9; i++) {
-        uniqueVin += characters.charAt(Math.floor(Math.random() * characters.length));
-      }
+      const uniqueVin = generateSecureVin(`VIN-${manufacturer.substring(0, 3).toUpperCase()}-`);
 
       // Create new Truck & deduct funds
       const newTruck = await prisma.$transaction(async (tx) => {
