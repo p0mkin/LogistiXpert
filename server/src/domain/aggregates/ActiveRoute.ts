@@ -36,7 +36,7 @@ export class ActiveRouteAggregate {
     const isEV = this.state.truck.model.toLowerCase().includes('ev') || 
                  this.state.truck.model.toLowerCase().includes('electric');
 
-    const aerodynamicsBuff = 1.0 - (this.state.company.resAerodynamics * 0.04);
+    const aerodynamicsBuff = Math.max(0, 1.0 - (this.state.company.resAerodynamics * 0.04));
     
     let weightFactor = 1.0;
     if (this.state.legalContract) {
