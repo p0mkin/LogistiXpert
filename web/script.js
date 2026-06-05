@@ -415,7 +415,7 @@ window.addEventListener("DOMContentLoaded", () => {
  * Boot Diagnostic scrolling terminal feedback
  */
 function bootSystemDiagnostics() {
-  UI_NODES.consoleBox.innerHTML = "";
+  UI_NODES.consoleBox.replaceChildren();
   SYSTEM_STATE.consoleLines.forEach(line => appendTerminalLine(line.text, line.type));
 }
 
@@ -706,16 +706,22 @@ function handleCitySelection(cityId) {
 
   // Left panel connections list
   if (UI_NODES.activeConnectionsContainer) {
-    UI_NODES.activeConnectionsContainer.innerHTML = "";
+    UI_NODES.activeConnectionsContainer.replaceChildren();
     city.connections.forEach(connId => {
       const connCity = CITIES_DATASET[connId];
       if (!connCity) return;
       const row = document.createElement("div");
       row.className = "connection-node-row";
-      row.innerHTML = `
-        <span class="connection-node-name">NODE_${connId.slice(0, 3).toUpperCase()} (${connCity.name})</span>
-        <span class="connection-node-dist">${calculateDistance(city.coords, connCity.coords)} KM</span>
-      `;
+      const nameSpan = document.createElement("span");
+      nameSpan.className = "connection-node-name";
+      nameSpan.textContent = `NODE_${connId.slice(0, 3).toUpperCase()} (${connCity.name})`;
+
+      const distSpan = document.createElement("span");
+      distSpan.className = "connection-node-dist";
+      distSpan.textContent = `${calculateDistance(city.coords, connCity.coords)} KM`;
+
+      row.appendChild(nameSpan);
+      row.appendChild(distSpan);
       UI_NODES.activeConnectionsContainer.appendChild(row);
     });
   }
@@ -795,7 +801,15 @@ function appendTerminalLine(text, type = "info") {
   const time = new Date().toTimeString().split(" ")[0];
   const line = document.createElement("div");
   line.className = `log-line ${type === "success" ? "success" : type === "warn" ? "warn" : ""}`;
-  line.innerHTML = `<span style="color:var(--color-text-muted)">[${time}]</span> ${text}`;
+
+  const timeSpan = document.createElement("span");
+  timeSpan.style.color = "var(--color-text-muted)";
+  timeSpan.textContent = `[${time}] `;
+
+  const textNode = document.createTextNode(text);
+
+  line.appendChild(timeSpan);
+  line.appendChild(textNode);
   
   UI_NODES.consoleBox.appendChild(line);
   UI_NODES.consoleBox.scrollTop = UI_NODES.consoleBox.scrollHeight;
