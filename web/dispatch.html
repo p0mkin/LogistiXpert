@@ -402,7 +402,7 @@
           card.addEventListener("click", () => {
             if (truck.isImpounded || truck.activeRoute) {
               AUDIO.playFailure();
-              alert("Rig is not available for dispatch operations.");
+              showToast('Rig is not available for dispatch operations.', 'warning');
               return;
             }
             AUDIO.playClick();
@@ -541,7 +541,7 @@
     async function getSuggestedRoute() {
       AUDIO.playClick();
       if (!selectedTruck) {
-        alert("Please select a truck to get suggestions.");
+        showToast('Select a vehicle first to get route suggestions.', 'warning');
         return;
       }
       try {
@@ -551,17 +551,16 @@
         if (response.ok) {
           const data = await response.json();
           if (data.suggestion) {
-            alert(`SUGGESTION FOUND: Best yield hourly route is to dispatch to ${data.suggestion.destination} ($${data.suggestion.payout.toLocaleString()}).`);
+            showToast(`ROUTER SUGGESTION: Best route → ${data.suggestion.destination} ($${data.suggestion.payout.toLocaleString()})`, 'info', 5000);
             // Automatically select if loaded
             const items = document.querySelectorAll(".contract-item");
-            // Check matching destination
             items.forEach(item => {
               if (item.textContent.includes(data.suggestion.destination.toUpperCase())) {
                 item.click();
               }
             });
           } else {
-            alert("No available routes to suggest.");
+            showToast('No suitable routes to suggest for this truck.', 'warning');
           }
         }
       } catch (err) {
@@ -572,11 +571,11 @@
     async function launchFleetRoute() {
       AUDIO.playClick();
       if (!selectedTruck) {
-        alert("Must select a vehicle first.");
+        showToast('Select a vehicle before launching a route.', 'warning');
         return;
       }
       if (!selectedContract) {
-        alert("Must select an origin demand contract.");
+        showToast('Select a contract before launching a route.', 'warning');
         return;
       }
 
@@ -603,7 +602,7 @@
 
         if (response.ok) {
           AUDIO.playSuccess();
-          alert("Fleet truck dispatched successfully!");
+          showToast(`✦ Fleet vehicle dispatched — route is live!`, 'success', 4000);
           
           // Clear selections
           selectedTruck = null;
@@ -616,7 +615,7 @@
         } else {
           const err = await response.json();
           AUDIO.playFailure();
-          alert(`DISPATCH FAILURE: ${err.message}`);
+          showToast(`DISPATCH FAILURE: ${err.message}`, 'error');
         }
       } catch (err) {
         console.error(err);

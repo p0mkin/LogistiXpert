@@ -1909,3 +1909,56 @@ body {
   animation: rotate-scanner 15s linear infinite;
 }
 
+/* ==========================================================================
+   GLOBAL ENHANCEMENT: NEON GOLD + SHARED CROSS-PAGE UTILITIES
+   ========================================================================== */
+:root {
+  --neon-gold: #ffd700;
+  --neon-gold-glow: rgba(255, 215, 0, 0.25);
+  --neon-gold-dark: #3d3400;
+}
+
+/* Staff page: make main-deck scroll safely */
+.main-deck {
+  overflow: hidden;
+}
+
+/* Shared balance pulse keyframe */
+@keyframes balance-pulse {
+  0%   { opacity: 1; }
+  50%  { opacity: 0.4; }
+  100% { opacity: 1; }
+}
+
+/* Cross-page nav button improvements */
+.nav-op-btn {
+  transition: all var(--transition-fast);
+  letter-spacing: 0.5px;
+}
+.nav-op-btn:hover {
+  transform: translateY(-1px);
+}
+
+/* Improved ledger card hover */
+.ledger-card {
+  transition: all var(--transition-fast);
+}
+.ledger-card:hover {
+  transform: translateY(-1px);
+}
+
+/* Shared toast animation (referenced by shared.js inline style) */
+@keyframes toast-slide-in {
+  from { opacity: 0; transform: translateX(30px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* Action button active press state */
+.action-btn-neon:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+/* Improved heat segment active glow */
+.heat-segment.active {
+  box-shadow: 0 0 3px currentColor;
+}

@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>LogistiXpert: Staff Operations Control</title>
+  <meta name="description" content="Manage your logistics crew — hire, train, and promote specialists to optimize operations across your underworld network.">
   
   <!-- Cyberpunk Typography -->
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=JetBrains+Mono:wght@300;400;500;700&family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
@@ -11,201 +12,341 @@
   <!-- Design System Styles -->
   <link rel="stylesheet" href="./styles.css">
   <style>
+    /* ===== STAFF PAGE CANVAS (HEX PARTICLES) ===== */
+    #staff-particle-canvas {
+      position: fixed;
+      inset: 0;
+      z-index: 2;
+      pointer-events: none;
+      opacity: 0.35;
+    }
+
+    /* ===== LAYOUT ===== */
     .staff-layout-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
       gap: var(--space-4);
       height: calc(100vh - 180px);
       overflow-y: auto;
       padding-bottom: var(--space-4);
+      padding-right: 4px;
     }
-    
+
+    /* Custom scrollbar */
+    .staff-layout-grid::-webkit-scrollbar { width: 4px; }
+    .staff-layout-grid::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); }
+    .staff-layout-grid::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+
+    /* ===== STAFF CARD BASE ===== */
     .staff-card {
-      background: rgba(13, 13, 17, 0.85);
+      background: rgba(10, 10, 16, 0.90);
       border: 1px solid rgba(255, 255, 255, 0.05);
-      border-radius: var(--radius-md);
+      border-radius: 6px;
       padding: var(--space-4);
       display: flex;
       flex-direction: column;
       gap: var(--space-3);
       font-family: var(--font-mono);
-      transition: all var(--transition-fast);
       position: relative;
       overflow: hidden;
-      min-height: 480px;
+      min-height: 520px;
+      transform-style: preserve-3d;
+      transition: transform 0.1s ease, box-shadow 0.2s ease, border-color 0.25s ease;
+      will-change: transform;
     }
-    
-    .staff-card.locked {
-      border-color: rgba(255, 0, 60, 0.2);
-    }
-    
-    .staff-card.locked::after {
-      content: 'VACANT SLOT';
-      position: absolute;
-      top: 12px;
-      right: 12px;
-      font-size: 8px;
-      font-weight: bold;
-      color: var(--neon-red);
-      border: 1px solid var(--neon-red);
-      padding: 1px 4px;
-      border-radius: var(--radius-sm);
-      background: rgba(255, 0, 60, 0.1);
-    }
-    
-    .staff-card.purchasing_agent { border-color: rgba(0, 255, 102, 0.15); }
-    .staff-card.lead_mechanic { border-color: rgba(189, 0, 255, 0.15); }
-    .staff-card.router { border-color: rgba(255, 102, 0, 0.15); }
-    
-    .staff-card.purchasing_agent:hover { border-color: var(--neon-green); box-shadow: 0 0 12px var(--neon-green-glow); }
-    .staff-card.lead_mechanic:hover { border-color: var(--neon-purple); box-shadow: 0 0 12px var(--neon-purple-glow); }
-    .staff-card.router:hover { border-color: var(--neon-orange); box-shadow: 0 0 12px var(--neon-orange-glow); }
 
+    /* Animated top-edge glow line */
+    .staff-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    .purchasing_agent.unlocked::before { background: linear-gradient(90deg, transparent, var(--neon-green), transparent); }
+    .lead_mechanic.unlocked::before   { background: linear-gradient(90deg, transparent, var(--neon-purple), transparent); }
+    .router.unlocked::before          { background: linear-gradient(90deg, transparent, var(--neon-orange), transparent); }
+    .staff-card.unlocked:hover::before { opacity: 1; }
+
+    /* Corner bracket accents */
+    .staff-card::after {
+      content: '';
+      position: absolute;
+      bottom: -1px; right: -1px;
+      width: 16px; height: 16px;
+      border-bottom-width: 2px;
+      border-right-width: 2px;
+      border-style: solid;
+      border-color: transparent;
+      transition: border-color 0.25s ease;
+      pointer-events: none;
+    }
+    .purchasing_agent.unlocked:hover::after { border-color: var(--neon-green); }
+    .lead_mechanic.unlocked:hover::after    { border-color: var(--neon-purple); }
+    .router.unlocked:hover::after           { border-color: var(--neon-orange); }
+
+    /* Role colors */
+    .staff-card.locked { border-color: rgba(255, 0, 60, 0.15); }
+    .staff-card.locked::after { content: 'VACANT SLOT'; position: absolute; top: 12px; right: 12px; width: auto; height: auto; font-size: 8px; font-weight: bold; color: var(--neon-red); border: 1px solid var(--neon-red); padding: 1px 5px; border-radius: 2px; background: rgba(255, 0, 60, 0.1); }
+    .staff-card.purchasing_agent.unlocked { border-color: rgba(0, 255, 102, 0.12); }
+    .staff-card.lead_mechanic.unlocked    { border-color: rgba(189, 0, 255, 0.12); }
+    .staff-card.router.unlocked           { border-color: rgba(255, 102, 0, 0.12); }
+    .staff-card.purchasing_agent.unlocked:hover { border-color: rgba(0, 255, 102, 0.45); box-shadow: 0 0 24px rgba(0, 255, 102, 0.08), 0 8px 40px rgba(0,0,0,0.6); }
+    .staff-card.lead_mechanic.unlocked:hover    { border-color: rgba(189, 0, 255, 0.45); box-shadow: 0 0 24px rgba(189, 0, 255, 0.08), 0 8px 40px rgba(0,0,0,0.6); }
+    .staff-card.router.unlocked:hover           { border-color: rgba(255, 102, 0, 0.45); box-shadow: 0 0 24px rgba(255, 102, 0, 0.08), 0 8px 40px rgba(0,0,0,0.6); }
+
+    /* Rank-up flash animation */
+    .staff-card.rank-up-flash {
+      animation: rankUpFlash 0.6s ease forwards;
+    }
+    @keyframes rankUpFlash {
+      0%   { box-shadow: 0 0 0px rgba(255,255,255,0); }
+      30%  { box-shadow: 0 0 40px rgba(255,255,255,0.3), 0 0 80px rgba(255,255,255,0.1); }
+      100% { box-shadow: none; }
+    }
+
+    /* ===== CARD CONTENT ===== */
     .staff-role-title {
       font-family: var(--font-cyber);
       font-size: var(--fs-lg);
       font-weight: var(--fw-black);
-      letter-spacing: 1px;
+      letter-spacing: 1.5px;
     }
-    
     .purchasing_agent .staff-role-title { color: var(--neon-green); }
-    .lead_mechanic .staff-role-title { color: var(--neon-purple); }
-    .router .staff-role-title { color: var(--neon-orange); }
+    .lead_mechanic .staff-role-title    { color: var(--neon-purple); }
+    .router .staff-role-title           { color: var(--neon-orange); }
 
     .staff-role-desc {
       font-size: 11px;
       color: var(--color-text-muted);
-      line-height: 1.4;
+      line-height: 1.5;
       min-height: 48px;
     }
-    
+
     .card-divider {
       height: 1px;
       background: rgba(255, 255, 255, 0.05);
-      margin: var(--space-1) 0;
+      margin: 2px 0;
     }
-    
+
+    /* ===== MORALE INDICATOR ===== */
+    .morale-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 10px;
+    }
+    .morale-label { color: var(--color-text-muted); }
+    .morale-bar-track {
+      flex: 1;
+      height: 4px;
+      background: rgba(255,255,255,0.06);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .morale-bar-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .morale-bar-fill.high  { background: var(--neon-green); box-shadow: 0 0 4px var(--neon-green-glow); }
+    .morale-bar-fill.mid   { background: var(--neon-orange); box-shadow: 0 0 4px var(--neon-orange-glow); }
+    .morale-bar-fill.low   { background: var(--neon-red); box-shadow: 0 0 4px var(--neon-red-glow); }
+    .morale-emoji { font-size: 12px; }
+
+    /* ===== STATUS BANNER ===== */
     .status-banner {
-      padding: var(--space-2);
-      border-radius: var(--radius-sm);
+      padding: var(--space-2) var(--space-3);
+      border-radius: 4px;
       border-left: 3px solid;
-      font-size: 12px;
+      font-size: 11px;
       font-weight: bold;
       display: flex;
       flex-direction: column;
-      gap: 2px;
+      gap: 3px;
     }
-    
-    .status-banner.positive {
-      background: rgba(0, 255, 102, 0.06);
-      border-left-color: var(--neon-green);
-      color: var(--neon-green);
-    }
-    
-    .status-banner.negative {
-      background: rgba(255, 0, 60, 0.06);
-      border-left-color: var(--neon-red);
-      color: var(--neon-red);
-    }
-    
-    .status-banner-desc {
-      font-size: 9px;
-      font-weight: normal;
-      color: var(--color-text-muted);
-    }
+    .status-banner.positive { background: rgba(0, 255, 102, 0.06); border-left-color: var(--neon-green); color: var(--neon-green); }
+    .status-banner.negative { background: rgba(255, 0, 60, 0.06); border-left-color: var(--neon-red); color: var(--neon-red); }
+    .status-banner-desc { font-size: 9px; font-weight: normal; color: var(--color-text-muted); }
 
-    .level-dots-container {
-      display: flex;
-      gap: 6px;
-      margin: var(--space-1) 0;
-    }
-    
+    /* ===== LEVEL DOTS ===== */
+    .level-dots-container { display: flex; gap: 5px; margin: 4px 0; }
     .level-dot {
-      width: 18px;
-      height: 6px;
+      flex: 1;
+      height: 5px;
       background: rgba(255, 255, 255, 0.05);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: var(--radius-sm);
-      transition: all var(--transition-fast);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 2px;
+      transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
     }
-    
-    .purchasing_agent .level-dot.active { background: var(--neon-green); border-color: var(--neon-green); box-shadow: 0 0 4px var(--neon-green-glow); }
-    .lead_mechanic .level-dot.active { background: var(--neon-purple); border-color: var(--neon-purple); box-shadow: 0 0 4px var(--neon-purple-glow); }
-    .router .level-dot.active { background: var(--neon-orange); border-color: var(--neon-orange); box-shadow: 0 0 4px var(--neon-orange-glow); }
-    
+    .purchasing_agent .level-dot.active { background: var(--neon-green); border-color: var(--neon-green); box-shadow: 0 0 5px var(--neon-green-glow); }
+    .lead_mechanic .level-dot.active    { background: var(--neon-purple); border-color: var(--neon-purple); box-shadow: 0 0 5px var(--neon-purple-glow); }
+    .router .level-dot.active           { background: var(--neon-orange); border-color: var(--neon-orange); box-shadow: 0 0 5px var(--neon-orange-glow); }
+
+    /* ===== RANK DISPLAY ===== */
+    .rank-display-box { display: flex; justify-content: space-between; align-items: center; }
+    .rank-name { font-weight: bold; color: var(--color-text-main); font-size: var(--fs-sm); }
+    .rank-mult {
+      font-size: 10px; padding: 2px 8px; border-radius: 2px; font-weight: bold;
+    }
+    .rank-mult.positive { background: rgba(0, 255, 102, 0.1); color: var(--neon-green); }
+    .rank-mult.negative { background: rgba(255, 0, 60, 0.1); color: var(--neon-red); }
+
+    /* Rank tier progress track */
+    .rank-tier-track {
+      display: flex;
+      gap: 3px;
+      margin-top: 6px;
+    }
+    .rank-tier-pip {
+      flex: 1;
+      height: 3px;
+      background: rgba(255,255,255,0.06);
+      border-radius: 1px;
+      transition: background 0.5s ease;
+    }
+    .purchasing_agent .rank-tier-pip.active { background: var(--neon-green); }
+    .lead_mechanic .rank-tier-pip.active    { background: var(--neon-purple); }
+    .router .rank-tier-pip.active           { background: var(--neon-orange); }
+
+    /* ===== ROI PANEL ===== */
+    .roi-panel {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 4px;
+      padding: var(--space-2) var(--space-3);
+    }
+    .roi-panel-title {
+      font-size: 9px;
+      color: var(--color-text-muted);
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    .roi-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px;
+    }
+    .roi-cell {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+    .roi-cell-label { font-size: 9px; color: var(--color-text-muted); }
+    .roi-cell-value { font-size: 11px; font-weight: bold; }
+    .roi-cell-value.positive { color: var(--neon-green); }
+    .roi-cell-value.negative { color: var(--neon-red); }
+    .roi-cell-value.neutral  { color: var(--neon-blue); }
+
+    /* ===== ACTION BUTTONS ===== */
     .action-btn-neon {
       background: rgba(255, 255, 255, 0.02);
       border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: var(--radius-sm);
+      border-radius: 4px;
       color: var(--color-text-muted);
       font-family: var(--font-mono);
       font-size: 10px;
-      padding: var(--space-2);
+      padding: var(--space-2) var(--space-3);
       cursor: pointer;
       width: 100%;
       text-align: center;
       transition: all var(--transition-fast);
-      min-height: 38px;
+      min-height: 40px;
       display: flex;
       flex-direction: column;
       justify-content: center;
       align-items: center;
       font-weight: bold;
+      letter-spacing: 0.5px;
+      position: relative;
+      overflow: hidden;
     }
-    
-    .action-btn-neon:hover:not(:disabled) {
-      color: #fff;
+    .action-btn-neon::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.04) 0%, transparent 100%);
+      opacity: 0;
+      transition: opacity 0.2s ease;
     }
-    
-    .purchasing_agent .action-btn-neon:hover:not(:disabled) { border-color: var(--neon-green); background: rgba(0, 255, 102, 0.05); box-shadow: 0 0 10px rgba(0, 255, 102, 0.15); }
-    .lead_mechanic .action-btn-neon:hover:not(:disabled) { border-color: var(--neon-purple); background: rgba(189, 0, 255, 0.05); box-shadow: 0 0 10px rgba(189, 0, 255, 0.15); }
-    .router .action-btn-neon:hover:not(:disabled) { border-color: var(--neon-orange); background: rgba(255, 102, 0, 0.05); box-shadow: 0 0 10px rgba(255, 102, 0, 0.15); }
-
+    .action-btn-neon:hover::after { opacity: 1; }
+    .action-btn-neon:hover:not(:disabled) { color: #fff; }
+    .purchasing_agent .action-btn-neon:hover:not(:disabled) { border-color: var(--neon-green); background: rgba(0, 255, 102, 0.06); box-shadow: 0 0 12px rgba(0, 255, 102, 0.12); }
+    .lead_mechanic .action-btn-neon:hover:not(:disabled)    { border-color: var(--neon-purple); background: rgba(189, 0, 255, 0.06); box-shadow: 0 0 12px rgba(189, 0, 255, 0.12); }
+    .router .action-btn-neon:hover:not(:disabled)           { border-color: var(--neon-orange); background: rgba(255, 102, 0, 0.06); box-shadow: 0 0 12px rgba(255, 102, 0, 0.12); }
     .action-btn-neon:disabled {
       border-color: rgba(255, 255, 255, 0.03);
-      color: rgba(255, 255, 255, 0.15);
-      cursor: not-allowed;
-      background: none;
+      color: rgba(255, 255, 255, 0.12);
+      cursor: not-allowed; background: none;
     }
-    
-    .rank-display-box {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    
-    .rank-name {
-      font-weight: bold;
-      color: var(--color-text-main);
-      font-size: var(--fs-sm);
-    }
-    
-    .rank-mult {
-      font-size: 10px;
-      padding: 2px 6px;
-      border-radius: var(--radius-sm);
-      font-weight: bold;
-    }
-    
-    .rank-mult.positive { background: rgba(0, 255, 102, 0.1); color: var(--neon-green); }
-    .rank-mult.negative { background: rgba(255, 0, 60, 0.1); color: var(--neon-red); }
-    
+
+    /* ===== LOCK OVERLAY ===== */
     .lock-overlay-content {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      gap: var(--space-4);
-      text-align: center;
+      flex: 1; display: flex; flex-direction: column;
+      justify-content: center; align-items: center; gap: var(--space-4); text-align: center;
     }
-    
     .lock-icon-svg {
-      width: 48px;
-      height: 48px;
+      width: 44px; height: 44px;
       fill: var(--neon-red);
-      filter: drop-shadow(0 0 6px var(--neon-red-glow));
+      filter: drop-shadow(0 0 6px rgba(255, 0, 60, 0.4));
       opacity: 0.6;
+    }
+
+    /* ===== KEYBOARD SHORTCUT HINT ===== */
+    .kbd-hint {
+      position: fixed;
+      bottom: 16px;
+      right: 16px;
+      font-family: var(--font-mono);
+      font-size: 9px;
+      color: var(--color-text-muted);
+      display: flex;
+      gap: 12px;
+      z-index: 50;
+    }
+    .kbd-hint-item { display: flex; align-items: center; gap: 4px; }
+    .kbd { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 2px; padding: 1px 5px; font-family: var(--font-mono); font-size: 9px; color: #aaa; }
+
+    /* ===== LOADING SKELETON ===== */
+    .staff-skeleton-card {
+      background: rgba(10, 10, 16, 0.90);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      border-radius: 6px;
+      padding: var(--space-4);
+      min-height: 520px;
+      overflow: hidden;
+      position: relative;
+    }
+    .staff-skeleton-card::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.03) 50%, transparent 100%);
+      animation: skeleton-sweep 1.5s infinite;
+    }
+    @keyframes skeleton-sweep {
+      from { transform: translateX(-100%); }
+      to   { transform: translateX(100%); }
+    }
+    .skeleton-line {
+      height: 12px; background: rgba(255,255,255,0.05); border-radius: 2px; margin-bottom: 8px;
+    }
+
+    /* ===== PARTICLE BURST (Rank Up) ===== */
+    .particle-burst {
+      position: absolute;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 100;
+      animation: particleFly 0.8s ease-out forwards;
+    }
+    @keyframes particleFly {
+      0%   { opacity: 1; transform: translate(0, 0) scale(1); }
+      100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(0); }
     }
   </style>
 </head>
@@ -215,15 +356,16 @@
   <div class="screen-overlay"></div>
   <div class="grid-backplate"></div>
 
+  <!-- Hex particle canvas -->
+  <canvas id="staff-particle-canvas"></canvas>
+
   <div class="dashboard-layout">
     
     <!-- Top metrics bar -->
     <header class="header-bar panel-cyber">
       <div class="operator-profile">
         <div class="avatar-frame">
-          <svg viewBox="0 0 24 24">
-            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15.93c-3.13-.47-5.5-3.14-5.5-6.43 0-1.79.69-3.41 1.81-4.63l1.41 1.41C9.64 9.17 9 10.5 9 12c0 2.21 1.79 4 4 4v1.93zm4.69-4.3C17.61 14.85 16 16.5 14 16.9v-1.93c1.1-.31 2-.96 2.5-1.85l1.19 1.51zM14 8.07V6.03c2 .4 3.61 2.05 4.31 4.18l-1.19 1.51c-.5-.89-1.4-1.54-2.5-1.85z"/>
-          </svg>
+          <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15.93c-3.13-.47-5.5-3.14-5.5-6.43 0-1.79.69-3.41 1.81-4.63l1.41 1.41C9.64 9.17 9 10.5 9 12c0 2.21 1.79 4 4 4v1.93zm4.69-4.3C17.61 14.85 16 16.5 14 16.9v-1.93c1.1-.31 2-.96 2.5-1.85l1.19 1.51zM14 8.07V6.03c2 .4 3.61 2.05 4.31 4.18l-1.19 1.51c-.5-.89-1.4-1.54-2.5-1.85z"/></svg>
         </div>
         <div class="operator-details">
           <h1 class="operator-name">DISPATCH_OPERATOR</h1>
@@ -307,39 +449,78 @@
     <main class="main-deck" style="display: flex; flex-direction: column; gap: var(--space-4);">
       
       <!-- Nav Header Strip -->
-      <div style="display: flex; gap: var(--space-3); border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: var(--space-3);">
+      <div style="display: flex; gap: var(--space-3); align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: var(--space-3);">
         <a href="index.html" class="nav-op-btn btn-white" style="width: auto; padding: var(--space-2) var(--space-4);">
           ◀ RETURN TO TACTICAL MAP
         </a>
         <h2 style="font-family: var(--font-cyber); font-size: var(--fs-xl); color: var(--color-text-main); margin-left: auto;">
           SYS_STAFF_COORDINATION
         </h2>
+        <button id="refresh-btn" class="action-btn-neon" title="Refresh [R]" style="width:auto; padding: var(--space-2) var(--space-3); border-radius: 4px; min-height:36px; font-size:10px;" onclick="loadStaffOperations(true)">
+          ↺ REFRESH
+        </button>
       </div>
 
       <!-- Staff Grid -->
       <div class="staff-layout-grid" id="staff-roster-container">
-        <div style="font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--color-text-muted); text-align: center; width: 100%; margin-top: var(--space-5);">Connecting to staff database uplink...</div>
+        <!-- Skeleton loading cards -->
+        <div class="staff-skeleton-card">
+          <div class="skeleton-line" style="width:60%;"></div>
+          <div class="skeleton-line" style="width:90%; height:8px;"></div>
+          <div class="skeleton-line" style="width:80%; height:8px;"></div>
+          <div class="skeleton-line" style="margin-top:20px; height:40px;"></div>
+          <div class="skeleton-line"></div>
+          <div class="skeleton-line" style="height:40px;"></div>
+        </div>
+        <div class="staff-skeleton-card">
+          <div class="skeleton-line" style="width:70%;"></div>
+          <div class="skeleton-line" style="width:85%; height:8px;"></div>
+          <div class="skeleton-line" style="width:75%; height:8px;"></div>
+          <div class="skeleton-line" style="margin-top:20px; height:40px;"></div>
+          <div class="skeleton-line"></div>
+          <div class="skeleton-line" style="height:40px;"></div>
+        </div>
+        <div class="staff-skeleton-card">
+          <div class="skeleton-line" style="width:65%;"></div>
+          <div class="skeleton-line" style="width:88%; height:8px;"></div>
+          <div class="skeleton-line" style="width:70%; height:8px;"></div>
+          <div class="skeleton-line" style="margin-top:20px; height:40px;"></div>
+          <div class="skeleton-line"></div>
+          <div class="skeleton-line" style="height:40px;"></div>
+        </div>
       </div>
     </main>
 
   </div>
 
+  <!-- Keyboard shortcut hint bar -->
+  <div class="kbd-hint">
+    <div class="kbd-hint-item"><kbd class="kbd">R</kbd> Refresh</div>
+    <div class="kbd-hint-item"><kbd class="kbd">H</kbd> Hire all affordable</div>
+    <div class="kbd-hint-item"><kbd class="kbd">ESC</kbd> Back to map</div>
+  </div>
+
   <script src="./shared.js"></script>
   <script>
+    // ==========================================================================
+    // CONSTANTS
+    // ==========================================================================
     const ROLES_META = {
       purchasing_agent: {
         name: "Purchasing Agent",
         desc: "Secures corporate discounts on kitted fleet vehicle acquisitions and shop maintenance parts.",
         colorClass: "purchasing_agent",
+        neonColor: "#00ff66",
         unit: "% discount",
         base: 5.0,
         positiveText: "Lowers truck & part prices.",
-        negativeText: "Apprentice raises kitted vehicle costs."
+        negativeText: "Apprentice surcharges inflate vehicle costs."
       },
       lead_mechanic: {
         name: "Lead Mechanic",
         desc: "Speeds up terminal fleet overhauls and secures massive discounts on emergency roadside repairs.",
         colorClass: "lead_mechanic",
+        neonColor: "#bd00ff",
         unit: "% discount",
         base: 10.0,
         positiveText: "Reduces terminal & roadside repair fees.",
@@ -349,6 +530,7 @@
         name: "LogistiXpert Router",
         desc: "Optimises shipping paths and cargo packing to increase payouts on all completed routes.",
         colorClass: "router",
+        neonColor: "#ff6600",
         unit: "% boost",
         base: 15.0,
         positiveText: "Increases delivery payouts.",
@@ -356,206 +538,538 @@
       }
     };
 
-    const RANK_NAMES = {
-      1: "Apprentice",
-      2: "Junior Associate",
-      3: "Senior Specialist",
-      4: "Expert Coordinator",
-      5: "LogistiXpert"
-    };
+    const RANK_NAMES      = { 1: "Apprentice", 2: "Junior Associate", 3: "Senior Specialist", 4: "Expert Coordinator", 5: "LogistiXpert" };
+    const RANK_MULTIPLIERS = { 1: -0.25, 2: 0.20, 3: 0.50, 4: 0.85, 5: 1.25 };
+    const SEMINAR_COSTS   = [0, 5000, 12000, 28000, 65000];
+    const PROMOTION_COSTS = [0, 8000, 20000, 45000, 100000];
+    const UNLOCK_COSTS    = { purchasing_agent: 0, lead_mechanic: 15000, router: 35000 };
 
-    const RANK_MULTIPLIERS = {
-      1: -0.25,
-      2: 0.20,
-      3: 0.50,
-      4: 0.85,
-      5: 1.25
-    };
+    // Simulated morale: derived from rank + level combination
+    function computeMorale(s) {
+      if (!s.unlocked) return 50;
+      // Morale is higher with higher rank and more training
+      const rankFactor  = (s.rank / 5) * 60;
+      const levelFactor = (s.level / 5) * 40;
+      return Math.min(100, Math.round(rankFactor + levelFactor));
+    }
 
-    async function loadStaffOperations() {
+    // ==========================================================================
+    // DATA LOAD
+    // ==========================================================================
+    let staffData = null;
+
+    async function loadStaffOperations(animated = false) {
+      const container = document.getElementById("staff-roster-container");
+
+      if (animated) {
+        container.style.opacity = '0.5';
+        container.style.transition = 'opacity 0.2s ease';
+      }
+
       try {
         const response = await fetch(`${SYSTEM_STATE.restUrl}/api/staff`, {
           headers: { 'Authorization': `Bearer ${SYSTEM_STATE.token}` }
         });
-        if (!response.ok) throw new Error("Failed to fetch staff roster.");
+
+        if (!response.ok) {
+          showToast('UPLINK FAILURE: Could not reach staff database.', 'error');
+          if (animated) { container.style.opacity = '1'; }
+          return;
+        }
+
         const data = await response.json();
-        
-        // Update local funds
-        SYSTEM_STATE.cleanFunds = data.legalBalance;
-        synchronizeHeaderUI();
-        
-        renderRoster(data.staff);
+
+        // Safely update funds
+        const balance = parseFloat(data.legalBalance);
+        if (!isNaN(balance)) {
+          SYSTEM_STATE.cleanFunds = balance;
+        }
+        try { synchronizeHeaderUI(); } catch(e) {}
+
+        staffData = data.staff;
+        renderRoster(data.staff, animated);
+
+        if (animated) {
+          showToast('Staff roster synchronized.', 'info', 2000);
+        }
+
       } catch (err) {
-        console.error(err);
+        console.error('[Staff] Load error:', err);
+        showToast('Connection error — server may be offline.', 'error');
+        if (animated) { container.style.opacity = '1'; }
       }
     }
 
-    function renderRoster(staff) {
+    // ==========================================================================
+    // RENDER
+    // ==========================================================================
+    function renderRoster(staff, animated = false) {
       const container = document.getElementById("staff-roster-container");
-      container.innerHTML = "";
 
-      const roleIds = ['purchasing_agent', 'lead_mechanic', 'router'];
-      
-      roleIds.forEach(roleId => {
-        const s = staff[roleId];
-        const meta = ROLES_META[roleId];
-        if (!s || !meta) return;
+      // Fade out → update → fade in
+      const doRender = () => {
+        container.innerHTML = "";
+        const roleIds = ['purchasing_agent', 'lead_mechanic', 'router'];
 
-        const card = document.createElement("div");
-        card.className = `staff-card ${meta.colorClass} ${s.unlocked ? '' : 'locked'}`;
+        roleIds.forEach(roleId => {
+          const s = staff[roleId];
+          const meta = ROLES_META[roleId];
+          if (!s || !meta) return;
 
-        if (!s.unlocked) {
-          // Vacant / Hire View
-          card.innerHTML = `
-            <div class="staff-role-title">${meta.name.toUpperCase()}</div>
-            <div class="staff-role-desc">${meta.desc}</div>
-            <div class="card-divider"></div>
-            <div class="lock-overlay-content">
-              <svg class="lock-icon-svg" viewBox="0 0 24 24">
-                <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zM9 6c0-1.66 1.34-3 3-3s3 1.34 3 3v2H9V6zm9 14H6V10h12v10zm-6-3c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2z"/>
-              </svg>
-              <span style="font-size: var(--fs-xs); color: var(--color-text-muted);">STATUS: COORDINATOR VACANCY</span>
-              <button class="action-btn-neon" ${SYSTEM_STATE.cleanFunds < s.unlockCost ? 'disabled' : ''} onclick="hireOperator('${roleId}')">
-                HIRE OPERATOR<br>Cost: $${s.unlockCost.toLocaleString()} Clean
-              </button>
-            </div>
-          `;
-        } else {
-          // Active Employee View
-          const bonusVal = meta.base * s.level * RANK_MULTIPLIERS[s.rank];
-          const isPositive = bonusVal > 0.0;
-          
-          let statusText = isPositive 
-            ? `✨ ACTIVE EFFECT: +${bonusVal.toFixed(2)}${meta.unit}`
-            : `⚠️ ACTIVE PENALTY: -${Math.abs(bonusVal).toFixed(2)}${meta.unit}`;
-            
-          let statusDesc = isPositive ? meta.positiveText : meta.negativeText;
-          let bannerClass = isPositive ? 'positive' : 'negative';
+          const card = document.createElement("div");
+          card.className = `staff-card ${meta.colorClass} ${s.unlocked ? 'unlocked' : 'locked'}`;
+          card.dataset.roleId = roleId;
 
-          // Render level dots
-          let dotsHtml = '';
-          for (let i = 0; i < 5; i++) {
-            dotsHtml += `<div class="level-dot ${i < s.level ? 'active' : ''}"></div>`;
+          if (!s.unlocked) {
+            renderLockedCard(card, s, meta, roleId);
+          } else {
+            renderActiveCard(card, s, meta, roleId);
           }
 
-          card.innerHTML = `
-            <div class="staff-role-title">${meta.name.toUpperCase()}</div>
-            <div class="staff-role-desc">${meta.desc}</div>
-            <div class="card-divider"></div>
-            
-            <div class="status-banner ${bannerClass}">
-              <span>${statusText}</span>
-              <span class="status-banner-desc">${statusDesc}</span>
-            </div>
-            
-            <div class="card-divider"></div>
-            
-            <div style="display:flex; flex-direction:column; gap:4px;">
-              <span style="font-size:10px; color:var(--color-text-muted);">🎓 TRAINING SEMINARS: Level ${s.level} / 5</span>
-              <div class="level-dots-container">${dotsHtml}</div>
-            </div>
-            
-            <button class="action-btn-neon" ${s.nextUpgradeCost === null || SYSTEM_STATE.cleanFunds < s.nextUpgradeCost ? 'disabled' : ''} onclick="upgradeSeminar('${roleId}')">
-              ${s.nextUpgradeCost === null ? 'MAX TRAINING LEVEL' : `BOOK NEXT SEMINAR (Cost: $${s.nextUpgradeCost.toLocaleString()} Clean)`}
-            </button>
-            
-            <div class="card-divider"></div>
-            
-            <div style="display:flex; flex-direction:column; gap:6px;">
-              <span style="font-size:10px; color:var(--color-text-muted);">⭐ OPERATIONAL RANK: Rank ${s.rank} / 5</span>
-              <div class="rank-display-box">
-                <span class="rank-name">${RANK_NAMES[s.rank].toUpperCase()}</span>
-                <span class="rank-mult ${isPositive ? 'positive' : 'negative'}">${RANK_MULTIPLIERS[s.rank] > 0 ? '+' : ''}${RANK_MULTIPLIERS[s.rank].toFixed(2)}x mult</span>
-              </div>
-            </div>
-            
-            <button class="action-btn-neon" style="margin-top:auto;" ${s.nextPromotionCost === null || SYSTEM_STATE.cleanFunds < s.nextPromotionCost ? 'disabled' : ''} onclick="promoteOperator('${roleId}')">
-              ${s.nextPromotionCost === null ? 'MAX RANK REACHED' : `PROMOTE COORDINATOR (Cost: $${s.nextPromotionCost.toLocaleString()} Clean)`}
-            </button>
-          `;
-        }
+          // 3D tilt on hover
+          addTiltEffect(card);
 
-        container.appendChild(card);
+          container.appendChild(card);
+        });
+
+        container.style.opacity = '1';
+        container.style.transition = 'opacity 0.25s ease';
+      };
+
+      if (animated) {
+        setTimeout(doRender, 200);
+      } else {
+        doRender();
+      }
+    }
+
+    function renderLockedCard(card, s, meta, roleId) {
+      const canAfford = (parseFloat(SYSTEM_STATE.cleanFunds) || 0) >= (UNLOCK_COSTS[roleId] || 0);
+      const costLabel = UNLOCK_COSTS[roleId] === 0 ? 'FREE' : `$${UNLOCK_COSTS[roleId].toLocaleString()} Clean`;
+
+      card.innerHTML = `
+        <div class="staff-role-title">${meta.name.toUpperCase()}</div>
+        <div class="staff-role-desc">${meta.desc}</div>
+        <div class="card-divider"></div>
+        <div class="lock-overlay-content">
+          <svg class="lock-icon-svg" viewBox="0 0 24 24">
+            <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zM9 6c0-1.66 1.34-3 3-3s3 1.34 3 3v2H9V6zm9 14H6V10h12v10zm-6-3c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2z"/>
+          </svg>
+          <span style="font-size: var(--fs-xs); color: var(--color-text-muted);">STATUS: COORDINATOR VACANCY</span>
+          <div style="font-size:10px; color:var(--color-text-muted);">Impact: <span style="color:${meta.neonColor};">${meta.positiveText}</span></div>
+          <button class="action-btn-neon" style="margin-top: 8px;" ${!canAfford ? 'disabled' : ''} onclick="hireOperator('${roleId}')">
+            ${UNLOCK_COSTS[roleId] === 0 ? '✦ HIRE OPERATOR (FREE)' : `✦ HIRE OPERATOR — ${costLabel}`}
+          </button>
+        </div>
+      `;
+    }
+
+    function renderActiveCard(card, s, meta, roleId) {
+      const bonusVal  = meta.base * s.level * RANK_MULTIPLIERS[s.rank];
+      const isPositive = bonusVal > 0.0;
+      const isZero     = bonusVal === 0.0;
+      const morale     = computeMorale(s);
+      const moraleClass = morale >= 70 ? 'high' : morale >= 40 ? 'mid' : 'low';
+      const moraleEmoji = morale >= 70 ? '😎' : morale >= 40 ? '😐' : '😤';
+      const moraleLabel = morale >= 70 ? 'MOTIVATED' : morale >= 40 ? 'STABLE' : 'DISGRUNTLED';
+
+      let statusText = isZero
+        ? `⚪ EFFECT INACTIVE — LEVEL UP REQUIRED`
+        : isPositive
+          ? `✦ ACTIVE EFFECT: +${bonusVal.toFixed(2)}${meta.unit}`
+          : `⚠ ACTIVE PENALTY: -${Math.abs(bonusVal).toFixed(2)}${meta.unit}`;
+
+      let statusDesc  = isPositive ? meta.positiveText : meta.negativeText;
+      let bannerClass = isPositive ? 'positive' : 'negative';
+
+      // Level dots
+      let dotsHtml = '';
+      for (let i = 0; i < 5; i++) {
+        dotsHtml += `<div class="level-dot ${i < s.level ? 'active' : ''}"></div>`;
+      }
+
+      // Rank tier pips
+      let pipsHtml = '';
+      for (let i = 0; i < 5; i++) {
+        pipsHtml += `<div class="rank-tier-pip ${i < s.rank ? 'active' : ''}"></div>`;
+      }
+
+      // ROI calculations (per month estimate)
+      const roiMonthly = computeROI(meta, s);
+
+      const canAffordSeminar   = s.nextUpgradeCost !== null && (parseFloat(SYSTEM_STATE.cleanFunds) || 0) >= s.nextUpgradeCost;
+      const canAffordPromotion = s.nextPromotionCost !== null && (parseFloat(SYSTEM_STATE.cleanFunds) || 0) >= s.nextPromotionCost;
+
+      card.innerHTML = `
+        <div class="staff-role-title">${meta.name.toUpperCase()}</div>
+        <div class="staff-role-desc">${meta.desc}</div>
+
+        <div class="card-divider"></div>
+
+        <!-- Morale -->
+        <div class="morale-row">
+          <span class="morale-label">MORALE</span>
+          <div class="morale-bar-track">
+            <div class="morale-bar-fill ${moraleClass}" style="width:${morale}%"></div>
+          </div>
+          <span class="morale-emoji">${moraleEmoji}</span>
+          <span style="font-size:9px; color:var(--color-text-muted);">${moraleLabel}</span>
+        </div>
+
+        <div class="card-divider"></div>
+
+        <!-- Effect banner -->
+        <div class="status-banner ${bannerClass}">
+          <span>${statusText}</span>
+          <span class="status-banner-desc">${statusDesc}</span>
+        </div>
+
+        <div class="card-divider"></div>
+
+        <!-- Training seminars -->
+        <div style="display:flex; flex-direction:column; gap:6px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:10px; color:var(--color-text-muted);">🎓 TRAINING SEMINARS</span>
+            <span style="font-size:10px; font-weight:bold; color:${meta.neonColor};">Lv ${s.level} / 5</span>
+          </div>
+          <div class="level-dots-container">${dotsHtml}</div>
+          <button class="action-btn-neon" ${canAffordSeminar ? '' : 'disabled'}
+            onclick="handleSeminarUpgrade('${roleId}', ${s.nextUpgradeCost}, '${meta.neonColor}')">
+            ${s.nextUpgradeCost === null
+              ? '✦ MAX TRAINING LEVEL REACHED'
+              : `BOOK SEMINAR — $${s.nextUpgradeCost.toLocaleString()} Clean`}
+          </button>
+        </div>
+
+        <div class="card-divider"></div>
+
+        <!-- Rank -->
+        <div style="display:flex; flex-direction:column; gap:6px;">
+          <div class="rank-display-box">
+            <div style="display:flex; flex-direction:column; gap:2px;">
+              <span style="font-size:9px; color:var(--color-text-muted);">⭐ RANK ${s.rank} / 5</span>
+              <span class="rank-name">${RANK_NAMES[s.rank].toUpperCase()}</span>
+            </div>
+            <span class="rank-mult ${isPositive || isZero ? 'positive' : 'negative'}">${RANK_MULTIPLIERS[s.rank] > 0 ? '+' : ''}${RANK_MULTIPLIERS[s.rank].toFixed(2)}x</span>
+          </div>
+          <div class="rank-tier-track">${pipsHtml}</div>
+          <button class="action-btn-neon" style="margin-top:2px;" ${canAffordPromotion ? '' : 'disabled'}
+            onclick="handlePromotion('${roleId}', ${s.nextPromotionCost}, '${meta.neonColor}', '${RANK_NAMES[Math.min(s.rank+1,5)]}')">
+            ${s.nextPromotionCost === null
+              ? '✦ MAX RANK — LOGISTIXPERT ELITE'
+              : `PROMOTE TO ${RANK_NAMES[s.rank + 1]?.toUpperCase() || 'LOGISTIXPERT'} — $${s.nextPromotionCost.toLocaleString()} Clean`}
+          </button>
+        </div>
+
+        <div class="card-divider"></div>
+
+        <!-- ROI Panel -->
+        <div class="roi-panel">
+          <div class="roi-panel-title">📊 PROJECTED MONTHLY IMPACT</div>
+          <div class="roi-grid">
+            <div class="roi-cell">
+              <span class="roi-cell-label">EFFECT VALUE</span>
+              <span class="roi-cell-value ${isPositive ? 'positive' : isZero ? 'neutral' : 'negative'}">
+                ${isZero ? 'INACTIVE' : (isPositive ? '+' : '-') + Math.abs(bonusVal).toFixed(1) + meta.unit}
+              </span>
+            </div>
+            <div class="roi-cell">
+              <span class="roi-cell-label">EST. SAVINGS/MO</span>
+              <span class="roi-cell-value ${roiMonthly >= 0 ? 'positive' : 'negative'}">
+                ${roiMonthly >= 0 ? '+' : ''}$${Math.abs(roiMonthly).toLocaleString()}
+              </span>
+            </div>
+            <div class="roi-cell">
+              <span class="roi-cell-label">TRAINING INVESTED</span>
+              <span class="roi-cell-value neutral">$${computeTrainingCost(s.level).toLocaleString()}</span>
+            </div>
+            <div class="roi-cell">
+              <span class="roi-cell-label">RANK INVESTED</span>
+              <span class="roi-cell-value neutral">$${computeRankCost(s.rank).toLocaleString()}</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // ==========================================================================
+    // ROI CALCULATIONS
+    // ==========================================================================
+    function computeROI(meta, s) {
+      const bonusVal = meta.base * s.level * RANK_MULTIPLIERS[s.rank];
+      // Rough estimate: each 1% effect = ~$300/month baseline (purchasing/mechanic = cost reduction, router = revenue boost)
+      return Math.round(bonusVal * 300);
+    }
+
+    function computeTrainingCost(level) {
+      let total = 0;
+      for (let i = 1; i < level; i++) total += SEMINAR_COSTS[i];
+      return total;
+    }
+
+    function computeRankCost(rank) {
+      let total = 0;
+      for (let i = 1; i < rank; i++) total += PROMOTION_COSTS[i];
+      return total;
+    }
+
+    // ==========================================================================
+    // 3D TILT EFFECT
+    // ==========================================================================
+    function addTiltEffect(card) {
+      card.addEventListener('mousemove', (e) => {
+        if (card.classList.contains('locked')) return;
+        const rect = card.getBoundingClientRect();
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top  + rect.height / 2;
+        const dx = (e.clientX - cx) / (rect.width / 2);
+        const dy = (e.clientY - cy) / (rect.height / 2);
+        card.style.transform = `perspective(800px) rotateY(${dx * 5}deg) rotateX(${-dy * 4}deg) translateZ(4px)`;
+      });
+      card.addEventListener('mouseleave', () => {
+        card.style.transform = '';
       });
     }
 
+    // ==========================================================================
+    // PARTICLE BURST ON RANK UP
+    // ==========================================================================
+    function spawnParticleBurst(card, color) {
+      const rect = card.getBoundingClientRect();
+      const cx   = rect.left + rect.width / 2;
+      const cy   = rect.top  + rect.height / 2;
+
+      for (let i = 0; i < 16; i++) {
+        const p = document.createElement('div');
+        p.className = 'particle-burst';
+        const angle = (i / 16) * Math.PI * 2;
+        const dist  = 60 + Math.random() * 60;
+        p.style.cssText = `
+          left: ${cx}px; top: ${cy}px;
+          background: ${color};
+          box-shadow: 0 0 4px ${color};
+          --dx: ${Math.cos(angle) * dist}px;
+          --dy: ${Math.sin(angle) * dist}px;
+          position: fixed;
+          animation-delay: ${Math.random() * 0.1}s;
+        `;
+        document.body.appendChild(p);
+        setTimeout(() => p.remove(), 900);
+      }
+
+      card.classList.add('rank-up-flash');
+      setTimeout(() => card.classList.remove('rank-up-flash'), 700);
+    }
+
+    // ==========================================================================
+    // ACTIONS
+    // ==========================================================================
     async function hireOperator(roleId) {
-      AUDIO.playClick();
-      try {
-        const response = await fetch(`${SYSTEM_STATE.restUrl}/api/staff/unlock`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${SYSTEM_STATE.token}`
-          },
-          body: JSON.stringify({ roleId })
-        });
-        const data = await response.json();
-        if (response.ok) {
-          AUDIO.playSuccess();
-          alert(data.message);
-          loadStaffOperations();
-        } else {
-          AUDIO.playFailure();
-          alert(`HIRE ERROR: ${data.message}`);
+      try { AUDIO.playClick(); } catch(e) {}
+      const meta = ROLES_META[roleId];
+      const cost = UNLOCK_COSTS[roleId];
+
+      const doHire = async () => {
+        try {
+          const response = await fetch(`${SYSTEM_STATE.restUrl}/api/staff/unlock`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SYSTEM_STATE.token}` },
+            body: JSON.stringify({ roleId })
+          });
+          const data = await response.json();
+          if (response.ok) {
+            try { AUDIO.playSuccess(); } catch(e) {}
+            showToast(`✦ ${meta.name} hired and operational!`, 'success');
+            SYSTEM_STATE.cleanFunds = parseFloat(data.legalBalance) || SYSTEM_STATE.cleanFunds;
+            loadStaffOperations(true);
+          } else {
+            try { AUDIO.playFailure(); } catch(e) {}
+            showToast(`HIRE ERROR: ${data.message}`, 'error');
+          }
+        } catch (err) {
+          console.error(err);
+          showToast('Network error during hire operation.', 'error');
         }
-      } catch (err) {
-        console.error(err);
+      };
+
+      if (cost > 0) {
+        showConfirmModal({
+          title: 'HIRE COORDINATOR',
+          message: `Confirm hiring a <strong>${meta.name}</strong> for your operation.<br>They will start at Apprentice rank and require training.`,
+          cost: `Investment: $${cost.toLocaleString()} Clean Cash`,
+          color: meta.neonColor,
+          onConfirm: doHire
+        });
+      } else {
+        doHire();
       }
     }
 
-    async function upgradeSeminar(roleId) {
-      AUDIO.playClick();
-      try {
-        const response = await fetch(`${SYSTEM_STATE.restUrl}/api/staff/upgrade`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${SYSTEM_STATE.token}`
-          },
-          body: JSON.stringify({ roleId })
-        });
-        const data = await response.json();
-        if (response.ok) {
-          AUDIO.playSuccess();
-          alert(data.message);
-          loadStaffOperations();
-        } else {
-          AUDIO.playFailure();
-          alert(`UPGRADE ERROR: ${data.message}`);
+    async function handleSeminarUpgrade(roleId, cost, color) {
+      try { AUDIO.playClick(); } catch(e) {}
+      const meta = ROLES_META[roleId];
+
+      showConfirmModal({
+        title: 'BOOK TRAINING SEMINAR',
+        message: `Advance your <strong>${meta.name}</strong>'s expertise with a professional seminar.<br>This increases the base effect multiplier.`,
+        cost: `Cost: $${cost.toLocaleString()} Clean Cash`,
+        color: color,
+        onConfirm: async () => {
+          try {
+            const response = await fetch(`${SYSTEM_STATE.restUrl}/api/staff/upgrade`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SYSTEM_STATE.token}` },
+              body: JSON.stringify({ roleId })
+            });
+            const data = await response.json();
+            if (response.ok) {
+              try { AUDIO.playSuccess(); } catch(e) {}
+              showToast(`Seminar complete — ${meta.name} now Level ${data.newLevel}!`, 'success');
+              SYSTEM_STATE.cleanFunds = parseFloat(data.legalBalance) || SYSTEM_STATE.cleanFunds;
+              const card = document.querySelector(`[data-role-id="${roleId}"]`);
+              if (card) spawnParticleBurst(card, color);
+              loadStaffOperations(true);
+            } else {
+              try { AUDIO.playFailure(); } catch(e) {}
+              showToast(`SEMINAR ERROR: ${data.message}`, 'error');
+            }
+          } catch (err) {
+            console.error(err);
+            showToast('Network error during seminar booking.', 'error');
+          }
         }
-      } catch (err) {
-        console.error(err);
-      }
+      });
     }
 
-    async function promoteOperator(roleId) {
-      AUDIO.playClick();
-      try {
-        const response = await fetch(`${SYSTEM_STATE.restUrl}/api/staff/promote`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${SYSTEM_STATE.token}`
-          },
-          body: JSON.stringify({ roleId })
-        });
-        const data = await response.json();
-        if (response.ok) {
-          AUDIO.playSuccess();
-          alert(data.message);
-          loadStaffOperations();
-        } else {
-          AUDIO.playFailure();
-          alert(`PROMOTION ERROR: ${data.message}`);
+    async function handlePromotion(roleId, cost, color, newRankName) {
+      try { AUDIO.playClick(); } catch(e) {}
+      const meta = ROLES_META[roleId];
+
+      showConfirmModal({
+        title: 'PROMOTE COORDINATOR',
+        message: `Promote your <strong>${meta.name}</strong> to <strong>${newRankName}</strong>.<br>Higher rank dramatically increases their effectiveness multiplier.`,
+        cost: `Cost: $${cost.toLocaleString()} Clean Cash`,
+        color: color,
+        onConfirm: async () => {
+          try {
+            const response = await fetch(`${SYSTEM_STATE.restUrl}/api/staff/promote`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SYSTEM_STATE.token}` },
+              body: JSON.stringify({ roleId })
+            });
+            const data = await response.json();
+            if (response.ok) {
+              try { AUDIO.playSuccess(); } catch(e) {}
+              showToast(`🌟 PROMOTED — ${meta.name} is now ${newRankName}!`, 'success', 4500);
+              SYSTEM_STATE.cleanFunds = parseFloat(data.legalBalance) || SYSTEM_STATE.cleanFunds;
+              const card = document.querySelector(`[data-role-id="${roleId}"]`);
+              if (card) spawnParticleBurst(card, color);
+              loadStaffOperations(true);
+            } else {
+              try { AUDIO.playFailure(); } catch(e) {}
+              showToast(`PROMOTION ERROR: ${data.message}`, 'error');
+            }
+          } catch (err) {
+            console.error(err);
+            showToast('Network error during promotion.', 'error');
+          }
         }
-      } catch (err) {
-        console.error(err);
-      }
+      });
     }
 
+    // ==========================================================================
+    // KEYBOARD SHORTCUTS
+    // ==========================================================================
+    document.addEventListener('keydown', (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      const key = e.key.toUpperCase();
+
+      if (key === 'R') {
+        loadStaffOperations(true);
+      } else if (key === 'H') {
+        // Hire all affordable unoccupied slots
+        const roleIds = ['purchasing_agent', 'lead_mechanic', 'router'];
+        if (staffData) {
+          roleIds.forEach(id => {
+            const s = staffData[id];
+            if (s && !s.unlocked && (parseFloat(SYSTEM_STATE.cleanFunds) || 0) >= UNLOCK_COSTS[id]) {
+              hireOperator(id);
+            }
+          });
+        }
+      } else if (key === 'ESCAPE') {
+        window.location.href = 'index.html';
+      }
+    });
+
+    // ==========================================================================
+    // HEX PARTICLE BACKGROUND
+    // ==========================================================================
+    (function initHexParticles() {
+      const canvas = document.getElementById('staff-particle-canvas');
+      const ctx    = canvas.getContext('2d');
+      let W, H, hexes = [];
+
+      function resize() {
+        W = canvas.width  = window.innerWidth;
+        H = canvas.height = window.innerHeight;
+      }
+
+      function spawnHex() {
+        const colors = ['#00ff66', '#bd00ff', '#ff6600'];
+        return {
+          x:     Math.random() * W,
+          y:     Math.random() * H,
+          r:     4 + Math.random() * 14,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          alpha: 0.04 + Math.random() * 0.1,
+          vx:   (Math.random() - 0.5) * 0.15,
+          vy:   -0.1 - Math.random() * 0.25,
+          rot:   Math.random() * Math.PI * 2,
+          vrot:  (Math.random() - 0.5) * 0.005,
+        };
+      }
+
+      function drawHex(cx, cy, r, rot) {
+        ctx.beginPath();
+        for (let i = 0; i < 6; i++) {
+          const a = rot + (i / 6) * Math.PI * 2;
+          const x = cx + r * Math.cos(a);
+          const y = cy + r * Math.sin(a);
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+      }
+
+      function animate() {
+        ctx.clearRect(0, 0, W, H);
+        hexes.forEach((h, i) => {
+          h.x += h.vx; h.y += h.vy; h.rot += h.vrot;
+          if (h.y + h.r < 0) hexes[i] = { ...spawnHex(), y: H + h.r };
+
+          ctx.save();
+          ctx.globalAlpha = h.alpha;
+          ctx.strokeStyle = h.color;
+          ctx.lineWidth = 0.8;
+          drawHex(h.x, h.y, h.r, h.rot);
+          ctx.stroke();
+          ctx.restore();
+        });
+        requestAnimationFrame(animate);
+      }
+
+      resize();
+      window.addEventListener('resize', resize);
+      for (let i = 0; i < 40; i++) hexes.push(spawnHex());
+      animate();
+    })();
+
+    // ==========================================================================
+    // INIT
+    // ==========================================================================
     window.addEventListener("DOMContentLoaded", () => {
-      setTimeout(loadStaffOperations, 100);
+      setTimeout(() => loadStaffOperations(false), 150);
     });
   </script>
 </body>
