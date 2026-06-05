@@ -353,7 +353,7 @@
                 <!-- Calibration Sliders -->
                 <div class="settings-slider-group">
                   <div class="slider-header-row">
-                    <span class="slider-title">VIGNETTE GLOW INTENSITY</span>
+                    <label for="slider-vignette" class="slider-title">VIGNETTE GLOW INTENSITY</label>
                     <span class="slider-display-val" id="val-vignette">0.60</span>
                   </div>
                   <input type="range" class="settings-range-slider" id="slider-vignette" min="0.0" max="1.0" step="0.05" value="0.60">
@@ -361,7 +361,7 @@
 
                 <div class="settings-slider-group">
                   <div class="slider-header-row">
-                    <span class="slider-title">SCANLINE ALPHA OPACITY</span>
+                    <label for="slider-scanline" class="slider-title">SCANLINE ALPHA OPACITY</label>
                     <span class="slider-display-val" id="val-scanline">0.15</span>
                   </div>
                   <input type="range" class="settings-range-slider" id="slider-scanline" min="0.0" max="0.8" step="0.05" value="0.15">
@@ -369,7 +369,7 @@
 
                 <div class="settings-slider-group">
                   <div class="slider-header-row">
-                    <span class="slider-title">CRT SCREEN CURVATURE</span>
+                    <label for="slider-curvature" class="slider-title">CRT SCREEN CURVATURE</label>
                     <span class="slider-display-val" id="val-curvature">6.0</span>
                   </div>
                   <input type="range" class="settings-range-slider" id="slider-curvature" min="0.0" max="15.0" step="0.5" value="6.0">
@@ -377,7 +377,7 @@
 
                 <div class="settings-slider-group">
                   <div class="slider-header-row">
-                    <span class="slider-title">PIXEL LINE DENSITY</span>
+                    <label for="slider-density" class="slider-title">PIXEL LINE DENSITY</label>
                     <span class="slider-display-val" id="val-density">4px</span>
                   </div>
                   <input type="range" class="settings-range-slider" id="slider-density" min="2" max="12" step="1" value="4">
@@ -452,15 +452,15 @@
               <div id="api-unauth-view">
                 <div class="checkpoint-stats-box" style="padding: var(--space-3); margin-bottom: var(--space-3); border-color: rgba(0, 229, 255, 0.15);">
                   <div class="api-form-row">
-                    <label class="stat-label">GATEWAY PORTAL:</label>
+                    <label for="api-url-input" class="stat-label">GATEWAY PORTAL:</label>
                     <input type="text" id="api-url-input" class="api-terminal-input" value="http://localhost:3000" placeholder="http://localhost:3000">
                   </div>
                   <div class="api-form-row" style="margin-top: var(--space-2);">
-                    <label class="stat-label">OPERATOR IDENT:</label>
+                    <label for="api-username-input" class="stat-label">OPERATOR IDENT:</label>
                     <input type="text" id="api-username-input" class="api-terminal-input" placeholder="Operator Call-Sign">
                   </div>
                   <div class="api-form-row" style="margin-top: var(--space-2);">
-                    <label class="stat-label">DECRYPT KEY:</label>
+                    <label for="api-password-input" class="stat-label">DECRYPT KEY:</label>
                     <input type="password" id="api-password-input" class="api-terminal-input" placeholder="••••••••">
                   </div>
                 </div>
