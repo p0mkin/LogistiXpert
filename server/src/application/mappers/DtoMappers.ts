@@ -17,7 +17,7 @@ export class DtoMappers {
    * avoiding structural leaks and sanitizing sensitive database details
    */
   public static toValuationDto(company: CompanyAggregate, valuation: number): CompanyValuationDto {
-    const sharePrice = valuation / company.state.totalShares;
+    const sharePrice = company.state.totalShares === 0 ? 0 : valuation / company.state.totalShares;
     return {
       valuation: parseFloat(valuation.toFixed(2)),
       totalShares: company.state.totalShares,
