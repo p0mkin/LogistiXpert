@@ -412,7 +412,8 @@ func _update_customizer_panel() -> void:
 	var cab_specs = [
 		["STANDARD", "+$0"],
 		["EXTENDED", "+$8K"],
-		["SUPER_LONG", "+$18K"]
+		["SUPER_LONG", "+$18K"],
+		["LUXURY_SLEEPER", "+$28K"]
 	]
 	for spec in cab_specs:
 		var c_btn = Button.new()
@@ -582,6 +583,7 @@ func _update_customizer_panel() -> void:
 	var surcharge = 0
 	if selected_cab_type == "EXTENDED": surcharge += 8000
 	if selected_cab_type == "SUPER_LONG": surcharge += 18000
+	if selected_cab_type == "LUXURY_SLEEPER": surcharge += 28000
 	if selected_payload_type == "REEFER": surcharge += 12000
 	if selected_payload_type == "HAZARDOUS": surcharge += 22000
 	if selected_payload_type == "ULTRA_HEAVY": surcharge += 35000
@@ -909,6 +911,7 @@ func _simulate_offline_purchase() -> void:
 	var surcharge = 0
 	if selected_cab_type == "EXTENDED": surcharge += 8000
 	if selected_cab_type == "SUPER_LONG": surcharge += 18000
+	if selected_cab_type == "LUXURY_SLEEPER": surcharge += 28000
 	if selected_payload_type == "REEFER": surcharge += 12000
 	if selected_payload_type == "HAZARDOUS": surcharge += 22000
 	if selected_payload_type == "ULTRA_HEAVY": surcharge += 35000

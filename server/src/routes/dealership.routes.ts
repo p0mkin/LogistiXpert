@@ -96,7 +96,7 @@ router.get('/catalog', async (req: AuthRequest, res: Response) => {
   res.json({
     models,
     customizationSpecs: {
-      cabs: ['STANDARD', 'EXTENDED', 'SUPER_LONG'],
+      cabs: ['STANDARD', 'EXTENDED', 'SUPER_LONG', 'LUXURY_SLEEPER'],
       payloadTypes: ['DRY', 'REEFER', 'CONSTRUCTION', 'AUTOMOTIVE', 'HAZARDOUS', 'LOGGING', 'ULTRA_HEAVY'],
       tuningTiers: ['STOCK', 'PERFORMANCE', 'ECONOMY', 'RELIABLE'],
     },
@@ -147,6 +147,7 @@ router.post('/buy', async (req: AuthRequest, res: Response) => {
       let customizationSurcharge = 0;
       if (cabType === 'EXTENDED') customizationSurcharge += 8000;
       if (cabType === 'SUPER_LONG') customizationSurcharge += 18000;
+      if (cabType === 'LUXURY_SLEEPER') customizationSurcharge += 28000;
 
       if (payloadType === 'REEFER') customizationSurcharge += 12000;
       if (payloadType === 'HAZARDOUS') customizationSurcharge += 22000;

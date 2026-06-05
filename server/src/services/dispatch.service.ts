@@ -575,6 +575,10 @@ export class DispatchSimulationService {
             fatigueIncrement = 1;
           }
 
+          if (truck.cabType === 'LUXURY_SLEEPER') {
+            fatigueIncrement = Math.max(1, Math.round(fatigueIncrement * 0.75));
+          }
+
           // Apply starting HQ fatigue modifier
           fatigueIncrement = Math.max(1, Math.round(fatigueIncrement * fatigueMod));
 
