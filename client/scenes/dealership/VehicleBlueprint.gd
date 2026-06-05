@@ -114,6 +114,8 @@ func _update_particle_positions() -> void:
 			if is_instance_valid(exhaust_particles_2):
 				exhaust_particles_2.position = Vector2(272.0, cab_y_bottom - 98.0)
 				exhaust_particles_2.emitting = is_animated
+		elif cab_type == "LUXURY_SLEEPER":
+			exhaust_particles.position = Vector2(200.0, cab_y_bottom - 98.0)
 		elif cab_type == "EXTENDED":
 			exhaust_particles.position = Vector2(220.0, cab_y_bottom - 86.0)
 		else:
@@ -197,6 +199,7 @@ func _draw_dimension_lines() -> void:
 	
 	if cab_type == "EXTENDED": length_txt = "9.4 m"
 	elif cab_type == "SUPER_LONG": length_txt = "10.8 m"
+	elif cab_type == "LUXURY_SLEEPER": length_txt = "9.8 m"
 	
 	if payload_type == "ULTRA_HEAVY": length_txt = "14.2 m"; height_txt = "4.3 m"
 	elif payload_type == "HAZARDOUS": height_txt = "4.0 m"
@@ -268,7 +271,70 @@ func _draw_cabin(color: Color) -> void:
 	var warning_amber = Color(1.0, 0.6, 0.0, 1.0) if pulse_light else Color(0.35, 0.18, 0.0, 0.6)
 	
 	# Establish layout based on cab sleeper spec
-	if cab_type == "SUPER_LONG":
+	if cab_type == "LUXURY_SLEEPER":
+		# Ultra-premium VIP sleeper cab profile
+		var cab_rect = Rect2(Vector2(95, cab_y_bottom - 92), Vector2(130, 90))
+		draw_rect(cab_rect, cab_col, false, 2.5)
+		draw_rect(cab_rect, Color(0.06, 0.06, 0.08, 0.85), true)
+
+		# Premium chrome panel shut-lines & flush door handle
+		draw_line(Vector2(160, cab_y_bottom), Vector2(160, cab_y_bottom - 92), color * 0.6, 1.5)
+		draw_line(Vector2(95, cab_y_bottom - 45), Vector2(160, cab_y_bottom - 45), color * 0.6, 1.5)
+		draw_rect(Rect2(Vector2(148, cab_y_bottom - 40), Vector2(10, 3)), Color(0.9, 0.9, 0.95), true)
+
+		# Aerodynamic wind deflector
+		var def_pts = PackedVector2Array([
+			Vector2(95, cab_y_bottom - 92),
+			Vector2(120, cab_y_bottom - 106),
+			Vector2(225, cab_y_bottom - 92)
+		])
+		draw_polygon(def_pts, [cab_col * 0.5])
+		draw_polyline(def_pts, cab_col * 1.2, 2.0)
+
+		# Large panoramic side window
+		var win_points = PackedVector2Array([
+			Vector2(102, cab_y_bottom - 84),
+			Vector2(156, cab_y_bottom - 84),
+			Vector2(156, cab_y_bottom - 48),
+			Vector2(106, cab_y_bottom - 48)
+		])
+		draw_polygon(win_points, [window_col])
+		draw_polyline(win_points, Color.WHITE, 1.5)
+
+		# Driver seat silhouette inside cabin window
+		var seat_pts = PackedVector2Array([
+			Vector2(130, cab_y_bottom - 48),
+			Vector2(138, cab_y_bottom - 48),
+			Vector2(138, cab_y_bottom - 68),
+			Vector2(133, cab_y_bottom - 68)
+		])
+		draw_polygon(seat_pts, [Color(0.2, 0.22, 0.28, 0.8)])
+		draw_circle(Vector2(135, cab_y_bottom - 73), 3.0, Color(0.2, 0.22, 0.28, 0.8))
+
+		# VIP tint window streaks
+		draw_line(Vector2(110, cab_y_bottom - 84), Vector2(125, cab_y_bottom - 48), Color(1.0, 1.0, 1.0, 0.3), 2.5)
+
+		# Extended premium sleeper window
+		var sleep_win = Rect2(Vector2(175, cab_y_bottom - 74), Vector2(40, 24))
+		draw_rect(sleep_win, window_col, true)
+		draw_rect(sleep_win, Color.WHITE, false, 1.5)
+		draw_line(Vector2(182, cab_y_bottom - 74), Vector2(194, cab_y_bottom - 50), Color(1.0, 1.0, 1.0, 0.2), 1.5)
+
+		# Integrated camera-mirror system (no standard mirrors)
+		draw_rect(Rect2(Vector2(90, cab_y_bottom - 78), Vector2(8, 4)), color * 1.5, true)
+		draw_circle(Vector2(88, cab_y_bottom - 76), 2.0, Color(0.2, 0.8, 1.0, 0.8)) # blue lens
+
+		# LED Lightbar array instead of roof beacons
+		draw_line(Vector2(135, cab_y_bottom - 93), Vector2(185, cab_y_bottom - 93), Color(1.0, 1.0, 1.0, 0.8), 2.5)
+		if is_animated:
+			var led_x = 135 + fmod(Time.get_ticks_msec() * 0.05, 50.0)
+			draw_circle(Vector2(led_x, cab_y_bottom - 93), 2.5, Color.WHITE)
+
+		# Lower side skirts with neon underglow matching theme color
+		draw_line(Vector2(95, cab_y_bottom), Vector2(225, cab_y_bottom), cab_col, 3.0)
+		draw_line(Vector2(100, cab_y_bottom + 4), Vector2(220, cab_y_bottom + 4), cab_col * 0.4, 2.0)
+
+	elif cab_type == "SUPER_LONG":
 		# Classic American long-nose configuration
 		# Hood (low front nose)
 		var hood_rect = Rect2(Vector2(100, cab_y_bottom - 44), Vector2(55, 42))
@@ -493,6 +559,7 @@ func _draw_cargo_rig(color: Color) -> void:
 	var cargo_x = 190.0
 	if cab_type == "EXTENDED": cargo_x = 225.0
 	elif cab_type == "SUPER_LONG": cargo_x = 275.0
+	elif cab_type == "LUXURY_SLEEPER": cargo_x = 225.0
 	
 	var cargo_w = 660.0 - cargo_x
 	if payload_type == "ULTRA_HEAVY":

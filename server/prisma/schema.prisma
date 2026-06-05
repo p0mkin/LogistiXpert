@@ -158,7 +158,7 @@ model Truck {
   // Factory Specs & Customizations
   manufacturer     String      @default("Moose") // Moose, Scarfia, Guy, Lion, Myrcedez, TesIo, Drasia
   tier             String      @default("Heavy Rigid Cab") // VAN, RIGID_MEDIUM, RIGID_HEAVY, ARTICULATED, SUPER_HEAVY
-  cabType          String      @default("STANDARD") // STANDARD, EXTENDED, SUPER_LONG
+  cabType          String      @default("STANDARD") // STANDARD, EXTENDED, SUPER_LONG, LUXURY_SLEEPER
   payloadType      String      @default("DRY") // DRY, REEFER, CONSTRUCTION, AUTOMOTIVE, HAZARDOUS, LOGGING, ULTRA_HEAVY
   tuningTier       String      @default("STOCK") // STOCK, PERFORMANCE, ECONOMY, RELIABLE
   isVanCUpgrade    Boolean     @default(false) // Minivan C-class upgrade flag

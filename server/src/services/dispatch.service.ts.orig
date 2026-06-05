@@ -10,7 +10,7 @@ const prisma = new PrismaClient();
 export class DispatchSimulationService {
   private static isRunning = false;
   private static intervalId: NodeJS.Timeout | null = null;
-  
+
   // Real-world tick frequency (runs every 3 seconds)
   private static TICK_INTERVAL_MS = 3000;
 
@@ -20,9 +20,9 @@ export class DispatchSimulationService {
   static startTicker() {
     if (this.isRunning) return;
     this.isRunning = true;
-    
+
     console.log(`[Simulator] Starting main active fleet routing ticker (Ticks every ${this.TICK_INTERVAL_MS / 1000}s)...`);
-    
+
     this.intervalId = setInterval(async () => {
       try {
         await this.processSimulationTick();
@@ -175,7 +175,7 @@ export class DispatchSimulationService {
           // ======================================================================
           // STAGE 2: TRANSIT (ON THE ROAD / SEAS)
           // ======================================================================
-          
+
           // Check if ferry route segment
           const ferryRoutes = [
             { o: 'Tallinn', d: 'Stockholm' }, { o: 'Stockholm', d: 'Tallinn' },
@@ -573,10 +573,6 @@ export class DispatchSimulationService {
           }
           if (driver.isStimulated) {
             fatigueIncrement = 1;
-          }
-
-          if (truck.cabType === 'LUXURY_SLEEPER') {
-            fatigueIncrement = Math.max(1, Math.round(fatigueIncrement * 0.75));
           }
 
           // Apply starting HQ fatigue modifier

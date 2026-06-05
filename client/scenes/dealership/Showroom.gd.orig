@@ -37,10 +37,10 @@ func _ready() -> void:
 	cat_http.request_completed.connect(_on_catalog_response)
 	gar_http.request_completed.connect(_on_garages_response)
 	buy_http.request_completed.connect(_on_buy_response)
-	
+
 	_build_ui()
 	_fetch_showroom_data()
-	
+
 	GameState.balance_updated.connect(_on_balance_sync)
 
 func _fetch_showroom_data() -> void:
@@ -48,10 +48,10 @@ func _fetch_showroom_data() -> void:
 	if token.is_empty():
 		_show_toast("✕ AUTHENTICATION ERROR", Color(1.0, 0.25, 0.25))
 		return
-	
+
 	# Fetch catalog
 	cat_http.request(BASE_URL + "/catalog", ["Authorization: Bearer " + token], HTTPClient.METHOD_GET)
-	
+
 	# Fetch garages
 	gar_http.request(NetworkManager.HTTP_URL + "/garage", ["Authorization: Bearer " + token], HTTPClient.METHOD_GET)
 
@@ -64,12 +64,12 @@ func _on_catalog_response(_r, code, _h, body) -> void:
 			custom_specs = d.get("customizationSpecs", {})
 			if catalog_models.size() > 0:
 				success = true
-	
+
 	if not success:
 		is_offline_mode = true
 		_generate_synthetic_catalog()
 		_show_toast("ℹ Displaying offline showroom catalog", Color(0.2, 0.9, 0.7))
-		
+
 	_render_catalog_list()
 	_update_customizer_panel()
 
@@ -83,10 +83,10 @@ func _on_garages_response(_r, code, _h, body) -> void:
 				success = true
 				if selected_garage_id.is_empty():
 					selected_garage_id = player_garages[0].id
-	
+
 	if not success:
 		_generate_synthetic_garages()
-		
+
 	_render_garage_selector()
 	_update_customizer_panel()
 
@@ -95,12 +95,12 @@ func _on_buy_response(_r, code, _h, body) -> void:
 		var parsed = JSON.parse_string(body.get_string_from_utf8())
 		var msg = parsed.get("message", "Purchase complete!")
 		_show_toast("✔ " + msg, Color(0.2, 0.9, 0.45), 5.0)
-		
+
 		if parsed.has("cost"):
 			var cost = float(parsed.cost)
 			GameState.legal_balance -= cost
 			GameState.balance_updated.emit(GameState.legal_balance, GameState.black_market_balance)
-		
+
 		# Refresh garages to update capacities
 		_fetch_showroom_data()
 	else:
@@ -122,7 +122,7 @@ func _build_ui() -> void:
 	# Programmatic High-Fidelity Animated HUD Background
 	var bg = CyberGridBackground.new()
 	scene_root.add_child(bg)
-	
+
 	# 1. HEADER (y=0)
 	var hdr = _panel(Vector2(0, 0), Vector2(1280, 60), Color(0.04, 0.05, 0.08, 0.95), Color(0.2, 0.9, 0.7, 0.35))
 	scene_root.add_child(hdr)
@@ -143,7 +143,7 @@ func _build_ui() -> void:
 	var bar = _panel(Vector2(0, 60), Vector2(1280, 42), Color(0.04, 0.04, 0.06, 0.92), Color(0.2, 0.9, 0.7, 0.2))
 	bar.name = "StatusStrip"
 	scene_root.add_child(bar)
-	
+
 	var bal_lbl = Label.new()
 	bal_lbl.text = "💵 Clean Cash: $0.00   ·   📜 Active Endorsement Sponsor: None"
 	bal_lbl.add_theme_font_size_override("font_size", 12)
@@ -196,19 +196,19 @@ func _update_balances_strip() -> void:
 	var label = _find(scene_root, "StatusStripLabel")
 	if label and label is Label:
 		var clean = GameState.legal_balance
-		
+
 		# Check brand partnership contract from cache or call GET
 		var partner = active_partnership
 		if partner == "NONE" and GameState.username != "":
 			# Quick fallback default matching GameState or let render_brand fetch it
 			pass
-		
+
 		var partner_txt = partner
 		if partner_txt == "NONE":
 			partner_txt = "None (No discount applied)"
 		else:
 			partner_txt = "%s Contract Endorsed (15%% Discount active!)" % partner_txt
-			
+
 		label.text = "💵 Clean Cash Balance: $%s   ·   📜 Active R&D Sponsor Contract: %s" % [
 			String.num(clean, 2), partner_txt
 		]
@@ -216,7 +216,7 @@ func _update_balances_strip() -> void:
 func _render_catalog_list() -> void:
 	var catalog_vbox = _find(scene_root, "CatalogVBox")
 	if not catalog_vbox: return
-	
+
 	# Clear previous cards
 	for c in catalog_vbox.get_children():
 		c.queue_free()
@@ -227,7 +227,7 @@ func _render_catalog_list() -> void:
 		var representation = model.get("brandRepresentation", "")
 		var desc = model.get("description", "")
 		var tiers = model.get("tiers", [])
-		
+
 		# Card background - selected gets glowing cyan border, unselected gets underworld purple
 		var is_selected = (selected_model_idx == idx)
 		var border_col = Color(0.2, 0.9, 0.7, 0.8) if is_selected else Color(0.65, 0.45, 1.0, 0.25)
@@ -251,7 +251,7 @@ func _render_catalog_list() -> void:
 		v.add_theme_constant_override("separation", 4)
 		v.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		card.add_child(v)
-		
+
 		# Spacer margin
 		var sm = Control.new()
 		sm.custom_minimum_size = Vector2(0, 4)
@@ -260,7 +260,7 @@ func _render_catalog_list() -> void:
 		var title_lbl = Label.new()
 		title_lbl.text = "🚛  %s  —  %s" % [brand.to_upper(), representation.to_upper()]
 		title_lbl.add_theme_font_size_override("font_size", 12)
-		
+
 		# Highlight matched brand partnership
 		if active_partnership.to_upper() == brand.to_upper():
 			title_lbl.add_theme_color_override("font_color", Color(0.2, 0.85, 0.45))
@@ -369,21 +369,21 @@ func _update_customizer_panel() -> void:
 		var tier_obj = tiers[t_idx]
 		var tier_name = tier_obj.get("name", "")
 		var tier_price = int(tier_obj.get("price", 0))
-		
+
 		var t_btn = Button.new()
 		t_btn.text = "%s ($%s)" % [tier_name.replace("_", " "), _fmt(tier_price)]
 		t_btn.custom_minimum_size = Vector2(110, 36)
 		t_btn.add_theme_font_size_override("font_size", 10)
-		
+
 		var is_sel = (selected_tier_idx == t_idx)
 		_style_customizer_btn(t_btn, is_sel, Color(0.2, 0.9, 0.7))
-		
+
 		if is_sel:
 			t_btn.add_theme_color_override("font_color", Color(0.2, 0.9, 0.7, 1.0))
 		else:
 			t_btn.add_theme_color_override("font_color", Color(0.8, 0.8, 0.8, 0.7))
 			t_btn.pressed.connect(func(): _select_tier(t_idx))
-		
+
 		tier_box.add_child(t_btn)
 
 	# 3. Specification Customizers (Cab types, payloads, engine remaps)
@@ -412,18 +412,17 @@ func _update_customizer_panel() -> void:
 	var cab_specs = [
 		["STANDARD", "+$0"],
 		["EXTENDED", "+$8K"],
-		["SUPER_LONG", "+$18K"],
-		["LUXURY_SLEEPER", "+$28K"]
+		["SUPER_LONG", "+$18K"]
 	]
 	for spec in cab_specs:
 		var c_btn = Button.new()
 		c_btn.text = "%s\n(%s)" % [spec[0], spec[1]]
 		c_btn.custom_minimum_size = Vector2(106, 42)
 		c_btn.add_theme_font_size_override("font_size", 10)
-		
+
 		var is_sel = (selected_cab_type == spec[0])
 		_style_customizer_btn(c_btn, is_sel, Color(0.2, 0.9, 0.7))
-		
+
 		if is_sel:
 			c_btn.add_theme_color_override("font_color", Color(0.2, 0.9, 0.7))
 		else:
@@ -457,10 +456,10 @@ func _update_customizer_panel() -> void:
 		t_btn.text = "%s\n(%s)" % [spec[0], spec[1]]
 		t_btn.custom_minimum_size = Vector2(80, 42)
 		t_btn.add_theme_font_size_override("font_size", 9)
-		
+
 		var is_sel = (selected_tuning_tier == spec[0])
 		_style_customizer_btn(t_btn, is_sel, Color(0.2, 0.9, 0.7))
-		
+
 		if is_sel:
 			t_btn.add_theme_color_override("font_color", Color(0.2, 0.9, 0.7))
 		else:
@@ -497,10 +496,10 @@ func _update_customizer_panel() -> void:
 		p_btn.text = "%s\n(%s)" % [spec[0], spec[1]]
 		p_btn.custom_minimum_size = Vector2(98, 42)
 		p_btn.add_theme_font_size_override("font_size", 9)
-		
+
 		var is_sel = (selected_payload_type == spec[0])
 		_style_customizer_btn(p_btn, is_sel, Color(0.2, 0.9, 0.7))
-		
+
 		if is_sel:
 			p_btn.add_theme_color_override("font_color", Color(0.2, 0.9, 0.7))
 		else:
@@ -537,15 +536,15 @@ func _update_customizer_panel() -> void:
 			var capacity = int(gar.get("capacity", 3))
 			var slots_occupied = trucks.size()
 			var slots_rem = capacity - slots_occupied
-			
+
 			var gar_btn = Button.new()
 			gar_btn.text = "%s Terminal\n(%d / %d Slots)" % [city.to_upper(), slots_occupied, capacity]
 			gar_btn.custom_minimum_size = Vector2(170, 42)
 			gar_btn.add_theme_font_size_override("font_size", 10)
-			
+
 			var is_sel = (selected_garage_id == gar_id)
 			_style_customizer_btn(gar_btn, is_sel, Color(0.2, 0.9, 0.7))
-			
+
 			if slots_rem <= 0:
 				gar_btn.disabled = true
 				gar_btn.add_theme_color_override("font_color", Color(0.65, 0.45, 0.45, 0.5))
@@ -554,7 +553,7 @@ func _update_customizer_panel() -> void:
 			else:
 				gar_btn.add_theme_color_override("font_color", Color(0.8, 0.8, 0.8, 0.7))
 				gar_btn.pressed.connect(func(): _select_garage(gar_id))
-			
+
 			gar_hbox.add_child(gar_btn)
 
 	# 5. Live Pricing Invoice Card & Purchase Button - themed with financial amber glow
@@ -566,7 +565,7 @@ func _update_customizer_panel() -> void:
 	invoice_hbox.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	invoice_hbox.add_theme_constant_override("separation", 24)
 	invoice_card.add_child(invoice_hbox)
-	
+
 	# Margin
 	var sp_inv = Control.new()
 	sp_inv.custom_minimum_size = Vector2(2, 0)
@@ -583,7 +582,6 @@ func _update_customizer_panel() -> void:
 	var surcharge = 0
 	if selected_cab_type == "EXTENDED": surcharge += 8000
 	if selected_cab_type == "SUPER_LONG": surcharge += 18000
-	if selected_cab_type == "LUXURY_SLEEPER": surcharge += 28000
 	if selected_payload_type == "REEFER": surcharge += 12000
 	if selected_payload_type == "HAZARDOUS": surcharge += 22000
 	if selected_payload_type == "ULTRA_HEAVY": surcharge += 35000
@@ -629,33 +627,33 @@ func _update_customizer_panel() -> void:
 	acquire_btn.custom_minimum_size = Vector2(196, 46)
 	acquire_btn.text = "ACQUIRE VEHICLE"
 	acquire_btn.add_theme_font_size_override("font_size", 12)
-	
+
 	# Evaluate budget / slot validation
 	var can_buy = true
 	var reason = ""
-	
+
 	if selected_garage_id.is_empty():
 		can_buy = false
 		reason = "SELECT HUB"
 	elif GameState.legal_balance < final_cost:
 		can_buy = false
 		reason = "INSUFFICIENT FUNDS"
-		
+
 	# Neon buy button style boxes
 	var sb_buy_normal = StyleBoxFlat.new()
 	var sb_buy_hover = StyleBoxFlat.new()
 	var sb_buy_pressed = StyleBoxFlat.new()
 	var sb_buy_disabled = StyleBoxFlat.new()
-	
+
 	if can_buy:
 		sb_buy_normal.bg_color = Color(0.04, 0.22, 0.12, 0.75) # neon green backing
 		sb_buy_normal.border_color = Color(0.2, 0.85, 0.45, 0.8)
 		sb_buy_normal.set_border_width_all(2)
-		
+
 		sb_buy_hover.bg_color = Color(0.06, 0.3, 0.16, 0.85)
 		sb_buy_hover.border_color = Color(0.2, 0.85, 0.45, 1.0)
 		sb_buy_hover.set_border_width_all(2)
-		
+
 		sb_buy_pressed.bg_color = Color(0.1, 0.45, 0.24, 1.0)
 		sb_buy_pressed.border_color = Color(0.2, 0.85, 0.45, 1.0)
 		sb_buy_pressed.set_border_width_all(2)
@@ -663,10 +661,10 @@ func _update_customizer_panel() -> void:
 		sb_buy_disabled.bg_color = Color(0.12, 0.05, 0.05, 0.5)
 		sb_buy_disabled.border_color = Color(0.8, 0.25, 0.25, 0.3)
 		sb_buy_disabled.set_border_width_all(1)
-		
+
 	for sb in [sb_buy_normal, sb_buy_hover, sb_buy_pressed, sb_buy_disabled]:
 		sb.set_corner_radius_all(6)
-		
+
 	if can_buy:
 		acquire_btn.add_theme_stylebox_override("normal", sb_buy_normal)
 		acquire_btn.add_theme_stylebox_override("hover", sb_buy_hover)
@@ -678,7 +676,7 @@ func _update_customizer_panel() -> void:
 		acquire_btn.text = reason
 		acquire_btn.add_theme_stylebox_override("disabled", sb_buy_disabled)
 		acquire_btn.add_theme_color_override("font_color", Color(1.0, 0.4, 0.4, 0.65))
-		
+
 	buy_vbox.add_child(acquire_btn)
 
 	var right_inv = Control.new()
@@ -719,7 +717,7 @@ func _execute_purchase_trade(brand: String, tier_name: String, cost: float) -> v
 		"tuningTier": selected_tuning_tier,
 		"garageId": selected_garage_id
 	})
-	
+
 	buy_http.request(BASE_URL + "/buy", headers, HTTPClient.METHOD_POST, body)
 	_show_toast("Acquiring fleet vehicle, registering license plates...", Color(0.2, 0.9, 0.7, 1.0))
 
@@ -763,20 +761,20 @@ func _btn(txt: String, pos: Vector2, sz: Vector2) -> Button:
 	b.text = txt; b.position = pos; b.size = sz
 	b.add_theme_font_size_override("font_size", 11)
 	b.add_theme_color_override("font_color", Color(0.95, 0.35, 0.35, 1.0))
-	
+
 	# Apply sleek crimson/red border flat styling for back buttons
 	var sb_normal = StyleBoxFlat.new()
 	sb_normal.bg_color = Color(0.12, 0.05, 0.05, 0.5)
 	sb_normal.border_color = Color(0.95, 0.35, 0.35, 0.4)
 	sb_normal.set_border_width_all(1)
 	sb_normal.set_corner_radius_all(4)
-	
+
 	var sb_hover = StyleBoxFlat.new()
 	sb_hover.bg_color = Color(0.18, 0.08, 0.08, 0.75)
 	sb_hover.border_color = Color(0.95, 0.35, 0.35, 0.8)
 	sb_hover.set_border_width_all(1)
 	sb_hover.set_corner_radius_all(4)
-	
+
 	b.add_theme_stylebox_override("normal", sb_normal)
 	b.add_theme_stylebox_override("hover", sb_hover)
 	return b
@@ -786,14 +784,14 @@ func _style_customizer_btn(btn: Button, is_selected: bool, accent_col: Color = C
 	var sb_hover = StyleBoxFlat.new()
 	var sb_pressed = StyleBoxFlat.new()
 	var sb_disabled = StyleBoxFlat.new()
-	
+
 	if is_selected:
 		# Filled or glowing border
 		sb_normal.bg_color = Color(accent_col.r * 0.15, accent_col.g * 0.15, accent_col.b * 0.15, 0.8)
 		sb_normal.border_color = accent_col
 		sb_normal.border_width_left = 2; sb_normal.border_width_bottom = 2
 		sb_normal.border_width_right = 2; sb_normal.border_width_top = 2
-		
+
 		sb_hover.bg_color = Color(accent_col.r * 0.25, accent_col.g * 0.25, accent_col.b * 0.25, 0.9)
 		sb_hover.border_color = accent_col
 		sb_hover.border_width_left = 2; sb_hover.border_width_bottom = 2
@@ -804,26 +802,26 @@ func _style_customizer_btn(btn: Button, is_selected: bool, accent_col: Color = C
 		sb_normal.border_color = Color(0.15, 0.2, 0.28, 0.4)
 		sb_normal.border_width_left = 1; sb_normal.border_width_bottom = 1
 		sb_normal.border_width_right = 1; sb_normal.border_width_top = 1
-		
+
 		sb_hover.bg_color = Color(0.08, 0.09, 0.12, 0.8)
 		sb_hover.border_color = Color(accent_col.r, accent_col.g, accent_col.b, 0.5)
 		sb_hover.border_width_left = 1; sb_hover.border_width_bottom = 1
 		sb_hover.border_width_right = 1; sb_hover.border_width_top = 1
-		
+
 	# Shared properties
 	for sb in [sb_normal, sb_hover, sb_pressed]:
 		sb.set_corner_radius_all(4)
-		
+
 	sb_pressed.bg_color = Color(accent_col.r * 0.3, accent_col.g * 0.3, accent_col.b * 0.3, 1.0)
 	sb_pressed.border_color = accent_col
 	sb_pressed.set_border_width_all(2)
 	sb_pressed.set_corner_radius_all(4)
-	
+
 	sb_disabled.bg_color = Color(0.04, 0.04, 0.05, 0.3)
 	sb_disabled.border_color = Color(0.1, 0.1, 0.12, 0.2)
 	sb_disabled.set_border_width_all(1)
 	sb_disabled.set_corner_radius_all(4)
-	
+
 	btn.add_theme_stylebox_override("normal", sb_normal)
 	btn.add_theme_stylebox_override("hover", sb_hover)
 	btn.add_theme_stylebox_override("pressed", sb_pressed)
@@ -911,7 +909,6 @@ func _simulate_offline_purchase() -> void:
 	var surcharge = 0
 	if selected_cab_type == "EXTENDED": surcharge += 8000
 	if selected_cab_type == "SUPER_LONG": surcharge += 18000
-	if selected_cab_type == "LUXURY_SLEEPER": surcharge += 28000
 	if selected_payload_type == "REEFER": surcharge += 12000
 	if selected_payload_type == "HAZARDOUS": surcharge += 22000
 	if selected_payload_type == "ULTRA_HEAVY": surcharge += 35000
@@ -927,7 +924,7 @@ func _simulate_offline_purchase() -> void:
 
 	GameState.legal_balance -= final_cost
 	GameState.balance_updated.emit(GameState.legal_balance, GameState.black_market_balance)
-	
+
 	# Add the truck to player_garages locally
 	for gar in player_garages:
 		if gar.get("id") == selected_garage_id:
@@ -943,7 +940,7 @@ func _simulate_offline_purchase() -> void:
 			trucks.append(new_truck)
 			gar["trucks"] = trucks
 			break
-			
+
 	# Update local fleet list in GameState
 	var merged_fleet: Array = []
 	for g in player_garages:
@@ -952,6 +949,6 @@ func _simulate_offline_purchase() -> void:
 			t["garageCity"] = g.get("city", "Unknown")
 			merged_fleet.append(t)
 	GameState.fleet = merged_fleet
-	
+
 	_show_toast("✔ [OFFLINE SIM] Purchase Complete! Vehicle registered in terminal.", Color(0.2, 0.9, 0.45), 5.0)
 	_update_customizer_panel()
