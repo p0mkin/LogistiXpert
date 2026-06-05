@@ -597,11 +597,26 @@ func _update_customizer_panel() -> void:
 	if partner_match:
 		final_cost *= 0.85 # 15% discount
 
+	var agent_bonus = GameState.get_employee_bonus("purchasing_agent")
+	final_cost = final_cost * (1.0 - (agent_bonus / 100.0))
+
 	var retail_lbl = Label.new()
 	retail_lbl.text = "Retail Base Price: $%s   ·   Customizations Surcharge: $%s" % [_fmt(base_price), _fmt(surcharge)]
 	retail_lbl.add_theme_font_size_override("font_size", 10)
 	retail_lbl.add_theme_color_override("font_color", Color(0.65, 0.65, 0.75))
 	calc_vbox.add_child(retail_lbl)
+
+	if agent_bonus != 0.0:
+		var agent_lbl = Label.new()
+		if agent_bonus > 0.0:
+			agent_lbl.text = "👥 Purchasing Agent discount: -%s%% applied." % String.num(agent_bonus, 2)
+			agent_lbl.add_theme_color_override("font_color", Color(0.2, 0.85, 0.45))
+		else:
+			agent_lbl.text = "⚠️ Purchasing Agent penalty (Apprentice): +%s%% surcharge applied." % String.num(abs(agent_bonus), 2)
+			agent_lbl.add_theme_color_override("font_color", Color(1.0, 0.4, 0.4))
+		agent_lbl.add_theme_font_size_override("font_size", 9.5)
+		calc_vbox.add_child(agent_lbl)
+
 
 	var promo_lbl = Label.new()
 	if partner_match:

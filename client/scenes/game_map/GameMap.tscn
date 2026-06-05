@@ -265,6 +265,7 @@ text = "ZONE: —"
 
 [node name="SurchargeWarning" type="PanelContainer" parent="HUD/SidePanel/Margin/VBox/RouteInfoPanel/Margin/VBox"]
 unique_name_in_owner = true
+visible = false
 custom_minimum_size = Vector2(0, 32)
 layout_mode = 2
 
@@ -391,6 +392,14 @@ custom_minimum_size = Vector2(0, 42)
 layout_mode = 2
 text = "📊  LOGISTICS & ANALYTICS"
 theme_override_colors/font_color = Color(0.2, 0.8, 1.0, 1)
+theme_override_font_sizes/font_size = 12
+
+[node name="StaffBtn" type="Button" parent="HUD/SidePanel/Margin/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+text = "👥  STAFF MANAGEMENT"
+theme_override_colors/font_color = Color(0.95, 0.6, 0.1, 1)
 theme_override_font_sizes/font_size = 12
 
 [node name="NavDivider" type="ColorRect" parent="HUD/SidePanel/Margin/VBox"]

@@ -18,6 +18,7 @@ extends Control
 @onready var underworld_btn: Button = %UnderworldBtn
 @onready var analytics_btn: Button = %AnalyticsBtn
 @onready var support_btn: Button = %SupportBtn
+@onready var staff_btn: Button = %StaffBtn
 
 # Concurrent HUD overlays & dropdowns
 @onready var garage_dropdown: PanelContainer = %GarageDropdown
@@ -338,6 +339,7 @@ func _ready() -> void:
 	laundry_btn.pressed.connect(func(): SceneTransition.change_scene_to_file("res://scenes/laundry/LaundryFronts.tscn"))
 	underworld_btn.pressed.connect(func(): SceneTransition.change_scene_to_file("res://scenes/underworld/UnderworldDealer.tscn"))
 	analytics_btn.pressed.connect(func(): SceneTransition.change_scene_to_file("res://scenes/analytics/LogisticsAnalytics.tscn"))
+	staff_btn.pressed.connect(func(): SceneTransition.change_scene_to_file("res://scenes/staff/StaffManager.tscn"))
 	
 	# Concurrent HUD overlays & custom dropdown toggling (hidden initially for a clean map view)
 	garage_dropdown.visible = false

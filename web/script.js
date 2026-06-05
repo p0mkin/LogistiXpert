@@ -409,6 +409,10 @@ window.addEventListener("DOMContentLoaded", () => {
   startSystemTimeLoop();
   synchronizeUI();
   restoreSessionOnBoot(); // Restore session from localStorage if available
+  
+  // Dynamic Surcharge Telemetry Banner Checker
+  setTimeout(checkActiveRouteSurcharges, 500);
+  setInterval(checkActiveRouteSurcharges, 10000);
 });
 
 /**
@@ -1046,6 +1050,7 @@ function handleWSMessage(msg) {
       SYSTEM_STATE.currentAutopilotSpeed = speed;
       
       synchronizeUI();
+      checkActiveRouteSurcharges();
       
       if (payload.message) {
         appendTerminalLine(`TELEMETRY: [${payload.driverName || 'Driver'}] ${payload.message}`, "info");
@@ -1066,6 +1071,7 @@ function handleWSMessage(msg) {
         appendTerminalLine(`COMPLETED: ${payload.message}`, "success");
       }
       fetchBalances();
+      checkActiveRouteSurcharges();
       break;
     }
     
@@ -1074,6 +1080,7 @@ function handleWSMessage(msg) {
         appendTerminalLine(`RESOLUTION: ${payload.message}`, "info");
       }
       fetchBalances();
+      checkActiveRouteSurcharges();
       break;
     }
     
@@ -1441,4 +1448,93 @@ function applyPresetProfile(vignette, scanline, curvature, density) {
   document.documentElement.style.setProperty('--scanline-alpha', scanline);
   document.documentElement.style.setProperty('--curvature-val', curvature);
   document.documentElement.style.setProperty('--scanline-spacing', density + "px");
+}
+
+function getCityCountry(cityName) {
+  if (!cityName) return "Unknown";
+  const key = cityName.toLowerCase();
+  if (CITIES_DATASET[key]) {
+    return CITIES_DATASET[key].country;
+  }
+  // Fallback heuristics if not in dataset
+  if (key === 'siauliai' || key === 'panevezys' || key === 'kaunas' || key === 'klaipeda' || key === 'vilnius') return "Lithuania";
+  if (key === 'tallinn' || key === 'tartu' || key === 'parnu') return "Estonia";
+  if (key === 'riga' || key === 'liepaja' || key === 'daugavpils') return "Latvia";
+  if (key === 'stockholm' || key === 'visby' || key === 'malmoe') return "Sweden";
+  if (key === 'helsinki' || key === 'turku') return "Finland";
+  if (key === 'gdansk' || key === 'warsaw' || key === 'krakow') return "Poland";
+  if (key === 'berlin' || key === 'hamburg') return "Germany";
+  if (key === 'minsk' || key === 'brest') return "Belarus (External)";
+  if (key === 'kaliningrad') return "Russia (External)";
+  return "Unknown";
+}
+
+async function checkActiveRouteSurcharges() {
+  if (!SYSTEM_STATE.token) return;
+  try {
+    const response = await fetch(`${SYSTEM_STATE.restUrl}/api/dispatch/active`, {
+      headers: { 'Authorization': `Bearer ${SYSTEM_STATE.token}` }
+    });
+    if (!response.ok) return;
+    const routes = await response.json();
+    
+    let anyActiveSurcharge = false;
+    for (const route of routes) {
+      const origin = route.originCity || (route.legalContract ? route.legalContract.origin : null) || (route.contrabandJob ? route.contrabandJob.origin : null);
+      const dest = route.destinationCity || (route.legalContract ? route.legalContract.destination : null) || (route.contrabandJob ? route.contrabandJob.destination : null);
+      
+      if (!origin || !dest) continue;
+      
+      const originCountry = getCityCountry(origin);
+      const destCountry = getCityCountry(dest);
+      
+      if (originCountry !== destCountry) {
+        // It crosses countries! Now calculate range for this specific truck and driver.
+        const truck = route.truck;
+        const driver = route.driver;
+        const distance = route.legalContract ? route.legalContract.distanceKm : (route.contrabandJob ? 350.0 : 350.0);
+        
+        if (truck) {
+          const isEV = truck.model.toLowerCase().includes('ev') || truck.model.toLowerCase().includes('electric');
+          const rate = isEV ? 1.5 : 0.35;
+          const truckFactor = truck.fuelTankMod === 'CHASSIS_CAVITY' ? 1.1 : 1.0;
+          const driverFactor = (driver && driver.trait === 'LEAD_FOOT') ? 1.1 : 1.0;
+          
+          let weightFactor = 1.0;
+          const cargoType = route.legalContract ? route.legalContract.cargoType : null;
+          const cargoClass = route.contrabandJob ? route.contrabandJob.cargoClass : null;
+          
+          if (cargoType) {
+            switch (cargoType) {
+              case 'STEEL_COILS': weightFactor = 1.5; break;
+              case 'TIMBER': weightFactor = 1.3; break;
+              case 'AGRICULTURAL_MACHINERY': weightFactor = 1.2; break;
+              case 'DAIRY_PRODUCTS': weightFactor = 1.1; break;
+              case 'PHARMACEUTICALS': weightFactor = 1.0; break;
+              case 'ELECTRONICS': weightFactor = 0.9; break;
+            }
+          } else if (cargoClass) {
+            switch (cargoClass) {
+              case 'CLASS_C': weightFactor = 1.4; break;
+              case 'CLASS_B': weightFactor = 1.1; break;
+              case 'CLASS_A': weightFactor = 0.9; break;
+            }
+          }
+          
+          const range = truck.fuelCapacity / (rate * truckFactor * driverFactor * weightFactor);
+          if (distance > range) {
+            anyActiveSurcharge = true;
+            break;
+          }
+        }
+      }
+    }
+    
+    const strip = document.getElementById("surcharge-strip");
+    if (strip) {
+      strip.style.display = anyActiveSurcharge ? "flex" : "none";
+    }
+  } catch (err) {
+    console.error("Failed to check active route surcharges:", err);
+  }
 }

@@ -289,6 +289,16 @@
                   <div id="disp-driver-val" style="font-weight: bold; margin-top: 2px;">--</div>
                 </div>
                 <div>
+                  <span style="color: var(--color-text-muted);">SELECTED CONTRACT:</span>
+                  <div id="disp-contract-val" style="font-weight: bold; margin-top: 2px; color: var(--neon-orange);">-- SELECT A CONTRACT FROM FEED --</div>
+                </div>
+                
+                <!-- Dynamic Surcharge Warning Banner -->
+                <div id="disp-surcharge-warning" style="display: none; padding: var(--space-2); background: rgba(255, 102, 0, 0.1); border: 1px solid var(--neon-orange); border-radius: var(--radius-sm); color: var(--neon-orange); text-shadow: 0 0 4px var(--neon-orange-glow); box-shadow: 0 0 8px var(--neon-orange-glow); font-weight: bold; line-height: 1.4;">
+                  ⚠️ CROSS-REGION SURCHARGE ACTIVE (+35% Fuel Consumption)<br>
+                  Route crosses borders and requires refueling en-route.
+                </div>
+                <div>
                   <span style="color: var(--color-text-muted);">AUTOPILOT STEERING PROFILE:</span>
                   <div class="policy-selector" style="margin-top: var(--space-2);">
                     <button class="policy-btn active" id="btn-policy-safe" onclick="setPolicy('SAFE')">SAFE POLICY</button>
@@ -421,6 +431,7 @@
       }
 
       loadAvailableJobs(truck.id, city);
+      updateSelectedContractUI();
     }
 
     async function loadAvailableJobs(truckId, originCity) {
@@ -461,7 +472,16 @@
             AUDIO.playClick();
             document.querySelectorAll(".contract-item").forEach(el => el.classList.remove("selected"));
             item.classList.add("selected");
-            selectedContract = { type: 'LEGAL', id: job.id };
+            selectedContract = {
+              type: 'LEGAL',
+              id: job.id,
+              origin: job.origin,
+              destination: job.destination,
+              cargoType: job.cargoType,
+              distanceKm: parseFloat(job.distanceKm),
+              payoutCash: parseFloat(job.payoutLegal)
+            };
+            updateSelectedContractUI();
           });
           container.appendChild(item);
         });
@@ -485,7 +505,17 @@
             AUDIO.playClick();
             document.querySelectorAll(".contract-item").forEach(el => el.classList.remove("selected"));
             item.classList.add("selected");
-            selectedContract = { type: 'CONTRABAND', id: job.id };
+            selectedContract = {
+              type: 'CONTRABAND',
+              id: job.id,
+              origin: job.origin,
+              destination: job.destination,
+              cargoType: `Class ${job.cargoClass.split('_')[1]} Contraband`,
+              cargoClass: job.cargoClass,
+              distanceKm: 350.0,
+              payoutCash: parseFloat(job.payoutBlack)
+            };
+            updateSelectedContractUI();
           });
           container.appendChild(item);
         });
@@ -633,8 +663,126 @@
           container.innerHTML = `<div style="font-family: var(--font-mono); font-size: 10px; color: var(--color-text-muted); text-align: center; margin-top: var(--space-4);">No corporate assets currently transit en-route links</div>`;
         }
 
-      } catch (err) {
-        console.error(err);
+    function getCityCountry(cityName) {
+      if (!cityName) return "Unknown";
+      const key = cityName.toLowerCase();
+      if (CITIES_DATASET[key]) {
+        return CITIES_DATASET[key].country;
+      }
+      // Fallback heuristics if not in dataset
+      if (key === 'siauliai' || key === 'panevezys' || key === 'kaunas' || key === 'klaipeda' || key === 'vilnius') return "Lithuania";
+      if (key === 'tallinn' || key === 'tartu' || key === 'parnu') return "Estonia";
+      if (key === 'riga' || key === 'liepaja' || key === 'daugavpils') return "Latvia";
+      if (key === 'stockholm' || key === 'visby' || key === 'malmoe') return "Sweden";
+      if (key === 'helsinki' || key === 'turku') return "Finland";
+      if (key === 'gdansk' || key === 'warsaw' || key === 'krakow') return "Poland";
+      if (key === 'berlin' || key === 'hamburg') return "Germany";
+      if (key === 'minsk' || key === 'brest') return "Belarus (External)";
+      if (key === 'kaliningrad') return "Russia (External)";
+      return "Unknown";
+    }
+
+    function getCargoWeightFactor(contract) {
+      if (!contract) return 1.0;
+      let cargoType = contract.cargoType || "";
+      let cargoClass = contract.cargoClass || "";
+      
+      let weightFactor = 1.0;
+      if (cargoType) {
+        switch (cargoType) {
+          case 'STEEL_COILS': weightFactor = 1.5; break;
+          case 'TIMBER': weightFactor = 1.3; break;
+          case 'AGRICULTURAL_MACHINERY': weightFactor = 1.2; break;
+          case 'DAIRY_PRODUCTS': weightFactor = 1.1; break;
+          case 'PHARMACEUTICALS': weightFactor = 1.0; break;
+          case 'ELECTRONICS': weightFactor = 0.9; break;
+        }
+      }
+      
+      if (cargoClass && cargoClass.startsWith('CLASS_')) {
+        switch (cargoClass) {
+          case 'CLASS_C': weightFactor = 1.4; break;
+          case 'CLASS_B': weightFactor = 1.1; break;
+          case 'CLASS_A': weightFactor = 0.9; break;
+        }
+      }
+      
+      return weightFactor;
+    }
+
+    function calculateTruckRange(truck, contract) {
+      if (!truck) return 0;
+      const isEV = truck.model.toLowerCase().includes('ev') || truck.model.toLowerCase().includes('electric');
+      const rate = isEV ? 1.5 : 0.35;
+      const truckFactor = truck.fuelTankMod === 'CHASSIS_CAVITY' ? 1.1 : 1.0;
+      const driverFactor = (truck.driver && truck.driver.trait === 'LEAD_FOOT') ? 1.1 : 1.0;
+      const weightFactor = getCargoWeightFactor(contract);
+      
+      const fuelCapacity = truck.fuelCapacity || 400.0;
+      return fuelCapacity / (rate * truckFactor * driverFactor * weightFactor);
+    }
+
+    function updateSelectedContractUI() {
+      const contractVal = document.getElementById("disp-contract-val");
+      const warningEl = document.getElementById("disp-surcharge-warning");
+      
+      if (!selectedContract) {
+        if (contractVal) contractVal.textContent = "-- SELECT A CONTRACT FROM FEED --";
+        if (warningEl) warningEl.style.display = "none";
+        return;
+      }
+      
+      const isCrossCountry = getCityCountry(selectedContract.origin) !== getCityCountry(selectedContract.destination);
+      let requiresRefuel = false;
+      let range = 0;
+      
+      if (selectedTruck) {
+        range = calculateTruckRange(selectedTruck, selectedContract);
+        if (selectedContract.distanceKm > range) {
+          requiresRefuel = true;
+        }
+      }
+      
+      let contractText = `${selectedContract.origin.toUpperCase()} ➔ ${selectedContract.destination.toUpperCase()} (${selectedContract.distanceKm} KM) | ${selectedContract.cargoType.toUpperCase()} | Payout: $${selectedContract.payoutCash.toLocaleString()}`;
+      if (selectedTruck) {
+        contractText += ` (Truck Range: ${Math.round(range)} KM)`;
+      }
+      if (contractVal) contractVal.textContent = contractText;
+      
+      if (isCrossCountry && requiresRefuel) {
+        if (warningEl) {
+          warningEl.style.display = "block";
+          warningEl.style.borderColor = "var(--neon-orange)";
+          warningEl.style.color = "var(--neon-orange)";
+          warningEl.style.background = "rgba(255, 102, 0, 0.1)";
+          warningEl.style.textShadow = "0 0 4px var(--neon-orange-glow)";
+          warningEl.style.boxShadow = "0 0 8px var(--neon-orange-glow)";
+          warningEl.innerHTML = `⚠️ CROSS-REGION SURCHARGE ACTIVE (+35% Fuel Consumption)<br>Route crosses borders (${getCityCountry(selectedContract.origin)} ➔ ${getCityCountry(selectedContract.destination)}) and requires refueling en-route.`;
+        }
+      } else if (isCrossCountry) {
+        if (warningEl) {
+          warningEl.style.display = "block";
+          warningEl.style.borderColor = "var(--neon-green)";
+          warningEl.style.color = "var(--neon-green)";
+          warningEl.style.background = "rgba(0, 255, 102, 0.1)";
+          warningEl.style.textShadow = "0 0 4px var(--neon-green-glow)";
+          warningEl.style.boxShadow = "0 0 8px var(--neon-green-glow)";
+          warningEl.innerHTML = `ℹ️ CROSS-REGION ROUTE (Surcharge Inactive)<br>Route crosses borders (${getCityCountry(selectedContract.origin)} ➔ ${getCityCountry(selectedContract.destination)}) but selected truck range (${Math.round(range)} KM) is sufficient to finish without refueling.`;
+        }
+      } else {
+        if (requiresRefuel) {
+          if (warningEl) {
+            warningEl.style.display = "block";
+            warningEl.style.borderColor = "var(--neon-blue)";
+            warningEl.style.color = "var(--neon-blue)";
+            warningEl.style.background = "rgba(0, 229, 255, 0.1)";
+            warningEl.style.textShadow = "0 0 4px var(--neon-blue-glow)";
+            warningEl.style.boxShadow = "0 0 8px var(--neon-blue-glow)";
+            warningEl.innerHTML = `ℹ️ ROUTE DETAILS<br>Route requires refueling en-route (No cross-region surcharge applies).`;
+          }
+        } else {
+          if (warningEl) warningEl.style.display = "none";
+        }
       }
     }
 

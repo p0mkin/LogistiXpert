@@ -92,6 +92,8 @@ func _ready() -> void:
 	_fetch_active_routes()
 	_fetch_trucks()
 	
+	truck_select_box.item_selected.connect(_on_truck_selected)
+	
 	set_process(true)
 
 func _process(delta: float) -> void:
@@ -355,6 +357,8 @@ func _on_trucks_response(result: int, code: int, headers: PackedStringArray, bod
 			truck_select_box.add_item("[%s] %s (E:%d%%)" % [t.get("currentCity", "?").to_upper(), t.get("model","?"), int(t.get("engineHealth",0))], i)
 			
 		_log("Offline mode: loaded persistent local fleet fallback.", Color(0.925, 0.607, 0.141))
+
+	_update_surcharge_status()
 
 func _on_active_routes_response(result: int, code: int, headers: PackedStringArray, body: PackedByteArray, http: HTTPRequest) -> void:
 	http.queue_free()
@@ -777,31 +781,102 @@ func _make_bar_bg(fill_color: Color, val: int, max_val: int) -> Control:
 func _select_contract(contract: Dictionary) -> void:
 	selected_contract = contract
 	dispatch_panel.show()
+	_update_surcharge_status()
+
+func _on_truck_selected(_idx: int) -> void:
+	_update_surcharge_status()
+
+func _update_surcharge_status() -> void:
+	if selected_contract.is_empty():
+		return
+		
+	var origin_city = cities_data.get(selected_contract.get("origin", "").to_lower(), {})
+	var dest_city = cities_data.get(selected_contract.get("destination", "").to_lower(), {})
 	
-	var origin_city = cities_data.get(contract.get("origin", "").to_lower(), {})
-	var dest_city = cities_data.get(contract.get("destination", "").to_lower(), {})
-	selected_contract_is_cross_region = false
-	
-	var warning_text = ""
+	var is_cross_country = false
 	if not origin_city.is_empty() and not dest_city.is_empty():
 		var origin_country = origin_city.get("country", "")
 		var dest_country = dest_city.get("country", "")
 		if origin_country != dest_country:
-			selected_contract_is_cross_region = true
-			warning_text = "\n\n⚠️ CROSS-REGION SURCHARGE APPLIED:\n+35% fuel, +2h time, +15% wear"
+			is_cross_country = true
+			
+	var truck_idx = truck_select_box.get_selected_id()
+	var requires_refuel = false
+	var truck_range = 0.0
 	
-	selected_contract_lbl.text = "%s → %s\n%s\n$%d payout%s" % [
-		contract.get("origin", "?"),
-		contract.get("destination", "?"),
-		contract.get("cargoType", "?"),
-		int(contract.get("payoutCash", 0)),
+	if truck_idx >= 0 and truck_idx < available_trucks.size():
+		var truck = available_trucks[truck_idx]
+		var model = truck.get("model", "").to_lower()
+		var is_ev = "ev" in model or "electric" in model
+		var consumption_rate = 1.5 if is_ev else 0.35
+		
+		var fuel_capacity = float(truck.get("fuelCapacity", 400.0))
+		var fuel_mod = truck.get("fuelTankMod", "STOCK")
+		var truck_factor = 1.1 if fuel_mod == "CHASSIS_CAVITY" else 1.0
+		
+		var driver_factor = 1.0
+		var driver = truck.get("driver", null)
+		if driver and driver is Dictionary:
+			var trait = driver.get("trait", "BALANCED")
+			if trait == "LEAD_FOOT":
+				driver_factor = 1.1
+				
+		var weight_factor = 1.0
+		var cargo_type = selected_contract.get("cargoType", "")
+		if cargo_type != "":
+			match cargo_type:
+				"STEEL_COILS": weight_factor = 1.5
+				"TIMBER": weight_factor = 1.3
+				"AGRICULTURAL_MACHINERY": weight_factor = 1.2
+				"DAIRY_PRODUCTS": weight_factor = 1.1
+				"PHARMACEUTICALS": weight_factor = 1.0
+				"ELECTRONICS": weight_factor = 0.9
+				
+		if cargo_type.begins_with("CLASS_") or (is_contraband_mode and cargo_type != ""):
+			var cargo_class = cargo_type
+			if not cargo_class.begins_with("CLASS_"):
+				cargo_class = selected_contract.get("cargoClass", "CLASS_B")
+			match cargo_class:
+				"CLASS_C": weight_factor = 1.4
+				"CLASS_B": weight_factor = 1.1
+				"CLASS_A": weight_factor = 0.9
+				
+		var total_modifier = truck_factor * driver_factor * weight_factor
+		truck_range = fuel_capacity / (consumption_rate * total_modifier)
+		
+		var dist = float(selected_contract.get("distanceKm", 350.0))
+		if dist > truck_range:
+			requires_refuel = true
+			
+	var warning_text = ""
+	selected_contract_is_cross_region = false
+	if is_cross_country and requires_refuel:
+		selected_contract_is_cross_region = true
+		warning_text = "\n\n⚠️ CROSS-REGION SURCHARGE APPLIED:\n+35% fuel, +2h time, +15% wear (Requires refueling en-route)"
+		_log("Cross-region route (requires refueling). Surcharges will apply.", Color(0.901, 0.298, 0.235))
+	elif is_cross_country:
+		warning_text = "\n\nℹ️ CROSS-REGION ROUTE (No refueling required; surcharge inactive)"
+		_log("Cross-region route (no refueling). Surcharge is inactive.", Color(0.18, 0.803, 0.443))
+	else:
+		if requires_refuel:
+			warning_text = "\n\nℹ️ Note: Route requires refueling en-route (No cross-region surcharge)"
+			_log("Route requires refueling (no border crossing).", Color(0.925, 0.607, 0.141))
+		else:
+			_log("Contract selected. Choose truck and launch.", Color(0.18, 0.803, 0.443))
+			
+	var display_range_str = "N/A"
+	if truck_range > 0:
+		display_range_str = str(int(truck_range)) + " km"
+		
+	selected_contract_lbl.text = "%s → %s\n%s\n$%d payout (Dist: %d km / Truck Range: %s)%s" % [
+		selected_contract.get("origin", "?"),
+		selected_contract.get("destination", "?"),
+		selected_contract.get("cargoType", "?"),
+		int(selected_contract.get("payoutCash", 0)),
+		int(selected_contract.get("distanceKm", 0)),
+		display_range_str,
 		warning_text
 	]
-	
-	if selected_contract_is_cross_region:
-		_log("Cross-region route. Surcharges will apply on completion.", Color(0.925, 0.607, 0.141))
-	else:
-		_log("Contract selected. Choose truck and launch.", Color(0.925, 0.607, 0.141))
 
 func _show_legal_tab() -> void:
 	is_contraband_mode = false

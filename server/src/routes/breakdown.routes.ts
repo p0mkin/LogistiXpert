@@ -62,6 +62,21 @@ const CITY_TO_NEAREST_HUB_KM: Record<string, number> = {
   default: 200,
 };
 
+function getLeadMechanicDiscount(company: any): number {
+  if (!company.staffLeadMechanicUnlocked) return 0.0;
+  const rankMultipliers: Record<number, number> = {
+    1: -0.25,
+    2: 0.20,
+    3: 0.50,
+    4: 0.85,
+    5: 1.25,
+  };
+  const baseValue = 10.0 * company.staffLeadMechanicLevel;
+  const mult = rankMultipliers[company.staffLeadMechanicRank] || 0.0;
+  return baseValue * mult;
+}
+
+
 // ================================================================
 // GET /api/breakdown/estimate/:truckId
 // Returns repair cost estimate before the player commits to paying
@@ -142,9 +157,14 @@ router.post('/roadside-repair', authenticateJWT, async (req: AuthRequest, res: R
       if (repairEngine) totalCharge += estimate.engineCost * roadsidePremium;
       if (repairTires) totalCharge += estimate.tireCost * roadsidePremium;
 
+      // Apply Lead Mechanic discount / penalty
+      const mechanicDiscount = getLeadMechanicDiscount(truck.company);
+      totalCharge = Math.round(totalCharge * (1.0 - (mechanicDiscount / 100.0)));
+
       if (truck.company.legalBalance.toNumber() < totalCharge) {
         throw new Error('INSUFFICIENT_FUNDS');
       }
+
 
       // Apply repairs
       const newEngineHealth = repairEngine ? 100 : truck.engineHealth;
@@ -246,9 +266,14 @@ router.post('/garage-repair', authenticateJWT, async (req: AuthRequest, res: Res
       if (repairEngine) totalCharge += estimate.engineCost;
       if (repairTires) totalCharge += estimate.tireCost;
 
+      // Apply Lead Mechanic discount / penalty
+      const mechanicDiscount = getLeadMechanicDiscount(truck.company);
+      totalCharge = Math.round(totalCharge * (1.0 - (mechanicDiscount / 100.0)));
+
       if (truck.company.legalBalance.toNumber() < totalCharge) {
         throw new Error('INSUFFICIENT_FUNDS');
       }
+
 
       const newEngineHealth = repairEngine ? 100 : truck.engineHealth;
       const newTireWear = repairTires ? 100 : truck.tireWear;

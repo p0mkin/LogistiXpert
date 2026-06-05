@@ -217,7 +217,7 @@
       <section class="map-canvas-container">
         
         <!-- Surcharge notification banner -->
-        <div class="surcharge-strip">
+        <div class="surcharge-strip" id="surcharge-strip" style="display: none;">
           <div class="surcharge-icon">
             <svg viewBox="0 0 24 24">
               <path d="M12 2L1 21h22L12 2zm1 14h-2v-2h2v2zm0-4h-2V8h2v4z"/>
@@ -508,18 +508,6 @@
           <h2 class="sidebar-title">COMMAND OPERATIONS</h2>
         </div>
 
-        <!-- City Node Info Widget -->
-        <div class="sidebar-city-node" id="sidebar-city-node">
-          <div class="sidebar-city-idle" id="sidebar-city-idle">
-            <span class="sidebar-city-prompt">▶ SELECT A CITY NODE</span><span class="terminal-cursor"></span>
-          </div>
-          <div class="sidebar-city-active" id="sidebar-city-active" style="display:none">
-            <div class="sidebar-city-name" id="sidebar-city-name">---</div>
-            <div class="sidebar-city-zone-badge" id="sidebar-city-zone-badge">ZONE: ---</div>
-            <div class="sidebar-connections-count" id="sidebar-connections-count">0 CONNECTIONS</div>
-          </div>
-        </div>
-
         <nav class="sidebar-nav">
           
           <a href="garage.html" class="nav-op-btn btn-green" id="btn-garage-toggle">
@@ -583,6 +571,15 @@
               </svg>
             </div>
             <span class="nav-op-text">LOGISTICS &amp; ANALYTICS</span>
+          </a>
+
+          <a href="staff.html" class="nav-op-btn btn-orange">
+            <div class="nav-op-icon">
+              <svg viewBox="0 0 24 24">
+                <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5 5 6.34 5 8s1.34 3 8 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
+              </svg>
+            </div>
+            <span class="nav-op-text">STAFF MANAGEMENT</span>
           </a>
 
           <!-- Secured Killswitch option -->

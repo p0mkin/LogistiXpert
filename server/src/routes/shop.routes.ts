@@ -74,6 +74,20 @@ router.get('/catalog', async (req: AuthRequest, res: Response) => {
   res.json(Object.values(PARTS_CATALOG));
 });
 
+function getPurchasingAgentDiscount(company: any): number {
+  if (!company.staffPurchasingAgentUnlocked) return 0.0;
+  const rankMultipliers: Record<number, number> = {
+    1: -0.25,
+    2: 0.20,
+    3: 0.50,
+    4: 0.85,
+    5: 1.25,
+  };
+  const baseValue = 5.0 * company.staffPurchasingAgentLevel;
+  const mult = rankMultipliers[company.staffPurchasingAgentRank] || 0.0;
+  return baseValue * mult;
+}
+
 // 2. PURCHASE AND INSTALL TRUCK COMPONENT
 router.post('/buy', async (req: AuthRequest, res: Response) => {
   const companyId = req.user!.companyId;
@@ -108,10 +122,16 @@ router.post('/buy', async (req: AuthRequest, res: Response) => {
     const company = await prisma.company.findUnique({ where: { id: companyId } });
     if (!company) return res.status(404).json({ error: 'COMPANY_NOT_FOUND', message: 'Company not found.' });
 
-    if (part.currency === 'LEGAL' && company.legalBalance.toNumber() < part.cost) {
+    let finalCost = part.cost;
+    if (part.currency === 'LEGAL') {
+      const discount = getPurchasingAgentDiscount(company);
+      finalCost = Math.round(part.cost * (1.0 - (discount / 100.0)));
+    }
+
+    if (part.currency === 'LEGAL' && company.legalBalance.toNumber() < finalCost) {
       return res.status(400).json({
         error: 'INSUFFICIENT_LEGAL_CASH',
-        message: `Parts cost $${part.cost} Clean Cash. You have $${company.legalBalance.toNumber()}.`,
+        message: `Parts cost $${finalCost} Clean Cash. You have $${company.legalBalance.toNumber()}.`,
       });
     }
 
@@ -128,7 +148,7 @@ router.post('/buy', async (req: AuthRequest, res: Response) => {
       if (part.currency === 'LEGAL') {
         await tx.company.update({
           where: { id: companyId },
-          data: { legalBalance: { decrement: part.cost } },
+          data: { legalBalance: { decrement: finalCost } },
         });
 
         if (part.category === 'MAINTENANCE') {
@@ -138,7 +158,7 @@ router.post('/buy', async (req: AuthRequest, res: Response) => {
             truck.garageId,
             truck.garage.city,
             'EXPENSE_REPAIRS',
-            part.cost
+            finalCost
           );
         }
       } else {
@@ -147,6 +167,7 @@ router.post('/buy', async (req: AuthRequest, res: Response) => {
           data: { blackMarketBalance: { decrement: part.cost } },
         });
       }
+
 
       // Restore values or apply mods based on part ID
       let logDesc = `Installed part: ${part.name}. Cost: $${part.cost}.`;

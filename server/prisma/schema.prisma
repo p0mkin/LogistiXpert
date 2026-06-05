@@ -61,6 +61,18 @@ model Company {
   resCoopCapacity      Int      @default(0) // +1 co-op company member capacity per level (Max 2)
   resBrandPartnership  String   @default("NONE") // Brand partner for -15% factory purchase cost
 
+  // Staff / Employees levels & ranks
+  staffPurchasingAgentRank     Int     @default(1)
+  staffPurchasingAgentLevel    Int     @default(1)
+  staffPurchasingAgentUnlocked Boolean @default(true)
+  staffLeadMechanicRank        Int     @default(1)
+  staffLeadMechanicLevel       Int     @default(1)
+  staffLeadMechanicUnlocked    Boolean @default(false)
+  staffRouterRank              Int     @default(1)
+  staffRouterLevel             Int     @default(1)
+  staffRouterUnlocked          Boolean @default(false)
+
+
   clanContractContributions ClanContractContribution[]
 
   createdAt          DateTime @default(now())

@@ -887,10 +887,17 @@ body {
 .nav-op-btn.btn-white:hover .nav-op-text { color: var(--color-text-main); }
 .nav-op-btn.btn-white:hover::before { background-color: var(--color-text-main); }
 
+
 .nav-op-btn.btn-blue:hover { background: rgba(0, 102, 255, 0.03); border-color: rgba(0, 102, 255, 0.3); box-shadow: 0 0 15px rgba(0, 102, 255, 0.1); }
 .nav-op-btn.btn-blue:hover .nav-op-icon svg { fill: #0066FF; filter: drop-shadow(0 0 3px rgba(0, 102, 255, 0.4)); }
 .nav-op-btn.btn-blue:hover .nav-op-text { color: var(--color-text-main); }
 .nav-op-btn.btn-blue:hover::before { background-color: #0066FF; }
+
+.nav-op-btn.btn-orange:hover { background: rgba(255, 102, 0, 0.03); border-color: rgba(255, 102, 0, 0.3); box-shadow: 0 0 15px rgba(255, 102, 0, 0.1); }
+.nav-op-btn.btn-orange:hover .nav-op-icon svg { fill: var(--neon-orange); filter: drop-shadow(0 0 3px var(--neon-orange-glow)); }
+.nav-op-btn.btn-orange:hover .nav-op-text { color: var(--color-text-main); }
+.nav-op-btn.btn-orange:hover::before { background-color: var(--neon-orange); }
+
 
 /* Active State: Dispatch Center */
 .nav-op-btn.active-orange {

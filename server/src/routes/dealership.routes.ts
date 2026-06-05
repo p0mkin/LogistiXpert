@@ -158,6 +158,20 @@ router.post('/buy', async (req: AuthRequest, res: Response) => {
       if (tuningTier === 'ECONOMY') customizationSurcharge += 7000;
       if (tuningTier === 'RELIABLE') customizationSurcharge += 6000;
 
+function getPurchasingAgentDiscount(company: any): number {
+  if (!company.staffPurchasingAgentUnlocked) return 0.0;
+  const rankMultipliers: Record<number, number> = {
+    1: -0.25,
+    2: 0.20,
+    3: 0.50,
+    4: 0.85,
+    5: 1.25,
+  };
+  const baseValue = 5.0 * company.staffPurchasingAgentLevel;
+  const mult = rankMultipliers[company.staffPurchasingAgentRank] || 0.0;
+  return baseValue * mult;
+}
+
       let finalCost = basePrice + customizationSurcharge;
 
       // Check R&D Brand Partnership discount (15% reduction for matched manufacturer)
@@ -165,7 +179,12 @@ router.post('/buy', async (req: AuthRequest, res: Response) => {
         finalCost *= 0.85; // 15% discount
       }
 
+      // Apply Purchasing Agent discount / penalty
+      const agentDiscount = getPurchasingAgentDiscount(company);
+      finalCost = Math.round(finalCost * (1.0 - (agentDiscount / 100.0)));
+
       if (Number(company.legalBalance) < finalCost) {
+
         res.status(400).json({
           error: 'INSUFFICIENT_FUNDS',
           message: `Insufficient clean cash to complete purchase. Cost: $${finalCost.toFixed(2)}, Available: $${Number(company.legalBalance).toFixed(2)}`,

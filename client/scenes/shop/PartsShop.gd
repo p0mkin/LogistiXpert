@@ -447,12 +447,18 @@ func _render_item_detail(item: Dictionary) -> void:
 	panel.add_child(effect_lbl)
 
 	# Cost display
+	var final_cost = item.cost
+	var agent_bonus = 0.0
+	if item.currency == "LEGAL":
+		agent_bonus = GameState.get_employee_bonus("purchasing_agent")
+		final_cost = round(item.cost * (1.0 - (agent_bonus / 100.0)))
+
 	var cur_icon = "💵 LEGAL CASH" if item.currency == "LEGAL" else "💜 BLACK MARKET"
 	var cur_bal = GameState.legal_balance if item.currency == "LEGAL" else GameState.black_market_balance
-	var can_afford = cur_bal >= item.cost
+	var can_afford = cur_bal >= final_cost
 
 	var cost_lbl = Label.new()
-	cost_lbl.text = "COST:  $%s  (%s)" % [_fmt(item.cost), cur_icon]
+	cost_lbl.text = "COST:  $%s  (%s)" % [_fmt(final_cost), cur_icon]
 	cost_lbl.add_theme_font_size_override("font_size", 14)
 	cost_lbl.add_theme_color_override("font_color", Color(0.3, 1.0, 0.5, 1.0) if can_afford else Color(1.0, 0.35, 0.35, 1.0))
 	cost_lbl.position = Vector2(14, 302)
@@ -464,6 +470,18 @@ func _render_item_detail(item: Dictionary) -> void:
 	balance_lbl.add_theme_color_override("font_color", Color(0.5, 0.5, 0.6, 0.9))
 	balance_lbl.position = Vector2(14, 326)
 	panel.add_child(balance_lbl)
+
+	if agent_bonus != 0.0:
+		var agent_lbl = Label.new()
+		if agent_bonus > 0.0:
+			agent_lbl.text = "👥 Purchasing Agent discount: -%s%%" % String.num(agent_bonus, 2)
+			agent_lbl.add_theme_color_override("font_color", Color(0.2, 0.85, 0.45))
+		else:
+			agent_lbl.text = "⚠️ Purchasing Agent penalty: +%s%%" % String.num(abs(agent_bonus), 2)
+			agent_lbl.add_theme_color_override("font_color", Color(1.0, 0.4, 0.4))
+		agent_lbl.add_theme_font_size_override("font_size", 11)
+		agent_lbl.position = Vector2(14, 348)
+		panel.add_child(agent_lbl)
 
 	# Warnings
 	if item.category == "RIGGING":
@@ -492,7 +510,7 @@ func _render_item_detail(item: Dictionary) -> void:
 	buy_btn.size = Vector2(402, 50)
 	buy_btn.add_theme_font_size_override("font_size", 16)
 	if can_afford and not selected_truck_id.is_empty():
-		buy_btn.text = "✔  PURCHASE & INSTALL  —  $%s" % _fmt(item.cost)
+		buy_btn.text = "✔  PURCHASE & INSTALL  —  $%s" % _fmt(final_cost)
 		buy_btn.add_theme_color_override("font_color", item.color)
 		buy_btn.pressed.connect(_purchase_item)
 	elif not can_afford:

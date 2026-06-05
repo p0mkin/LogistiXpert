@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LogistiXpert: Staff Operations Control</title>
+  
+  <!-- Cyberpunk Typography -->
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=JetBrains+Mono:wght@300;400;500;700&family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+  
+  <!-- Design System Styles -->
+  <link rel="stylesheet" href="./styles.css">
+  <style>
+    .staff-layout-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: var(--space-4);
+      height: calc(100vh - 180px);
+      overflow-y: auto;
+      padding-bottom: var(--space-4);
+    }
+    
+    .staff-card {
+      background: rgba(13, 13, 17, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: var(--radius-md);
+      padding: var(--space-4);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-3);
+      font-family: var(--font-mono);
+      transition: all var(--transition-fast);
+      position: relative;
+      overflow: hidden;
+      min-height: 480px;
+    }
+    
+    .staff-card.locked {
+      border-color: rgba(255, 0, 60, 0.2);
+    }
+    
+    .staff-card.locked::after {
+      content: 'VACANT SLOT';
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      font-size: 8px;
+      font-weight: bold;
+      color: var(--neon-red);
+      border: 1px solid var(--neon-red);
+      padding: 1px 4px;
+      border-radius: var(--radius-sm);
+      background: rgba(255, 0, 60, 0.1);
+    }
+    
+    .staff-card.purchasing_agent { border-color: rgba(0, 255, 102, 0.15); }
+    .staff-card.lead_mechanic { border-color: rgba(189, 0, 255, 0.15); }
+    .staff-card.router { border-color: rgba(255, 102, 0, 0.15); }
+    
+    .staff-card.purchasing_agent:hover { border-color: var(--neon-green); box-shadow: 0 0 12px var(--neon-green-glow); }
+    .staff-card.lead_mechanic:hover { border-color: var(--neon-purple); box-shadow: 0 0 12px var(--neon-purple-glow); }
+    .staff-card.router:hover { border-color: var(--neon-orange); box-shadow: 0 0 12px var(--neon-orange-glow); }
+
+    .staff-role-title {
+      font-family: var(--font-cyber);
+      font-size: var(--fs-lg);
+      font-weight: var(--fw-black);
+      letter-spacing: 1px;
+    }
+    
+    .purchasing_agent .staff-role-title { color: var(--neon-green); }
+    .lead_mechanic .staff-role-title { color: var(--neon-purple); }
+    .router .staff-role-title { color: var(--neon-orange); }
+
+    .staff-role-desc {
+      font-size: 11px;
+      color: var(--color-text-muted);
+      line-height: 1.4;
+      min-height: 48px;
+    }
+    
+    .card-divider {
+      height: 1px;
+      background: rgba(255, 255, 255, 0.05);
+      margin: var(--space-1) 0;
+    }
+    
+    .status-banner {
+      padding: var(--space-2);
+      border-radius: var(--radius-sm);
+      border-left: 3px solid;
+      font-size: 12px;
+      font-weight: bold;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    
+    .status-banner.positive {
+      background: rgba(0, 255, 102, 0.06);
+      border-left-color: var(--neon-green);
+      color: var(--neon-green);
+    }
+    
+    .status-banner.negative {
+      background: rgba(255, 0, 60, 0.06);
+      border-left-color: var(--neon-red);
+      color: var(--neon-red);
+    }
+    
+    .status-banner-desc {
+      font-size: 9px;
+      font-weight: normal;
+      color: var(--color-text-muted);
+    }
+
+    .level-dots-container {
+      display: flex;
+      gap: 6px;
+      margin: var(--space-1) 0;
+    }
+    
+    .level-dot {
+      width: 18px;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: var(--radius-sm);
+      transition: all var(--transition-fast);
+    }
+    
+    .purchasing_agent .level-dot.active { background: var(--neon-green); border-color: var(--neon-green); box-shadow: 0 0 4px var(--neon-green-glow); }
+    .lead_mechanic .level-dot.active { background: var(--neon-purple); border-color: var(--neon-purple); box-shadow: 0 0 4px var(--neon-purple-glow); }
+    .router .level-dot.active { background: var(--neon-orange); border-color: var(--neon-orange); box-shadow: 0 0 4px var(--neon-orange-glow); }
+    
+    .action-btn-neon {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: var(--radius-sm);
+      color: var(--color-text-muted);
+      font-family: var(--font-mono);
+      font-size: 10px;
+      padding: var(--space-2);
+      cursor: pointer;
+      width: 100%;
+      text-align: center;
+      transition: all var(--transition-fast);
+      min-height: 38px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      font-weight: bold;
+    }
+    
+    .action-btn-neon:hover:not(:disabled) {
+      color: #fff;
+    }
+    
+    .purchasing_agent .action-btn-neon:hover:not(:disabled) { border-color: var(--neon-green); background: rgba(0, 255, 102, 0.05); box-shadow: 0 0 10px rgba(0, 255, 102, 0.15); }
+    .lead_mechanic .action-btn-neon:hover:not(:disabled) { border-color: var(--neon-purple); background: rgba(189, 0, 255, 0.05); box-shadow: 0 0 10px rgba(189, 0, 255, 0.15); }
+    .router .action-btn-neon:hover:not(:disabled) { border-color: var(--neon-orange); background: rgba(255, 102, 0, 0.05); box-shadow: 0 0 10px rgba(255, 102, 0, 0.15); }
+
+    .action-btn-neon:disabled {
+      border-color: rgba(255, 255, 255, 0.03);
+      color: rgba(255, 255, 255, 0.15);
+      cursor: not-allowed;
+      background: none;
+    }
+    
+    .rank-display-box {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .rank-name {
+      font-weight: bold;
+      color: var(--color-text-main);
+      font-size: var(--fs-sm);
+    }
+    
+    .rank-mult {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: var(--radius-sm);
+      font-weight: bold;
+    }
+    
+    .rank-mult.positive { background: rgba(0, 255, 102, 0.1); color: var(--neon-green); }
+    .rank-mult.negative { background: rgba(255, 0, 60, 0.1); color: var(--neon-red); }
+    
+    .lock-overlay-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: var(--space-4);
+      text-align: center;
+    }
+    
+    .lock-icon-svg {
+      width: 48px;
+      height: 48px;
+      fill: var(--neon-red);
+      filter: drop-shadow(0 0 6px var(--neon-red-glow));
+      opacity: 0.6;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- CRT effects -->
+  <div class="screen-overlay"></div>
+  <div class="grid-backplate"></div>
+
+  <div class="dashboard-layout">
+    
+    <!-- Top metrics bar -->
+    <header class="header-bar panel-cyber">
+      <div class="operator-profile">
+        <div class="avatar-frame">
+          <svg viewBox="0 0 24 24">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15.93c-3.13-.47-5.5-3.14-5.5-6.43 0-1.79.69-3.41 1.81-4.63l1.41 1.41C9.64 9.17 9 10.5 9 12c0 2.21 1.79 4 4 4v1.93zm4.69-4.3C17.61 14.85 16 16.5 14 16.9v-1.93c1.1-.31 2-.96 2.5-1.85l1.19 1.51zM14 8.07V6.03c2 .4 3.61 2.05 4.31 4.18l-1.19 1.51c-.5-.89-1.4-1.54-2.5-1.85z"/>
+          </svg>
+        </div>
+        <div class="operator-details">
+          <h1 class="operator-name">DISPATCH_OPERATOR</h1>
+          <div class="operator-status">
+            <span class="pulse-dot"></span>
+            secure_link_established
+          </div>
+        </div>
+      </div>
+
+      <div class="header-telemetry">
+        <div class="telem-cell">
+          <span class="telem-cell-label">SYSTEM_EPOCH</span>
+          <span class="telem-cell-value">STAFF DEVELOPMENT CENTER</span>
+        </div>
+        <div class="telem-cell">
+          <span class="telem-cell-label">REP_FACTOR</span>
+          <div class="reputation-gauge">
+            <div class="star-grid" id="rep-star-grid">
+              <div class="star-row">
+                <svg class="rep-star" data-index="0" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+                <svg class="rep-star" data-index="1" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+                <svg class="rep-star" data-index="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+                <svg class="rep-star" data-index="3" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+                <svg class="rep-star" data-index="4" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+              </div>
+              <div class="star-row">
+                <svg class="rep-star" data-index="5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+                <svg class="rep-star" data-index="6" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+                <svg class="rep-star" data-index="7" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+                <svg class="rep-star" data-index="8" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+                <svg class="rep-star" data-index="9" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+              </div>
+            </div>
+            <span class="rep-score-display" id="rep-score-val">7.5</span>
+          </div>
+        </div>
+        <div class="telem-cell">
+          <span class="telem-cell-label">POLICE_HEAT_INDEX</span>
+          <div class="police-heat-meter">
+            <span class="heat-value" id="police-heat-val">25%</span>
+            <div class="heat-segments">
+              <div class="heat-segment"></div>
+              <div class="heat-segment"></div>
+              <div class="heat-segment"></div>
+              <div class="heat-segment"></div>
+              <div class="heat-segment"></div>
+              <div class="heat-segment"></div>
+              <div class="heat-segment"></div>
+              <div class="heat-segment"></div>
+              <div class="heat-segment"></div>
+              <div class="heat-segment"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="header-ledgers">
+        <div class="ledger-card clean">
+          <div class="ledger-icon">
+            <svg viewBox="0 0 24 24"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.2c-.07-2.24-1.6-3.9-3.7-4.3V3h-3v1.7c-1.93.41-3.5 1.63-3.5 3.75 0 2.47 2 3.7 5.2 4.2 2.55.4 3.03 1.15 3.03 2.15 0 .75-.53 1.65-2.7 1.65-2.2 0-2.87-.95-3-2.1h-2.2c.1 2.58 1.91 3.9 3.7 4.3V21h3v-1.7c1.95-.41 3.5-1.51 3.5-3.8 0-2.92-2.17-3.75-5.22-4.15z"/></svg>
+          </div>
+          <div class="ledger-meta">
+            <span class="ledger-label">CLEAN_RESERVES</span>
+            <span class="ledger-amount" id="clean-amount">$0.00</span>
+          </div>
+        </div>
+        <div class="ledger-card dirty">
+          <div class="ledger-icon">
+            <svg viewBox="0 0 24 24"><path d="M19.28 4.72A10 10 0 0 0 12 2a10 10 0 1 0 10 10 10 10 0 0 0-2.72-7.28zM12 18a6 6 0 1 1 6-6 6 6 0 0 1-6 6zm-3.5-6a3.5 3.5 0 1 0 3.5-3.5 3.5 3.5 0 0 0-3.5 3.5z"/></svg>
+          </div>
+          <div class="ledger-meta">
+            <span class="ledger-label">LAUNDERED_DIRTY</span>
+            <span class="ledger-amount" id="dirty-amount">$0.00</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-deck" style="display: flex; flex-direction: column; gap: var(--space-4);">
+      
+      <!-- Nav Header Strip -->
+      <div style="display: flex; gap: var(--space-3); border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: var(--space-3);">
+        <a href="index.html" class="nav-op-btn btn-white" style="width: auto; padding: var(--space-2) var(--space-4);">
+          ◀ RETURN TO TACTICAL MAP
+        </a>
+        <h2 style="font-family: var(--font-cyber); font-size: var(--fs-xl); color: var(--color-text-main); margin-left: auto;">
+          SYS_STAFF_COORDINATION
+        </h2>
+      </div>
+
+      <!-- Staff Grid -->
+      <div class="staff-layout-grid" id="staff-roster-container">
+        <div style="font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--color-text-muted); text-align: center; width: 100%; margin-top: var(--space-5);">Connecting to staff database uplink...</div>
+      </div>
+    </main>
+
+  </div>
+
+  <script src="./shared.js"></script>
+  <script>
+    const ROLES_META = {
+      purchasing_agent: {
+        name: "Purchasing Agent",
+        desc: "Secures corporate discounts on kitted fleet vehicle acquisitions and shop maintenance parts.",
+        colorClass: "purchasing_agent",
+        unit: "% discount",
+        base: 5.0,
+        positiveText: "Lowers truck & part prices.",
+        negativeText: "Apprentice raises kitted vehicle costs."
+      },
+      lead_mechanic: {
+        name: "Lead Mechanic",
+        desc: "Speeds up terminal fleet overhauls and secures massive discounts on emergency roadside repairs.",
+        colorClass: "lead_mechanic",
+        unit: "% discount",
+        base: 10.0,
+        positiveText: "Reduces terminal & roadside repair fees.",
+        negativeText: "Apprentice creates 25% repair fee premiums."
+      },
+      router: {
+        name: "LogistiXpert Router",
+        desc: "Optimises shipping paths and cargo packing to increase payouts on all completed routes.",
+        colorClass: "router",
+        unit: "% boost",
+        base: 15.0,
+        positiveText: "Increases delivery payouts.",
+        negativeText: "Apprentice routing slips cause delivery penalties."
+      }
+    };
+
+    const RANK_NAMES = {
+      1: "Apprentice",
+      2: "Junior Associate",
+      3: "Senior Specialist",
+      4: "Expert Coordinator",
+      5: "LogistiXpert"
+    };
+
+    const RANK_MULTIPLIERS = {
+      1: -0.25,
+      2: 0.20,
+      3: 0.50,
+      4: 0.85,
+      5: 1.25
+    };
+
+    async function loadStaffOperations() {
+      try {
+        const response = await fetch(`${SYSTEM_STATE.restUrl}/api/staff`, {
+          headers: { 'Authorization': `Bearer ${SYSTEM_STATE.token}` }
+        });
+        if (!response.ok) throw new Error("Failed to fetch staff roster.");
+        const data = await response.json();
+        
+        // Update local funds
+        SYSTEM_STATE.cleanFunds = data.legalBalance;
+        synchronizeHeaderUI();
+        
+        renderRoster(data.staff);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    function renderRoster(staff) {
+      const container = document.getElementById("staff-roster-container");
+      container.innerHTML = "";
+
+      const roleIds = ['purchasing_agent', 'lead_mechanic', 'router'];
+      
+      roleIds.forEach(roleId => {
+        const s = staff[roleId];
+        const meta = ROLES_META[roleId];
+        if (!s || !meta) return;
+
+        const card = document.createElement("div");
+        card.className = `staff-card ${meta.colorClass} ${s.unlocked ? '' : 'locked'}`;
+
+        if (!s.unlocked) {
+          // Vacant / Hire View
+          card.innerHTML = `
+            <div class="staff-role-title">${meta.name.toUpperCase()}</div>
+            <div class="staff-role-desc">${meta.desc}</div>
+            <div class="card-divider"></div>
+            <div class="lock-overlay-content">
+              <svg class="lock-icon-svg" viewBox="0 0 24 24">
+                <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zM9 6c0-1.66 1.34-3 3-3s3 1.34 3 3v2H9V6zm9 14H6V10h12v10zm-6-3c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2z"/>
+              </svg>
+              <span style="font-size: var(--fs-xs); color: var(--color-text-muted);">STATUS: COORDINATOR VACANCY</span>
+              <button class="action-btn-neon" ${SYSTEM_STATE.cleanFunds < s.unlockCost ? 'disabled' : ''} onclick="hireOperator('${roleId}')">
+                HIRE OPERATOR<br>Cost: $${s.unlockCost.toLocaleString()} Clean
+              </button>
+            </div>
+          `;
+        } else {
+          // Active Employee View
+          const bonusVal = meta.base * s.level * RANK_MULTIPLIERS[s.rank];
+          const isPositive = bonusVal > 0.0;
+          
+          let statusText = isPositive 
+            ? `✨ ACTIVE EFFECT: +${bonusVal.toFixed(2)}${meta.unit}`
+            : `⚠️ ACTIVE PENALTY: -${Math.abs(bonusVal).toFixed(2)}${meta.unit}`;
+            
+          let statusDesc = isPositive ? meta.positiveText : meta.negativeText;
+          let bannerClass = isPositive ? 'positive' : 'negative';
+
+          // Render level dots
+          let dotsHtml = '';
+          for (let i = 0; i < 5; i++) {
+            dotsHtml += `<div class="level-dot ${i < s.level ? 'active' : ''}"></div>`;
+          }
+
+          card.innerHTML = `
+            <div class="staff-role-title">${meta.name.toUpperCase()}</div>
+            <div class="staff-role-desc">${meta.desc}</div>
+            <div class="card-divider"></div>
+            
+            <div class="status-banner ${bannerClass}">
+              <span>${statusText}</span>
+              <span class="status-banner-desc">${statusDesc}</span>
+            </div>
+            
+            <div class="card-divider"></div>
+            
+            <div style="display:flex; flex-direction:column; gap:4px;">
+              <span style="font-size:10px; color:var(--color-text-muted);">🎓 TRAINING SEMINARS: Level ${s.level} / 5</span>
+              <div class="level-dots-container">${dotsHtml}</div>
+            </div>
+            
+            <button class="action-btn-neon" ${s.nextUpgradeCost === null || SYSTEM_STATE.cleanFunds < s.nextUpgradeCost ? 'disabled' : ''} onclick="upgradeSeminar('${roleId}')">
+              ${s.nextUpgradeCost === null ? 'MAX TRAINING LEVEL' : `BOOK NEXT SEMINAR (Cost: $${s.nextUpgradeCost.toLocaleString()} Clean)`}
+            </button>
+            
+            <div class="card-divider"></div>
+            
+            <div style="display:flex; flex-direction:column; gap:6px;">
+              <span style="font-size:10px; color:var(--color-text-muted);">⭐ OPERATIONAL RANK: Rank ${s.rank} / 5</span>
+              <div class="rank-display-box">
+                <span class="rank-name">${RANK_NAMES[s.rank].toUpperCase()}</span>
+                <span class="rank-mult ${isPositive ? 'positive' : 'negative'}">${RANK_MULTIPLIERS[s.rank] > 0 ? '+' : ''}${RANK_MULTIPLIERS[s.rank].toFixed(2)}x mult</span>
+              </div>
+            </div>
+            
+            <button class="action-btn-neon" style="margin-top:auto;" ${s.nextPromotionCost === null || SYSTEM_STATE.cleanFunds < s.nextPromotionCost ? 'disabled' : ''} onclick="promoteOperator('${roleId}')">
+              ${s.nextPromotionCost === null ? 'MAX RANK REACHED' : `PROMOTE COORDINATOR (Cost: $${s.nextPromotionCost.toLocaleString()} Clean)`}
+            </button>
+          `;
+        }
+
+        container.appendChild(card);
+      });
+    }
+
+    async function hireOperator(roleId) {
+      AUDIO.playClick();
+      try {
+        const response = await fetch(`${SYSTEM_STATE.restUrl}/api/staff/unlock`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${SYSTEM_STATE.token}`
+          },
+          body: JSON.stringify({ roleId })
+        });
+        const data = await response.json();
+        if (response.ok) {
+          AUDIO.playSuccess();
+          alert(data.message);
+          loadStaffOperations();
+        } else {
+          AUDIO.playFailure();
+          alert(`HIRE ERROR: ${data.message}`);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    async function upgradeSeminar(roleId) {
+      AUDIO.playClick();
+      try {
+        const response = await fetch(`${SYSTEM_STATE.restUrl}/api/staff/upgrade`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${SYSTEM_STATE.token}`
+          },
+          body: JSON.stringify({ roleId })
+        });
+        const data = await response.json();
+        if (response.ok) {
+          AUDIO.playSuccess();
+          alert(data.message);
+          loadStaffOperations();
+        } else {
+          AUDIO.playFailure();
+          alert(`UPGRADE ERROR: ${data.message}`);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    async function promoteOperator(roleId) {
+      AUDIO.playClick();
+      try {
+        const response = await fetch(`${SYSTEM_STATE.restUrl}/api/staff/promote`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${SYSTEM_STATE.token}`
+          },
+          body: JSON.stringify({ roleId })
+        });
+        const data = await response.json();
+        if (response.ok) {
+          AUDIO.playSuccess();
+          alert(data.message);
+          loadStaffOperations();
+        } else {
+          AUDIO.playFailure();
+          alert(`PROMOTION ERROR: ${data.message}`);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    window.addEventListener("DOMContentLoaded", () => {
+      setTimeout(loadStaffOperations, 100);
+    });
+  </script>
+</body>
+</html>

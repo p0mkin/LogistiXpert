@@ -3,6 +3,21 @@ import { AnalyticsService } from './analytics.service';
 
 const prisma = new PrismaClient();
 
+function getRouterProfitBoost(company: any): number {
+  if (!company.staffRouterUnlocked) return 0.0;
+  const rankMultipliers: Record<number, number> = {
+    1: -0.25,
+    2: 0.20,
+    3: 0.50,
+    4: 0.85,
+    5: 1.25,
+  };
+  const baseValue = 15.0 * company.staffRouterLevel;
+  const mult = rankMultipliers[company.staffRouterRank] || 0.0;
+  return baseValue * mult;
+}
+
+
 export interface CheckpointDefinition {
   name: string;
   alertLevel: number; // 1 to 10
@@ -279,7 +294,10 @@ export class BorderService {
 
       if (route.contrabandJob) {
         // Smuggling Payout (goes to black market balance)
-        payout = route.contrabandJob.payoutBlack.toNumber();
+        const basePayout = route.contrabandJob.payoutBlack.toNumber();
+        const routerBoost = getRouterProfitBoost(truck.company);
+        payout = Math.round(basePayout * (1.0 + (routerBoost / 100.0)));
+
         await transactionalClient.company.update({
           where: { id: truck.companyId },
           data: {
@@ -299,11 +317,15 @@ export class BorderService {
         );
       } else if (route.legalContract) {
         // Legal Payout (goes to legal balance)
-        payout = route.legalContract.payoutLegal.toNumber();
+        let basePayout = route.legalContract.payoutLegal.toNumber();
         // Apply R&D packing buff (+5% per level, up to +15% payout)
         if (truck.company.resAdvancedPacking > 0) {
-          payout = payout * (1.0 + truck.company.resAdvancedPacking * 0.05);
+          basePayout = basePayout * (1.0 + truck.company.resAdvancedPacking * 0.05);
         }
+
+        const routerBoost = getRouterProfitBoost(truck.company);
+        payout = Math.round(basePayout * (1.0 + (routerBoost / 100.0)));
+
         await transactionalClient.company.update({
           where: { id: truck.companyId },
           data: {
@@ -322,8 +344,13 @@ export class BorderService {
         );
       } else if (route.clanContract) {
         // Clan Payout
-        const payoutLegal = route.clanContract.payoutLegal.toNumber();
-        const payoutBlack = route.clanContract.payoutBlack.toNumber();
+        let payoutLegal = route.clanContract.payoutLegal.toNumber();
+        let payoutBlack = route.clanContract.payoutBlack.toNumber();
+
+        const routerBoost = getRouterProfitBoost(truck.company);
+        payoutLegal = Math.round(payoutLegal * (1.0 + (routerBoost / 100.0)));
+        payoutBlack = Math.round(payoutBlack * (1.0 + (routerBoost / 100.0)));
+
         payout = payoutLegal + payoutBlack;
         await transactionalClient.company.update({
           where: { id: truck.companyId },
@@ -333,6 +360,7 @@ export class BorderService {
           },
         });
         payoutLog = `Delivered clan cargo to ${route.clanContract.destination}. Payout: $${payoutLegal} Legal, $${payoutBlack} Black.`;
+
 
         if (payoutLegal > 0) {
           await AnalyticsService.recordTransaction(
@@ -507,7 +535,10 @@ export class BorderService {
       );
 
       if (success) {
-        const payout = job.payoutBlack.toNumber();
+        const basePayout = job.payoutBlack.toNumber();
+        const routerBoost = getRouterProfitBoost(truck.company);
+        const payout = Math.round(basePayout * (1.0 + (routerBoost / 100.0)));
+
         await transactionalClient.company.update({
           where: { id: company.id },
           data: {
@@ -515,6 +546,7 @@ export class BorderService {
             reputationScore: { increment: Math.floor(job.riskMultiplier * 12) },
           },
         });
+
 
         // Record successful completion and payout revenue
         const kgDelivered = AnalyticsService.getCargoWeight(truck.tier);
@@ -695,7 +727,10 @@ export class BorderService {
       const success = roll <= chance;
 
       if (success) {
-        const payout = job.payoutBlack.toNumber();
+        const basePayout = job.payoutBlack.toNumber();
+        const routerBoost = getRouterProfitBoost(company);
+        const payout = Math.round(basePayout * (1.0 + (routerBoost / 100.0)));
+
         await transactionalClient.company.update({
           where: { id: company.id },
           data: {
@@ -704,6 +739,7 @@ export class BorderService {
             policeHeat: { increment: 30 }, // massive chase alert
           },
         });
+
 
         // Record successful run completion and payout revenue
         const kgDelivered = AnalyticsService.getCargoWeight(truck.tier);
