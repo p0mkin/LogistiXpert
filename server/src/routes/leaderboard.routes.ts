@@ -274,27 +274,54 @@ router.get('/my-rank', authenticateJWT, async (req: AuthRequest, res: Response) 
       }, 0);
     }
 
-    const fleetValues = allCompanies.map((c) => ({ id: c.id, val: computeFleetValue(c) }));
-    const totalMiles = allCompanies.map((c) => ({ id: c.id, km: c.trucks.reduce((s, t) => s + t.mileage, 0) }));
+    const meFleetValue = computeFleetValue(me);
+    const meTotalMileage = me.trucks.reduce((s, t) => s + t.mileage, 0);
 
-    fleetValues.sort((a, b) => b.val - a.val);
-    const repSorted = [...allCompanies].sort((a, b) => b.reputationScore - a.reputationScore);
-    const heatSorted = [...allCompanies].sort((a, b) => b.policeHeat - a.policeHeat);
-    totalMiles.sort((a, b) => b.km - a.km);
+    let myFleetRank = 1;
+    let myRepRank = 1;
+    let myHeatRank = 1;
+    let myMileageRank = 1;
 
-    const myFleetRank = fleetValues.findIndex((c) => c.id === companyId) + 1;
-    const myRepRank = repSorted.findIndex((c) => c.id === companyId) + 1;
-    const myHeatRank = heatSorted.findIndex((c) => c.id === companyId) + 1;
-    const myMileageRank = totalMiles.findIndex((c) => c.id === companyId) + 1;
+    for (const company of allCompanies) {
+      const companyFleetValue = computeFleetValue(company);
+      if (
+        companyFleetValue > meFleetValue ||
+        (companyFleetValue === meFleetValue && company.id < companyId)
+      ) {
+        myFleetRank++;
+      }
+
+      if (
+        company.reputationScore > me.reputationScore ||
+        (company.reputationScore === me.reputationScore && company.id < companyId)
+      ) {
+        myRepRank++;
+      }
+
+      if (
+        company.policeHeat > me.policeHeat ||
+        (company.policeHeat === me.policeHeat && company.id < companyId)
+      ) {
+        myHeatRank++;
+      }
+
+      const companyTotalMileage = company.trucks.reduce((s, t) => s + t.mileage, 0);
+      if (
+        companyTotalMileage > meTotalMileage ||
+        (companyTotalMileage === meTotalMileage && company.id < companyId)
+      ) {
+        myMileageRank++;
+      }
+    }
 
     return res.json({
       companyName: me.name,
       totalCompanies: allCompanies.length,
       ranks: {
-        fleetValue: { rank: myFleetRank, value: computeFleetValue(me) },
+        fleetValue: { rank: myFleetRank, value: meFleetValue },
         underworldRep: { rank: myRepRank, value: me.reputationScore },
         heatIndex: { rank: myHeatRank, value: me.policeHeat },
-        totalMileage: { rank: myMileageRank, value: me.trucks.reduce((s, t) => s + t.mileage, 0) },
+        totalMileage: { rank: myMileageRank, value: meTotalMileage },
       },
     });
   } catch (err) {
