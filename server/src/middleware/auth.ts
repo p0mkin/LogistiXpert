@@ -16,6 +16,16 @@ export interface JWTPayload {
   companyId: string;
 }
 
+function isJWTPayloadValid(payload: any): payload is JWTPayload {
+  return (
+    typeof payload === 'object' &&
+    payload !== null &&
+    typeof payload.id === 'string' &&
+    typeof payload.username === 'string' &&
+    typeof payload.companyId === 'string'
+  );
+}
+
 // 1. REST Express Middleware
 export function authenticateJWT(req: AuthRequest, res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;
@@ -24,10 +34,20 @@ export function authenticateJWT(req: AuthRequest, res: Response, next: NextFunct
     return res.status(401).json({ error: 'UNAUTHORIZED', message: 'Missing or invalid token format' });
   }
 
-  const token = authHeader.split(' ')[1];
+  const parts = authHeader.split(' ');
+  if (parts.length !== 2 || !parts[1]) {
+    return res.status(401).json({ error: 'UNAUTHORIZED', message: 'Missing or invalid token format' });
+  }
+
+  const token = parts[1];
 
   try {
-    const decoded = jwt.verify(token, CONFIG.JWT_SECRET) as JWTPayload;
+    const decoded = jwt.verify(token, CONFIG.JWT_SECRET);
+
+    if (!isJWTPayloadValid(decoded)) {
+      return res.status(403).json({ error: 'FORBIDDEN', message: 'Invalid token payload' });
+    }
+
     req.user = decoded;
     next();
   } catch (error) {
@@ -38,7 +58,11 @@ export function authenticateJWT(req: AuthRequest, res: Response, next: NextFunct
 // 2. WebSocket Raw Upgrade Handshake Verification
 export function verifyWSHandshakeToken(token: string): JWTPayload | null {
   try {
-    return jwt.verify(token, CONFIG.JWT_SECRET) as JWTPayload;
+    const decoded = jwt.verify(token, CONFIG.JWT_SECRET);
+    if (!isJWTPayloadValid(decoded)) {
+      return null;
+    }
+    return decoded;
   } catch (error) {
     return null;
   }
