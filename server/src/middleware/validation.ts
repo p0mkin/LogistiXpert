@@ -13,6 +13,7 @@ export const validateRequest = (schema: AnyZodObject) => {
         params: req.params,
       });
 
+      // Reassign the sanitized data back to the request to strip unexpected fields
       req.body = validatedData.body;
       req.query = validatedData.query;
       req.params = validatedData.params;

@@ -153,8 +153,12 @@ router.post('/login', async (req: Request, res: Response) => {
 
 // 3. FORCE SEED SYSTEM DATABASE (SECURE DEVELOPMENT ENDPOINT)
 router.post('/force-seed', async (req: Request, res: Response) => {
-  const { secretKey } = req.body;
-  if (secretKey !== 'super-secret-force-seed-key-1337') {
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(403).json({ error: 'FORBIDDEN', message: 'Endpoint disabled in production.' });
+  }
+
+  const secretKey = req.headers['x-seed-secret'] || req.body.secretKey;
+  if (!secretKey || secretKey !== CONFIG.FORCE_SEED_SECRET) {
     return res.status(403).json({ error: 'FORBIDDEN', message: 'Invalid secret key.' });
   }
 
