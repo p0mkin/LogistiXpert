@@ -33,10 +33,10 @@ export class AnalyticsService {
     const metros = ['stockholm', 'berlin', 'vilnius', 'warsaw', 'tallinn', 'riga', 'copenhagen', 'helsinki', 'oslo'];
     const regionals = ['siauliai', 'klaipeda', 'panevezys', 'kaunas', 'bialystok', 'gdansk'];
 
-    if (metros.includes(name) || metros.some(m => name.includes(m))) {
+    if (metros.includes(name)) {
       return 1000000;
     }
-    if (regionals.includes(name) || regionals.some(r => name.includes(r))) {
+    if (regionals.includes(name)) {
       return 300000;
     }
     return 80000;
@@ -72,7 +72,8 @@ export class AnalyticsService {
     // Reputation scales base capacity (+0.1% per reputationScore point up to max multiplier of 2.0x, floor at 0.1x to prevent negative capacity)
     const repScore = company?.reputationScore || 0;
     const repBonus = Math.max(-0.9, Math.min(1.0, repScore * 0.001));
-    const reputationMultiplier = 1 + repBonus;
+    // Fix floating point precision issues by rounding to two decimal places
+    const reputationMultiplier = Math.round((1 + repBonus) * 100) / 100;
 
     const totalCapacity = Math.floor(baseCapacity * terminalMultiplier * reputationMultiplier);
 

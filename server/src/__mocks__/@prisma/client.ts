@@ -67,6 +67,7 @@ export const PrismaClient = jest.fn().mockImplementation(() => ({
   },
   garage: {
     findUnique: jest.fn(),
+    findFirst: jest.fn(),
     findMany: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
@@ -75,4 +76,23 @@ export const PrismaClient = jest.fn().mockImplementation(() => ({
     findMany: jest.fn(),
     create: jest.fn(),
   },
+  company: {
+    findUnique: jest.fn(),
+  },
+  cityDailyFreight: {
+    findUnique: jest.fn(),
+    upsert: jest.fn(),
+  },
+  dailyPerformanceReport: {
+    upsert: jest.fn(),
+  },
+  terminalDailyReport: {
+    upsert: jest.fn(),
+  },
 }));
+
+export const Prisma = {
+  Decimal: jest.fn().mockImplementation((val) => ({
+    toString: () => String(val),
+  })),
+};
