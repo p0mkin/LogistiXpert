@@ -397,14 +397,14 @@ router.post('/upgrade', async (req: AuthRequest, res: Response) => {
         return res.status(400).json({ error: 'INVALID_UPGRADE', message: 'Unknown upgrade type' });
     }
 
-    if (truck.company.underworldBalance.toNumber() < cost) {
+    if (truck.company.blackMarketBalance.toNumber() < cost) {
       return res.status(400).json({ error: 'INSUFFICIENT_FUNDS', message: 'Not enough Underworld cash (C500)!' });
     }
 
-    await prisma.([
+    await prisma.$transaction([
       prisma.company.update({
         where: { id: companyId },
-        data: { underworldBalance: { decrement: cost } }
+        data: { blackMarketBalance: { decrement: cost } }
       }),
       prisma.truck.update({
         where: { id: truckId },
