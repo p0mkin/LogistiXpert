@@ -3,369 +3,402 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LogistiXpert: Staff Operations Control</title>
-  <meta name="description" content="Manage your logistics crew — hire, train, and promote specialists to optimize operations across your underworld network.">
-  
-  <!-- Cyberpunk Typography -->
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=JetBrains+Mono:wght@300;400;500;700&family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
-  
-  <!-- Design System Styles -->
+  <title>LogistiXpert — Personnel Command</title>
+  <meta name="description" content="Underworld HR — hire, train, and promote specialist coordinators across your shadow logistics empire.">
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=JetBrains+Mono:wght@300;400;500;600;700&family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./styles.css">
+
   <style>
-    /* ===== STAFF PAGE CANVAS (HEX PARTICLES) ===== */
+    /* ─────────────────────────────────────────────────────
+       STAFF PAGE — LOCAL STYLES
+       ───────────────────────────────────────────────────── */
+
+    /* Animated scanline that drifts across the page */
+    #drift-scanline {
+      position: fixed; top: 0; left: 0; width: 100%; height: 2px;
+      background: linear-gradient(90deg, transparent, rgba(0,255,102,0.15), transparent);
+      pointer-events: none; z-index: 9999;
+      animation: driftScan 8s linear infinite;
+    }
+    @keyframes driftScan {
+      0%   { top: 0%; }
+      100% { top: 100%; }
+    }
+
+    /* Heat flash overlay — turns red when high police heat */
+    #heat-flash-overlay {
+      position: fixed; inset: 0; pointer-events: none;
+      z-index: 9998;
+      background: radial-gradient(ellipse at center, rgba(255,0,60,0.0) 0%, rgba(255,0,60,0.0) 100%);
+      transition: background 2s ease;
+    }
+    #heat-flash-overlay.alarming {
+      background: radial-gradient(ellipse at center, rgba(255,0,60,0.0) 40%, rgba(255,0,60,0.12) 100%);
+      animation: heatPulse 2s ease-in-out infinite;
+    }
+    @keyframes heatPulse {
+      0%, 100% { opacity: 0.6; }
+      50%       { opacity: 1.0; }
+    }
+
+    /* Canvas for hex/network particle field */
     #staff-particle-canvas {
-      position: fixed;
-      inset: 0;
-      z-index: 2;
-      pointer-events: none;
-      opacity: 0.35;
+      position: fixed; inset: 0; z-index: 2;
+      pointer-events: none; opacity: 0.3;
     }
 
-    /* ===== LAYOUT ===== */
-    .staff-layout-grid {
+    /* News ticker at bottom */
+    #news-ticker {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      height: 28px; background: rgba(0,0,0,0.92);
+      border-top: 1px solid rgba(255,255,255,0.06);
+      display: flex; align-items: center; overflow: hidden;
+      z-index: 9997; font-family: 'JetBrains Mono', monospace;
+    }
+    .ticker-label {
+      flex-shrink: 0; padding: 0 12px;
+      font-size: 8px; font-weight: 900; letter-spacing: 2px;
+      color: #000; background: var(--neon-green);
+      height: 100%; display: flex; align-items: center;
+    }
+    .ticker-track {
+      flex: 1; overflow: hidden; position: relative;
+    }
+    .ticker-inner {
+      display: flex; gap: 60px; white-space: nowrap;
+      font-size: 9px; color: rgba(255,255,255,0.55);
+      animation: tickerScroll 60s linear infinite;
+    }
+    .ticker-item { color: rgba(200,200,200,0.6); }
+    .ticker-item.hot { color: var(--neon-orange); }
+    .ticker-item.bad { color: var(--neon-red); }
+    .ticker-item.good { color: var(--neon-green); }
+    @keyframes tickerScroll {
+      0%   { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
+    }
+
+    /* Main layout */
+    .staff-page-wrapper {
+      display: flex; flex-direction: column; gap: 0;
+      padding-bottom: 28px; /* leave room for ticker */
+      height: 100vh; overflow: hidden;
+    }
+
+    .staff-topbar {
+      display: flex; align-items: center; gap: var(--space-3);
+      padding: var(--space-3) var(--space-5);
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      background: rgba(8,8,12,0.92); flex-shrink: 0;
+    }
+
+    .staff-topbar-title {
+      font-family: var(--font-cyber); font-size: 11px;
+      letter-spacing: 3px; color: var(--color-text-muted);
+      text-transform: uppercase;
+    }
+
+    .staff-balance-chip {
+      display: flex; align-items: center; gap: 6px;
+      padding: 4px 10px; border-radius: 2px;
+      background: rgba(0,255,102,0.06);
+      border: 1px solid rgba(0,255,102,0.18);
+      font-family: 'JetBrains Mono', monospace; font-size: 10px;
+      font-weight: bold; color: var(--neon-green);
+    }
+    .staff-heat-chip {
+      display: flex; align-items: center; gap: 6px;
+      padding: 4px 10px; border-radius: 2px;
+      background: rgba(255,0,60,0.06);
+      border: 1px solid rgba(255,0,60,0.18);
+      font-family: 'JetBrains Mono', monospace; font-size: 10px;
+      font-weight: bold; color: var(--neon-red);
+    }
+
+    .topbar-spacer { flex: 1; }
+
+    /* Staff grid canvas area */
+    .staff-content-area {
+      flex: 1; overflow-y: auto; overflow-x: hidden;
+      padding: var(--space-4) var(--space-5);
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255,255,255,0.08) transparent;
+    }
+    .staff-content-area::-webkit-scrollbar { width: 4px; }
+    .staff-content-area::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 2px; }
+
+    /* SECTION HEADER */
+    .staff-section-head {
+      display: flex; align-items: center; gap: var(--space-3);
+      margin-bottom: var(--space-4);
+    }
+    .staff-section-label {
+      font-family: var(--font-cyber); font-size: var(--fs-xl);
+      font-weight: var(--fw-black); letter-spacing: 2px;
+    }
+    .staff-section-sub {
+      font-family: 'JetBrains Mono', monospace; font-size: 10px;
+      color: var(--color-text-muted); flex: 1;
+    }
+    .staff-section-badge {
+      font-family: 'JetBrains Mono', monospace; font-size: 9px;
+      font-weight: bold; padding: 2px 8px; border-radius: 2px;
+      text-transform: uppercase; letter-spacing: 1px;
+    }
+    .badge-green { background: rgba(0,255,102,0.1); border: 1px solid rgba(0,255,102,0.3); color: var(--neon-green); }
+    .badge-red   { background: rgba(255,0,60,0.1);  border: 1px solid rgba(255,0,60,0.3);  color: var(--neon-red); }
+
+    /* ROSTER GRID */
+    .staff-roster-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
       gap: var(--space-4);
-      height: calc(100vh - 180px);
-      overflow-y: auto;
-      padding-bottom: var(--space-4);
-      padding-right: 4px;
     }
 
-    /* Custom scrollbar */
-    .staff-layout-grid::-webkit-scrollbar { width: 4px; }
-    .staff-layout-grid::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); }
-    .staff-layout-grid::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
-
-    /* ===== STAFF CARD BASE ===== */
-    .staff-card {
-      background: rgba(10, 10, 16, 0.90);
-      border: 1px solid rgba(255, 255, 255, 0.05);
-      border-radius: 6px;
-      padding: var(--space-4);
-      display: flex;
-      flex-direction: column;
-      gap: var(--space-3);
-      font-family: var(--font-mono);
-      position: relative;
-      overflow: hidden;
-      min-height: 520px;
-      transform-style: preserve-3d;
-      transition: transform 0.1s ease, box-shadow 0.2s ease, border-color 0.25s ease;
+    /* ── STAFF CARD ── */
+    .scard {
+      background: rgba(10, 10, 16, 0.96);
+      border: 1px solid rgba(255,255,255,0.05);
+      border-radius: 6px; padding: 0;
+      font-family: 'JetBrains Mono', monospace;
+      position: relative; overflow: hidden;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
       will-change: transform;
     }
 
-    /* Animated top-edge glow line */
-    .staff-card::before {
+    /* Top color bar per role */
+    .scard-topbar {
+      height: 3px; width: 100%;
+      background: var(--role-color, rgba(255,255,255,0.1));
+      position: relative; overflow: hidden;
+    }
+    .scard-topbar::after {
       content: '';
-      position: absolute;
-      top: 0; left: 0; right: 0;
-      height: 2px;
-      opacity: 0;
-      transition: opacity 0.3s ease;
+      position: absolute; top: 0; left: -100%;
+      width: 60%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent);
+      animation: shimmerBar 3s ease infinite;
     }
-    .purchasing_agent.unlocked::before { background: linear-gradient(90deg, transparent, var(--neon-green), transparent); }
-    .lead_mechanic.unlocked::before   { background: linear-gradient(90deg, transparent, var(--neon-purple), transparent); }
-    .router.unlocked::before          { background: linear-gradient(90deg, transparent, var(--neon-orange), transparent); }
-    .staff-card.unlocked:hover::before { opacity: 1; }
-
-    /* Corner bracket accents */
-    .staff-card::after {
-      content: '';
-      position: absolute;
-      bottom: -1px; right: -1px;
-      width: 16px; height: 16px;
-      border-bottom-width: 2px;
-      border-right-width: 2px;
-      border-style: solid;
-      border-color: transparent;
-      transition: border-color 0.25s ease;
-      pointer-events: none;
-    }
-    .purchasing_agent.unlocked:hover::after { border-color: var(--neon-green); }
-    .lead_mechanic.unlocked:hover::after    { border-color: var(--neon-purple); }
-    .router.unlocked:hover::after           { border-color: var(--neon-orange); }
-
-    /* Role colors */
-    .staff-card.locked { border-color: rgba(255, 0, 60, 0.15); }
-    .staff-card.locked::after { content: 'VACANT SLOT'; position: absolute; top: 12px; right: 12px; width: auto; height: auto; font-size: 8px; font-weight: bold; color: var(--neon-red); border: 1px solid var(--neon-red); padding: 1px 5px; border-radius: 2px; background: rgba(255, 0, 60, 0.1); }
-    .staff-card.purchasing_agent.unlocked { border-color: rgba(0, 255, 102, 0.12); }
-    .staff-card.lead_mechanic.unlocked    { border-color: rgba(189, 0, 255, 0.12); }
-    .staff-card.router.unlocked           { border-color: rgba(255, 102, 0, 0.12); }
-    .staff-card.purchasing_agent.unlocked:hover { border-color: rgba(0, 255, 102, 0.45); box-shadow: 0 0 24px rgba(0, 255, 102, 0.08), 0 8px 40px rgba(0,0,0,0.6); }
-    .staff-card.lead_mechanic.unlocked:hover    { border-color: rgba(189, 0, 255, 0.45); box-shadow: 0 0 24px rgba(189, 0, 255, 0.08), 0 8px 40px rgba(0,0,0,0.6); }
-    .staff-card.router.unlocked:hover           { border-color: rgba(255, 102, 0, 0.45); box-shadow: 0 0 24px rgba(255, 102, 0, 0.08), 0 8px 40px rgba(0,0,0,0.6); }
-
-    /* Rank-up flash animation */
-    .staff-card.rank-up-flash {
-      animation: rankUpFlash 0.6s ease forwards;
-    }
-    @keyframes rankUpFlash {
-      0%   { box-shadow: 0 0 0px rgba(255,255,255,0); }
-      30%  { box-shadow: 0 0 40px rgba(255,255,255,0.3), 0 0 80px rgba(255,255,255,0.1); }
-      100% { box-shadow: none; }
+    @keyframes shimmerBar {
+      0%   { left: -100%; }
+      100% { left: 200%; }
     }
 
-    /* ===== CARD CONTENT ===== */
-    .staff-role-title {
-      font-family: var(--font-cyber);
-      font-size: var(--fs-lg);
-      font-weight: var(--fw-black);
-      letter-spacing: 1.5px;
-    }
-    .purchasing_agent .staff-role-title { color: var(--neon-green); }
-    .lead_mechanic .staff-role-title    { color: var(--neon-purple); }
-    .router .staff-role-title           { color: var(--neon-orange); }
+    .scard-body { padding: 20px 20px 16px; display: flex; flex-direction: column; gap: 14px; }
 
-    .staff-role-desc {
-      font-size: 11px;
-      color: var(--color-text-muted);
-      line-height: 1.5;
-      min-height: 48px;
+    /* Role header */
+    .scard-role-header { display: flex; align-items: flex-start; gap: 12px; }
+    .scard-role-icon {
+      width: 40px; height: 40px; border-radius: 4px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+      background: var(--role-bg, rgba(255,255,255,0.04));
+      border: 1px solid var(--role-border, rgba(255,255,255,0.08));
+    }
+    .scard-role-info { flex: 1; }
+    .scard-role-name {
+      font-family: var(--font-cyber); font-size: 14px;
+      font-weight: 900; letter-spacing: 1px;
+      color: var(--role-color, #f0f4f8);
+    }
+    .scard-role-desc {
+      font-size: 10px; color: var(--color-text-muted);
+      line-height: 1.5; margin-top: 2px;
+    }
+    .scard-status-pill {
+      flex-shrink: 0; font-size: 8px; font-weight: bold;
+      padding: 3px 8px; border-radius: 20px; letter-spacing: 1px;
+      align-self: flex-start; margin-top: 2px;
+    }
+    .pill-active { background: rgba(0,255,102,0.1); border: 1px solid rgba(0,255,102,0.3); color: var(--neon-green); }
+    .pill-locked { background: rgba(255,0,60,0.1);  border: 1px solid rgba(255,0,60,0.3);  color: var(--neon-red); }
+    .pill-warn   { background: rgba(255,102,0,0.1); border: 1px solid rgba(255,102,0,0.3); color: var(--neon-orange); }
+
+    /* Divider */
+    .scard-divider {
+      height: 1px; background: rgba(255,255,255,0.04); margin: 0;
     }
 
-    .card-divider {
-      height: 1px;
-      background: rgba(255, 255, 255, 0.05);
-      margin: 2px 0;
+    /* Effect banner */
+    .scard-effect {
+      padding: 10px 12px; border-radius: 4px; border-left: 2px solid;
+      font-size: 11px; font-weight: bold;
+    }
+    .scard-effect.pos { background: rgba(0,255,102,0.05); border-color: var(--neon-green); color: var(--neon-green); }
+    .scard-effect.neg { background: rgba(255,0,60,0.05);  border-color: var(--neon-red);   color: var(--neon-red); }
+    .scard-effect.zero{ background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1); color: var(--color-text-muted); }
+    .scard-effect-sub { font-size: 9px; font-weight: normal; color: var(--color-text-muted); margin-top: 2px; }
+
+    /* Morale */
+    .scard-morale { display: flex; align-items: center; gap: 8px; }
+    .scard-morale-label { font-size: 9px; color: var(--color-text-muted); width: 44px; flex-shrink: 0; }
+    .scard-morale-track {
+      flex: 1; height: 4px; border-radius: 2px;
+      background: rgba(255,255,255,0.05); overflow: hidden;
+    }
+    .scard-morale-fill {
+      height: 100%; border-radius: 2px;
+      transition: width 1s cubic-bezier(0.16,1,0.3,1);
+    }
+    .scard-morale-fill.hi { background: var(--neon-green); }
+    .scard-morale-fill.md { background: var(--neon-orange); }
+    .scard-morale-fill.lo { background: var(--neon-red); }
+    .scard-morale-val { font-size: 9px; color: var(--color-text-muted); width: 28px; text-align: right; }
+
+    /* Level track */
+    .scard-track-section { display: flex; flex-direction: column; gap: 6px; }
+    .scard-track-header { display: flex; justify-content: space-between; align-items: center; }
+    .scard-track-label { font-size: 9px; color: var(--color-text-muted); letter-spacing: 1px; text-transform: uppercase; }
+    .scard-track-val { font-size: 10px; font-weight: bold; color: var(--role-color, #f0f4f8); }
+    .scard-track-dots { display: flex; gap: 4px; }
+    .scard-dot {
+      flex: 1; height: 6px; border-radius: 2px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.06);
+      transition: all 0.4s cubic-bezier(0.34,1.56,0.64,1);
+    }
+    .scard-dot.on {
+      background: var(--role-color, #f0f4f8);
+      border-color: var(--role-color, #f0f4f8);
+      box-shadow: 0 0 6px var(--role-color, rgba(255,255,255,0.3));
     }
 
-    /* ===== MORALE INDICATOR ===== */
-    .morale-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 10px;
+    /* ROI grid */
+    .scard-roi-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+      background: rgba(255,255,255,0.02); border-radius: 4px;
+      border: 1px solid rgba(255,255,255,0.04); padding: 10px 12px;
     }
-    .morale-label { color: var(--color-text-muted); }
-    .morale-bar-track {
-      flex: 1;
-      height: 4px;
-      background: rgba(255,255,255,0.06);
-      border-radius: 2px;
-      overflow: hidden;
-    }
-    .morale-bar-fill {
-      height: 100%;
-      border-radius: 2px;
-      transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1);
-    }
-    .morale-bar-fill.high  { background: var(--neon-green); box-shadow: 0 0 4px var(--neon-green-glow); }
-    .morale-bar-fill.mid   { background: var(--neon-orange); box-shadow: 0 0 4px var(--neon-orange-glow); }
-    .morale-bar-fill.low   { background: var(--neon-red); box-shadow: 0 0 4px var(--neon-red-glow); }
-    .morale-emoji { font-size: 12px; }
+    .scard-roi-cell { display: flex; flex-direction: column; gap: 2px; }
+    .scard-roi-label { font-size: 8px; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 1px; }
+    .scard-roi-val { font-size: 11px; font-weight: 700; }
+    .val-green { color: var(--neon-green); }
+    .val-red   { color: var(--neon-red); }
+    .val-blue  { color: var(--neon-blue); }
+    .val-muted { color: var(--color-text-muted); }
 
-    /* ===== STATUS BANNER ===== */
-    .status-banner {
-      padding: var(--space-2) var(--space-3);
-      border-radius: 4px;
-      border-left: 3px solid;
-      font-size: 11px;
-      font-weight: bold;
-      display: flex;
-      flex-direction: column;
-      gap: 3px;
-    }
-    .status-banner.positive { background: rgba(0, 255, 102, 0.06); border-left-color: var(--neon-green); color: var(--neon-green); }
-    .status-banner.negative { background: rgba(255, 0, 60, 0.06); border-left-color: var(--neon-red); color: var(--neon-red); }
-    .status-banner-desc { font-size: 9px; font-weight: normal; color: var(--color-text-muted); }
-
-    /* ===== LEVEL DOTS ===== */
-    .level-dots-container { display: flex; gap: 5px; margin: 4px 0; }
-    .level-dot {
-      flex: 1;
-      height: 5px;
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 2px;
-      transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-    }
-    .purchasing_agent .level-dot.active { background: var(--neon-green); border-color: var(--neon-green); box-shadow: 0 0 5px var(--neon-green-glow); }
-    .lead_mechanic .level-dot.active    { background: var(--neon-purple); border-color: var(--neon-purple); box-shadow: 0 0 5px var(--neon-purple-glow); }
-    .router .level-dot.active           { background: var(--neon-orange); border-color: var(--neon-orange); box-shadow: 0 0 5px var(--neon-orange-glow); }
-
-    /* ===== RANK DISPLAY ===== */
-    .rank-display-box { display: flex; justify-content: space-between; align-items: center; }
-    .rank-name { font-weight: bold; color: var(--color-text-main); font-size: var(--fs-sm); }
-    .rank-mult {
-      font-size: 10px; padding: 2px 8px; border-radius: 2px; font-weight: bold;
-    }
-    .rank-mult.positive { background: rgba(0, 255, 102, 0.1); color: var(--neon-green); }
-    .rank-mult.negative { background: rgba(255, 0, 60, 0.1); color: var(--neon-red); }
-
-    /* Rank tier progress track */
-    .rank-tier-track {
-      display: flex;
-      gap: 3px;
-      margin-top: 6px;
-    }
-    .rank-tier-pip {
-      flex: 1;
-      height: 3px;
-      background: rgba(255,255,255,0.06);
-      border-radius: 1px;
-      transition: background 0.5s ease;
-    }
-    .purchasing_agent .rank-tier-pip.active { background: var(--neon-green); }
-    .lead_mechanic .rank-tier-pip.active    { background: var(--neon-purple); }
-    .router .rank-tier-pip.active           { background: var(--neon-orange); }
-
-    /* ===== ROI PANEL ===== */
-    .roi-panel {
-      background: rgba(255, 255, 255, 0.02);
-      border: 1px solid rgba(255, 255, 255, 0.05);
-      border-radius: 4px;
-      padding: var(--space-2) var(--space-3);
-    }
-    .roi-panel-title {
-      font-size: 9px;
-      color: var(--color-text-muted);
-      letter-spacing: 1.5px;
+    /* Action buttons */
+    .scard-actions { display: flex; flex-direction: column; gap: 6px; }
+    .scard-btn {
+      width: 100%; padding: 10px 14px;
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 4px; cursor: pointer;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px; font-weight: 700; letter-spacing: 0.5px;
+      color: rgba(255,255,255,0.4);
+      transition: all 0.15s ease;
+      display: flex; justify-content: space-between; align-items: center;
       text-transform: uppercase;
-      margin-bottom: 6px;
     }
-    .roi-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 4px;
+    .scard-btn:not(:disabled):hover {
+      background: rgba(255,255,255,0.05);
+      color: var(--role-color, #f0f4f8);
+      border-color: var(--role-color, rgba(255,255,255,0.2));
+      box-shadow: 0 0 16px rgba(0,0,0,0.4),
+                  inset 0 0 0 1px var(--role-color, transparent),
+                  0 0 8px var(--role-glow, rgba(255,255,255,0.05));
     }
-    .roi-cell {
-      display: flex;
-      flex-direction: column;
-      gap: 1px;
-    }
-    .roi-cell-label { font-size: 9px; color: var(--color-text-muted); }
-    .roi-cell-value { font-size: 11px; font-weight: bold; }
-    .roi-cell-value.positive { color: var(--neon-green); }
-    .roi-cell-value.negative { color: var(--neon-red); }
-    .roi-cell-value.neutral  { color: var(--neon-blue); }
-
-    /* ===== ACTION BUTTONS ===== */
-    .action-btn-neon {
-      background: rgba(255, 255, 255, 0.02);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 4px;
-      color: var(--color-text-muted);
-      font-family: var(--font-mono);
-      font-size: 10px;
-      padding: var(--space-2) var(--space-3);
-      cursor: pointer;
-      width: 100%;
-      text-align: center;
-      transition: all var(--transition-fast);
-      min-height: 40px;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      font-weight: bold;
-      letter-spacing: 0.5px;
-      position: relative;
-      overflow: hidden;
-    }
-    .action-btn-neon::after {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: linear-gradient(135deg, rgba(255,255,255,0.04) 0%, transparent 100%);
-      opacity: 0;
-      transition: opacity 0.2s ease;
-    }
-    .action-btn-neon:hover::after { opacity: 1; }
-    .action-btn-neon:hover:not(:disabled) { color: #fff; }
-    .purchasing_agent .action-btn-neon:hover:not(:disabled) { border-color: var(--neon-green); background: rgba(0, 255, 102, 0.06); box-shadow: 0 0 12px rgba(0, 255, 102, 0.12); }
-    .lead_mechanic .action-btn-neon:hover:not(:disabled)    { border-color: var(--neon-purple); background: rgba(189, 0, 255, 0.06); box-shadow: 0 0 12px rgba(189, 0, 255, 0.12); }
-    .router .action-btn-neon:hover:not(:disabled)           { border-color: var(--neon-orange); background: rgba(255, 102, 0, 0.06); box-shadow: 0 0 12px rgba(255, 102, 0, 0.12); }
-    .action-btn-neon:disabled {
-      border-color: rgba(255, 255, 255, 0.03);
-      color: rgba(255, 255, 255, 0.12);
+    .scard-btn:not(:disabled):active { transform: scale(0.99); }
+    .scard-btn:disabled {
+      color: rgba(255,255,255,0.1);
+      border-color: rgba(255,255,255,0.03);
       cursor: not-allowed; background: none;
     }
-
-    /* ===== LOCK OVERLAY ===== */
-    .lock-overlay-content {
-      flex: 1; display: flex; flex-direction: column;
-      justify-content: center; align-items: center; gap: var(--space-4); text-align: center;
-    }
-    .lock-icon-svg {
-      width: 44px; height: 44px;
-      fill: var(--neon-red);
-      filter: drop-shadow(0 0 6px rgba(255, 0, 60, 0.4));
-      opacity: 0.6;
+    .scard-btn-cost { font-size: 9px; opacity: 0.7; }
+    .scard-btn.primary {
+      border-color: var(--role-color, rgba(255,255,255,0.3));
+      color: var(--role-color, #f0f4f8);
+      background: rgba(255,255,255,0.03);
     }
 
-    /* ===== KEYBOARD SHORTCUT HINT ===== */
-    .kbd-hint {
-      position: fixed;
-      bottom: 16px;
-      right: 16px;
-      font-family: var(--font-mono);
-      font-size: 9px;
-      color: var(--color-text-muted);
-      display: flex;
-      gap: 12px;
-      z-index: 50;
+    /* Locked card empty state */
+    .scard-vacant {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; gap: 16px; padding: 32px;
+      text-align: center; min-height: 240px;
     }
-    .kbd-hint-item { display: flex; align-items: center; gap: 4px; }
-    .kbd { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 2px; padding: 1px 5px; font-family: var(--font-mono); font-size: 9px; color: #aaa; }
+    .scard-vacant-icon {
+      font-size: 36px; opacity: 0.3;
+      animation: floatIcon 3s ease-in-out infinite;
+    }
+    @keyframes floatIcon {
+      0%, 100% { transform: translateY(0); }
+      50%       { transform: translateY(-6px); }
+    }
+    .scard-vacant-title { font-size: 11px; font-weight: bold; color: var(--color-text-muted); letter-spacing: 1px; }
+    .scard-vacant-desc  { font-size: 10px; color: rgba(255,255,255,0.25); line-height: 1.5; max-width: 240px; }
 
-    /* ===== LOADING SKELETON ===== */
-    .staff-skeleton-card {
-      background: rgba(10, 10, 16, 0.90);
-      border: 1px solid rgba(255, 255, 255, 0.04);
-      border-radius: 6px;
-      padding: var(--space-4);
-      min-height: 520px;
-      overflow: hidden;
-      position: relative;
+    /* Skeleton loading */
+    .scard-skeleton {
+      background: rgba(10,10,16,0.96);
+      border: 1px solid rgba(255,255,255,0.04);
+      border-radius: 6px; min-height: 500px;
+      position: relative; overflow: hidden;
     }
-    .staff-skeleton-card::after {
+    .scard-skeleton::after {
       content: '';
-      position: absolute;
-      inset: 0;
-      background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.03) 50%, transparent 100%);
-      animation: skeleton-sweep 1.5s infinite;
+      position: absolute; inset: 0;
+      background: linear-gradient(90deg,
+        transparent 0%,
+        rgba(255,255,255,0.025) 50%,
+        transparent 100%
+      );
+      animation: skelMove 1.6s ease infinite;
     }
-    @keyframes skeleton-sweep {
+    @keyframes skelMove {
       from { transform: translateX(-100%); }
       to   { transform: translateX(100%); }
     }
-    .skeleton-line {
-      height: 12px; background: rgba(255,255,255,0.05); border-radius: 2px; margin-bottom: 8px;
-    }
 
-    /* ===== PARTICLE BURST (Rank Up) ===== */
+    /* Rank-up flash */
+    @keyframes rankUpFlash {
+      0%   { box-shadow: 0 0 0 rgba(255,255,255,0), inset 0 0 0 rgba(255,255,255,0); }
+      25%  { box-shadow: 0 0 40px rgba(255,255,255,0.2), inset 0 0 20px rgba(255,255,255,0.05); }
+      100% { box-shadow: none; }
+    }
+    .rank-up-flash { animation: rankUpFlash 0.7s ease forwards; }
+
+    /* Particle burst */
     .particle-burst {
-      position: absolute;
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      pointer-events: none;
-      z-index: 100;
-      animation: particleFly 0.8s ease-out forwards;
+      position: fixed; width: 5px; height: 5px; border-radius: 50%;
+      pointer-events: none; z-index: 9999;
+      animation: particleFly 0.9s ease-out forwards;
     }
     @keyframes particleFly {
-      0%   { opacity: 1; transform: translate(0, 0) scale(1); }
+      0%   { opacity: 1; transform: translate(0,0) scale(1.5); }
       100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(0); }
+    }
+
+    /* Kbd hint bar */
+    .kbd-hint-bar {
+      position: fixed; bottom: 36px; right: 16px; z-index: 50;
+      display: flex; gap: 10px; align-items: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px; color: var(--color-text-muted);
+    }
+    .kbd {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-bottom-width: 2px; border-radius: 2px;
+      padding: 1px 5px; font-size: 9px;
     }
   </style>
 </head>
 <body>
 
-  <!-- CRT effects -->
   <div class="screen-overlay"></div>
   <div class="grid-backplate"></div>
-
-  <!-- Hex particle canvas -->
-  <canvas id="staff-particle-canvas"></canvas>
-
+  <div id="heat-flash-overlay"></div>
   <div class="dashboard-layout">
-    
-    <!-- Top metrics bar -->
     <header class="header-bar panel-cyber">
+      
+      <!-- Operator Identification Widget -->
       <div class="operator-profile">
         <div class="avatar-frame">
-          <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15.93c-3.13-.47-5.5-3.14-5.5-6.43 0-1.79.69-3.41 1.81-4.63l1.41 1.41C9.64 9.17 9 10.5 9 12c0 2.21 1.79 4 4 4v1.93zm4.69-4.3C17.61 14.85 16 16.5 14 16.9v-1.93c1.1-.31 2-.96 2.5-1.85l1.19 1.51zM14 8.07V6.03c2 .4 3.61 2.05 4.31 4.18l-1.19 1.51c-.5-.89-1.4-1.54-2.5-1.85z"/></svg>
+          <svg viewBox="0 0 24 24">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15.93c-3.13-.47-5.5-3.14-5.5-6.43 0-1.79.69-3.41 1.81-4.63l1.41 1.41C9.64 9.17 9 10.5 9 12c0 2.21 1.79 4 4 4v1.93zm4.69-4.3C17.61 14.85 16 16.5 14 16.9v-1.93c1.1-.31 2-.96 2.5-1.85l1.19 1.51zM14 8.07V6.03c2 .4 3.61 2.05 4.31 4.18l-1.19 1.51c-.5-.89-1.4-1.54-2.5-1.85z"/>
+          </svg>
         </div>
         <div class="operator-details">
           <h1 class="operator-name">DISPATCH_OPERATOR</h1>
@@ -376,15 +409,21 @@
         </div>
       </div>
 
+      <!-- Real-time metrics readouts -->
       <div class="header-telemetry">
+        
+        <!-- Simulation Clock -->
         <div class="telem-cell">
           <span class="telem-cell-label">SYSTEM_EPOCH</span>
-          <span class="telem-cell-value">STAFF DEVELOPMENT CENTER</span>
+          <span class="telem-cell-value" id="system-clock">MON, 01 JUN 2026 09:26:42</span>
         </div>
+
+        <!-- Reputation factor indicator — 10 star grid (2×5) -->
         <div class="telem-cell">
           <span class="telem-cell-label">REP_FACTOR</span>
           <div class="reputation-gauge">
             <div class="star-grid" id="rep-star-grid">
+              <!-- Row 1: stars 1-5 -->
               <div class="star-row">
                 <svg class="rep-star" data-index="0" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
                 <svg class="rep-star" data-index="1" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
@@ -392,6 +431,7 @@
                 <svg class="rep-star" data-index="3" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
                 <svg class="rep-star" data-index="4" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
               </div>
+              <!-- Row 2: stars 6-10 -->
               <div class="star-row">
                 <svg class="rep-star" data-index="5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
                 <svg class="rep-star" data-index="6" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
@@ -403,14 +443,16 @@
             <span class="rep-score-display" id="rep-score-val">7.5</span>
           </div>
         </div>
+
+        <!-- Police Heat status display -->
         <div class="telem-cell">
           <span class="telem-cell-label">POLICE_HEAT_INDEX</span>
           <div class="police-heat-meter">
             <span class="heat-value" id="police-heat-val">25%</span>
             <div class="heat-segments">
-              <div class="heat-segment"></div>
-              <div class="heat-segment"></div>
-              <div class="heat-segment"></div>
+              <div class="heat-segment active"></div>
+              <div class="heat-segment active"></div>
+              <div class="heat-segment active"></div>
               <div class="heat-segment"></div>
               <div class="heat-segment"></div>
               <div class="heat-segment"></div>
@@ -421,656 +463,1144 @@
             </div>
           </div>
         </div>
+
       </div>
 
+      <!-- Sound Control Widget -->
+      <div class="audio-control-widget" id="sound-toggle-btn" title="Toggle System Synthesizer">
+        <svg class="audio-icon" viewBox="0 0 24 24">
+          <path class="audio-wave-path" d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+        </svg>
+        <span class="audio-status-text">SYNTH_ON</span>
+      </div>
+
+      <!-- Financial Ledgers (Dual Accounts) -->
       <div class="header-ledgers">
+        
+        <!-- Legit clean funds account card -->
         <div class="ledger-card clean">
           <div class="ledger-icon">
-            <svg viewBox="0 0 24 24"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.2c-.07-2.24-1.6-3.9-3.7-4.3V3h-3v1.7c-1.93.41-3.5 1.63-3.5 3.75 0 2.47 2 3.7 5.2 4.2 2.55.4 3.03 1.15 3.03 2.15 0 .75-.53 1.65-2.7 1.65-2.2 0-2.87-.95-3-2.1h-2.2c.1 2.58 1.91 3.9 3.7 4.3V21h3v-1.7c1.95-.41 3.5-1.51 3.5-3.8 0-2.92-2.17-3.75-5.22-4.15z"/></svg>
+            <svg viewBox="0 0 24 24">
+              <path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.2c-.07-2.24-1.6-3.9-3.7-4.3V3h-3v1.7c-1.93.41-3.5 1.63-3.5 3.75 0 2.47 2 3.7 5.2 4.2 2.55.4 3.03 1.15 3.03 2.15 0 .75-.53 1.65-2.7 1.65-2.2 0-2.87-.95-3-2.1h-2.2c.1 2.58 1.91 3.9 3.7 4.3V21h3v-1.7c1.95-.41 3.5-1.51 3.5-3.8 0-2.92-2.17-3.75-5.22-4.15z"/>
+            </svg>
           </div>
           <div class="ledger-meta">
             <span class="ledger-label">CLEAN_RESERVES</span>
-            <span class="ledger-amount" id="clean-amount">$0.00</span>
+            <span class="ledger-amount" id="clean-amount">
+
+  <!-- Drift scanline -->
+  <div id="drift-scanline"></div>
+  <!-- Heat alarm overlay -->
+  <div id="heat-flash-overlay"></div>
+
+  <!-- CRT screen effects (from styles.css) -->
+  <div class="screen-overlay"></div>
+  <div class="grid-backplate"></div>
+
+  <!-- Hex particle canvas -->
+  <canvas id="staff-particle-canvas"></canvas>
+
+  <!-- Main wrapper (outside dashboard-layout to avoid grid constraints) -->
+  <div class="staff-page-wrapper">
+
+    <!-- TOP BAR: back nav + live metrics -->
+    <div class="staff-topbar">
+      <a href="index.html" style="
+        font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700;
+        color: var(--color-text-muted); text-decoration: none; letter-spacing: 1px;
+        padding: 6px 12px; border: 1px solid rgba(255,255,255,0.08); border-radius: 3px;
+        transition: all 0.15s ease; white-space: nowrap;
+      " onmouseover="this.style.borderColor='rgba(255,255,255,0.2)'; this.style.color='#fff'"
+         onmouseout="this.style.borderColor='rgba(255,255,255,0.08)'; this.style.color=''">
+        ◀ TACTICAL MAP
+      </a>
+
+      <div class="staff-topbar-title">PERSONNEL COMMAND CENTER</div>
+
+      <div class="topbar-spacer"></div>
+
+      <div class="staff-balance-chip">
+        💵 <span id="header-clean-balance">$---</span>
+      </div>
+      <div class="staff-heat-chip">
+        🚨 HEAT: <span id="header-heat">--%</span>
+      </div>
+      <button id="refresh-btn" style="
+        font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 700;
+        color: var(--color-text-muted); background: none;
+        border: 1px solid rgba(255,255,255,0.08); border-radius: 3px;
+        padding: 6px 12px; cursor: pointer; letter-spacing: 1px;
+        transition: all 0.15s ease;
+      " onmouseover="this.style.borderColor='rgba(255,255,255,0.2)'; this.style.color='#fff'"
+         onmouseout="this.style.borderColor='rgba(255,255,255,0.08)'; this.style.color=''"
+         onclick="refreshRoster()">
+        ↺ REFRESH [R]
+      </button>
+    </div>
+
+    <!-- SCROLLABLE CONTENT -->
+    <div class="staff-content-area">
+
+      <div class="staff-section-head">
+        <h1 class="staff-section-label" style="color: var(--neon-green);">COORDINATOR ROSTER</h1>
+        <div class="staff-section-sub">// shadow logistics specialist deployment</div>
+        <span class="staff-section-badge badge-green" id="roster-status-badge">UPLINK_PENDING</span>
+      </div>
+
+      <!-- Roster cards populated by JS -->
+      <div class="staff-roster-grid" id="staff-roster-grid">
+        <!-- skeleton placeholders -->
+        <div class="scard-skeleton"></div>
+        <div class="scard-skeleton"></div>
+        <div class="scard-skeleton"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- NEWS TICKER -->
+  <div id="news-ticker">
+    <div class="ticker-label">LIVE WIRE</div>
+    <div class="ticker-track">
+      <div class="ticker-inner" id="ticker-inner">
+        <!-- populated by JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Keyboard hints -->
+  <div class="kbd-hint-bar">
+    <span><kbd class="kbd">R</kbd> refresh</span>
+    <span><kbd class="kbd">H</kbd> hire all</span>
+    <span><kbd class="kbd">ESC</kbd> map</span>
+  </div>
+
+  17,617.95</span>
           </div>
         </div>
+
+        <!-- Black Market untracked liquid ledger card -->
         <div class="ledger-card dirty">
           <div class="ledger-icon">
-            <svg viewBox="0 0 24 24"><path d="M19.28 4.72A10 10 0 0 0 12 2a10 10 0 1 0 10 10 10 10 0 0 0-2.72-7.28zM12 18a6 6 0 1 1 6-6 6 6 0 0 1-6 6zm-3.5-6a3.5 3.5 0 1 0 3.5-3.5 3.5 3.5 0 0 0-3.5 3.5z"/></svg>
+            <svg viewBox="0 0 24 24">
+              <path d="M19.28 4.72A10 10 0 0 0 12 2a10 10 0 1 0 10 10 10 10 0 0 0-2.72-7.28zM12 18a6 6 0 1 1 6-6 6 6 0 0 1-6 6zm-3.5-6a3.5 3.5 0 1 0 3.5-3.5 3.5 3.5 0 0 0-3.5 3.5z"/>
+            </svg>
           </div>
           <div class="ledger-meta">
             <span class="ledger-label">LAUNDERED_DIRTY</span>
-            <span class="ledger-amount" id="dirty-amount">$0.00</span>
+            <span class="ledger-amount" id="dirty-amount">$24,500.00</span>
           </div>
         </div>
+
       </div>
+
     </header>
+    <main class="main-deck">
+      <div style="grid-column: 1 / -1; height: 100%; overflow: hidden; display: flex; flex-direction: column;">
+        
 
-    <!-- Main Content -->
-    <main class="main-deck" style="display: flex; flex-direction: column; gap: var(--space-4);">
-      
-      <!-- Nav Header Strip -->
-      <div style="display: flex; gap: var(--space-3); align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: var(--space-3);">
-        <a href="index.html" class="nav-op-btn btn-white" style="width: auto; padding: var(--space-2) var(--space-4);">
-          ◀ RETURN TO TACTICAL MAP
-        </a>
-        <h2 style="font-family: var(--font-cyber); font-size: var(--fs-xl); color: var(--color-text-main); margin-left: auto;">
-          SYS_STAFF_COORDINATION
-        </h2>
-        <button id="refresh-btn" class="action-btn-neon" title="Refresh [R]" style="width:auto; padding: var(--space-2) var(--space-3); border-radius: 4px; min-height:36px; font-size:10px;" onclick="loadStaffOperations(true)">
-          ↺ REFRESH
-        </button>
+  <!-- Drift scanline -->
+  <div id="drift-scanline"></div>
+  <!-- Heat alarm overlay -->
+  
+
+  <!-- CRT screen effects (from styles.css) -->
+  
+  
+
+  <!-- Hex particle canvas -->
+  <canvas id="staff-particle-canvas"></canvas>
+
+  <!-- Main wrapper (outside dashboard-layout to avoid grid constraints) -->
+  <div class="staff-page-wrapper">
+
+    <!-- TOP BAR: back nav + live metrics -->
+    <div class="staff-topbar">
+      <a href="index.html" style="
+        font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700;
+        color: var(--color-text-muted); text-decoration: none; letter-spacing: 1px;
+        padding: 6px 12px; border: 1px solid rgba(255,255,255,0.08); border-radius: 3px;
+        transition: all 0.15s ease; white-space: nowrap;
+      " onmouseover="this.style.borderColor='rgba(255,255,255,0.2)'; this.style.color='#fff'"
+         onmouseout="this.style.borderColor='rgba(255,255,255,0.08)'; this.style.color=''">
+        ◀ TACTICAL MAP
+      </a>
+
+      <div class="staff-topbar-title">PERSONNEL COMMAND CENTER</div>
+
+      <div class="topbar-spacer"></div>
+
+      <div class="staff-balance-chip">
+        💵 <span id="header-clean-balance">$---</span>
+      </div>
+      <div class="staff-heat-chip">
+        🚨 HEAT: <span id="header-heat">--%</span>
+      </div>
+      <button id="refresh-btn" style="
+        font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 700;
+        color: var(--color-text-muted); background: none;
+        border: 1px solid rgba(255,255,255,0.08); border-radius: 3px;
+        padding: 6px 12px; cursor: pointer; letter-spacing: 1px;
+        transition: all 0.15s ease;
+      " onmouseover="this.style.borderColor='rgba(255,255,255,0.2)'; this.style.color='#fff'"
+         onmouseout="this.style.borderColor='rgba(255,255,255,0.08)'; this.style.color=''"
+         onclick="refreshRoster()">
+        ↺ REFRESH [R]
+      </button>
+    </div>
+
+    <!-- SCROLLABLE CONTENT -->
+    <div class="staff-content-area">
+
+      <div class="staff-section-head">
+        <h1 class="staff-section-label" style="color: var(--neon-green);">COORDINATOR ROSTER</h1>
+        <div class="staff-section-sub">// shadow logistics specialist deployment</div>
+        <span class="staff-section-badge badge-green" id="roster-status-badge">UPLINK_PENDING</span>
       </div>
 
-      <!-- Staff Grid -->
-      <div class="staff-layout-grid" id="staff-roster-container">
-        <!-- Skeleton loading cards -->
-        <div class="staff-skeleton-card">
-          <div class="skeleton-line" style="width:60%;"></div>
-          <div class="skeleton-line" style="width:90%; height:8px;"></div>
-          <div class="skeleton-line" style="width:80%; height:8px;"></div>
-          <div class="skeleton-line" style="margin-top:20px; height:40px;"></div>
-          <div class="skeleton-line"></div>
-          <div class="skeleton-line" style="height:40px;"></div>
-        </div>
-        <div class="staff-skeleton-card">
-          <div class="skeleton-line" style="width:70%;"></div>
-          <div class="skeleton-line" style="width:85%; height:8px;"></div>
-          <div class="skeleton-line" style="width:75%; height:8px;"></div>
-          <div class="skeleton-line" style="margin-top:20px; height:40px;"></div>
-          <div class="skeleton-line"></div>
-          <div class="skeleton-line" style="height:40px;"></div>
-        </div>
-        <div class="staff-skeleton-card">
-          <div class="skeleton-line" style="width:65%;"></div>
-          <div class="skeleton-line" style="width:88%; height:8px;"></div>
-          <div class="skeleton-line" style="width:70%; height:8px;"></div>
-          <div class="skeleton-line" style="margin-top:20px; height:40px;"></div>
-          <div class="skeleton-line"></div>
-          <div class="skeleton-line" style="height:40px;"></div>
-        </div>
+      <!-- Roster cards populated by JS -->
+      <div class="staff-roster-grid" id="staff-roster-grid">
+        <!-- skeleton placeholders -->
+        <div class="scard-skeleton"></div>
+        <div class="scard-skeleton"></div>
+        <div class="scard-skeleton"></div>
       </div>
-    </main>
 
+    </div>
   </div>
 
-  <!-- Keyboard shortcut hint bar -->
-  <div class="kbd-hint">
-    <div class="kbd-hint-item"><kbd class="kbd">R</kbd> Refresh</div>
-    <div class="kbd-hint-item"><kbd class="kbd">H</kbd> Hire all affordable</div>
-    <div class="kbd-hint-item"><kbd class="kbd">ESC</kbd> Back to map</div>
+  <!-- NEWS TICKER -->
+  <div id="news-ticker">
+    <div class="ticker-label">LIVE WIRE</div>
+    <div class="ticker-track">
+      <div class="ticker-inner" id="ticker-inner">
+        <!-- populated by JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Keyboard hints -->
+  <div class="kbd-hint-bar">
+    <span><kbd class="kbd">R</kbd> refresh</span>
+    <span><kbd class="kbd">H</kbd> hire all</span>
+    <span><kbd class="kbd">ESC</kbd> map</span>
+  </div>
+
+  
+      </div>
+    </main>
+    <aside class="panel-cyber panel-orange sidebar-panel">
+        
+        <div class="sidebar-title-strip">
+          <h2 class="sidebar-title">COMMAND OPERATIONS</h2>
+        </div>
+
+        <nav class="sidebar-nav">
+          
+          <a href="garage.html" class="nav-op-btn btn-green" >
+            <div class="nav-op-icon">
+              <svg viewBox="0 0 24 24">
+                <path d="M4 8h4V4H4v4zm6 12h4v-4h-4v4zm-6 0h4v-4H4v4zm0-6h4v-4H4v4zm6 0h4v-4h-4v4zm6-10v4h4V4h-4zm-6 4h4V4h-4v4zm6 6h4v-4h-4v4zm0 6h4v-4h-4v4z"/>
+              </svg>
+            </div>
+            <span class="nav-op-text">GARAGE OPERATIONS</span>
+          </a>
+
+          <a href="dispatch.html" class="nav-op-btn btn-orange">
+            <div class="nav-op-icon">
+              <svg viewBox="0 0 24 24">
+                <path d="M7 2v11h3v9l7-12h-4l4-8z"/>
+              </svg>
+            </div>
+            <span class="nav-op-text">DISPATCH CENTER</span>
+          </a>
+
+          <a href="auction.html" class="nav-op-btn btn-orange" style="--neon-orange:#ff9900; --neon-orange-glow: rgba(255, 153, 0, 0.25);">
+            <div class="nav-op-icon">
+              <svg viewBox="0 0 24 24">
+                <path d="M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58.55 0 1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.55-.23-1.06-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z"/>
+              </svg>
+            </div>
+            <span class="nav-op-text" style="color: #ff9900;">AUCTION BLOCK</span>
+          </a>
+
+          <a href="laundry.html" class="nav-op-btn btn-cyan">
+            <div class="nav-op-icon">
+              <svg viewBox="0 0 24 24">
+                <path d="M12 4a8 8 0 1 0 8 8 8 8 0 0 0-8-8zm0 13a5 5 0 1 1 5-5 5 5 0 0 1-5 5zm-2.5-5a2.5 2.5 0 1 0 2.5-2.5 2.5 2.5 0 0 0-2.5 2.5z"/>
+              </svg>
+            </div>
+            <span class="nav-op-text">LAUNDRY FRONTS</span>
+          </a>
+
+          <a href="market.html" class="nav-op-btn btn-purple">
+            <div class="nav-op-icon">
+              <svg viewBox="0 0 24 24">
+                <path d="M12 2a9 9 0 0 0-9 9c0 2.24 1.21 4.15 3 5.12V19a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1v-1h2v1a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1v-2.88c1.79-.97 3-2.88 3-5.12a9 9 0 0 0-9-9zm-3 9a1.5 1.5 0 1 1 1.5-1.5A1.5 1.5 0 0 1 9 11zm6 0a1.5 1.5 0 1 1 1.5-1.5A1.5 1.5 0 0 1 15 11z"/>
+              </svg>
+            </div>
+            <span class="nav-op-text">UNDERWORLD MARKET</span>
+          </a>
+
+          <a href="support.html" class="nav-op-btn btn-white" >
+            <div class="nav-op-icon">
+              <svg viewBox="0 0 24 24">
+                <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
+              </svg>
+            </div>
+            <span class="nav-op-text">SUPPORT &amp; SERVICES</span>
+          </a>
+
+          <a href="logistics.html" class="nav-op-btn btn-blue">
+            <div class="nav-op-icon">
+              <svg viewBox="0 0 24 24">
+                <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM7 10h2v7H7zm4-3h2v10h-2zm4 6h2v4h-2z"/>
+              </svg>
+            </div>
+            <span class="nav-op-text">LOGISTICS &amp; ANALYTICS</span>
+          </a>
+
+          <a href="staff.html" class="nav-op-btn active-orange">
+            <div class="nav-op-icon">
+              <svg viewBox="0 0 24 24">
+                <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5 5 6.34 5 8s1.34 3 8 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
+              </svg>
+            </div>
+            <span class="nav-op-text">STAFF MANAGEMENT</span>
+          </a>
+
+          <!-- Secured Killswitch option -->
+          <div class="terminate-action-container">
+            <div class="nav-op-btn btn-terminate">
+              <div class="nav-op-icon">
+                <svg viewBox="0 0 24 24">
+                  <path d="M13 3h-2v10h2V3zm4.83 2.17l-1.42 1.42C17.99 7.86 19 9.81 19 12c0 3.87-3.13 7-7 7s-7-3.13-7-7c0-2.19 1.01-4.14 2.58-5.42L6.17 5.17C4.23 6.82 3 9.26 3 12c0 4.97 4.03 9 9 9s9-4.03 9-9c0-2.74-1.23-5.18-3.17-6.83z"/>
+                </svg>
+              </div>
+              <span class="nav-op-text">TERMINATE SESSION</span>
+            </div>
+          </div>
+
+        </nav>
+
+      </aside>
+    <footer class="bottom-deck">
+      
+      <!-- System Diagnostics Scrolling Log Console -->
+      <section class="panel-cyber panel-red diagnostics-panel">
+        
+        <div class="diagnostics-header">
+          <h2 class="diagnostics-title">VECTOR PROJECTION DIAGNOSTICS</h2>
+          <span class="diagnostics-status-badge">COORDINATES_STABLE</span>
+        </div>
+
+        <div class="diagnostics-body">
+          
+          <!-- Dynamic terminal box -->
+          <div class="terminal-console-log" id="console-log">
+            <!-- Populated via script.js initialization -->
+          </div>
+
+          <!-- Static network statistics -->
+          <div class="diagnostics-metrics-grid">
+            <div class="diag-row">
+              <span class="diag-label">CITIES RESOLVED</span>
+              <span class="diag-value" style="color: var(--neon-red);">13 NODES</span>
+            </div>
+            <div class="diag-row">
+              <span class="diag-label">GRID EFFICIENCY</span>
+              <span class="diag-value">99.98%</span>
+            </div>
+            <div class="diag-row">
+              <span class="diag-label">COEFF REF_CORR</span>
+              <span class="diag-value" style="color: var(--neon-green);">STABLE (1.0)</span>
+            </div>
+            <div class="diag-row">
+              <span class="diag-label">PACKET INTEGRITY</span>
+              <span class="diag-value">0.00% LOSS</span>
+            </div>
+          </div>
+
+        </div>
+
+      </section>
+
+
+
+    </footer>
   </div>
 
   <script src="./shared.js"></script>
   <script>
-    // ==========================================================================
-    // CONSTANTS
-    // ==========================================================================
-    const ROLES_META = {
+  // ============================================================
+  // STAFF PAGE — ISOLATED SCRIPT
+  // All code is wrapped in a self-executing function to prevent
+  // any variable leakage or global collision from crashing the page
+  // ============================================================
+  (function StaffPageApp() {
+    'use strict';
+
+    // ── CONSTANTS ──────────────────────────────────────────────
+    const ROLES = {
       purchasing_agent: {
-        name: "Purchasing Agent",
-        desc: "Secures corporate discounts on kitted fleet vehicle acquisitions and shop maintenance parts.",
-        colorClass: "purchasing_agent",
-        neonColor: "#00ff66",
-        unit: "% discount",
+        id: 'purchasing_agent',
+        name: 'Purchasing Agent',
+        icon: '🛒',
+        desc: 'Secures fleet-wide discounts on vehicle acquisitions and parts procurement.',
+        color: '#00ff66',
+        glow: 'rgba(0,255,102,0.15)',
+        bg: 'rgba(0,255,102,0.06)',
+        border: 'rgba(0,255,102,0.12)',
+        unit: '% discount',
         base: 5.0,
-        positiveText: "Lowers truck & part prices.",
-        negativeText: "Apprentice surcharges inflate vehicle costs."
+        positiveDesc: 'Reduces truck purchase price and maintenance costs.',
+        negativeDesc: 'Apprentice surcharges inflate procurement costs.',
       },
       lead_mechanic: {
-        name: "Lead Mechanic",
-        desc: "Speeds up terminal fleet overhauls and secures massive discounts on emergency roadside repairs.",
-        colorClass: "lead_mechanic",
-        neonColor: "#bd00ff",
-        unit: "% discount",
+        id: 'lead_mechanic',
+        name: 'Lead Mechanic',
+        icon: '🔧',
+        desc: 'Accelerates terminal overhauls and slashes emergency roadside repair fees.',
+        color: '#bd00ff',
+        glow: 'rgba(189,0,255,0.15)',
+        bg: 'rgba(189,0,255,0.06)',
+        border: 'rgba(189,0,255,0.12)',
+        unit: '% repair discount',
         base: 10.0,
-        positiveText: "Reduces terminal & roadside repair fees.",
-        negativeText: "Apprentice creates 25% repair fee premiums."
+        positiveDesc: 'Cuts terminal and breakdown repair bills.',
+        negativeDesc: 'Apprentice fumbles cause 25% repair surcharges.',
       },
       router: {
-        name: "LogistiXpert Router",
-        desc: "Optimises shipping paths and cargo packing to increase payouts on all completed routes.",
-        colorClass: "router",
-        neonColor: "#ff6600",
-        unit: "% boost",
+        id: 'router',
+        name: 'LogistiXpert Router',
+        icon: '🗺️',
+        desc: 'Optimizes cargo routing for maximum yield per delivery cycle.',
+        color: '#ff6600',
+        glow: 'rgba(255,102,0,0.15)',
+        bg: 'rgba(255,102,0,0.06)',
+        border: 'rgba(255,102,0,0.12)',
+        unit: '% payout boost',
         base: 15.0,
-        positiveText: "Increases delivery payouts.",
-        negativeText: "Apprentice routing slips cause delivery penalties."
-      }
+        positiveDesc: 'Increases payout on all completed deliveries.',
+        negativeDesc: 'Apprentice routing errors cause delivery fee deductions.',
+      },
     };
 
-    const RANK_NAMES      = { 1: "Apprentice", 2: "Junior Associate", 3: "Senior Specialist", 4: "Expert Coordinator", 5: "LogistiXpert" };
-    const RANK_MULTIPLIERS = { 1: -0.25, 2: 0.20, 3: 0.50, 4: 0.85, 5: 1.25 };
-    const SEMINAR_COSTS   = [0, 5000, 12000, 28000, 65000];
-    const PROMOTION_COSTS = [0, 8000, 20000, 45000, 100000];
-    const UNLOCK_COSTS    = { purchasing_agent: 0, lead_mechanic: 15000, router: 35000 };
+    const RANK_NAMES = {1:'Apprentice', 2:'Junior Associate', 3:'Senior Specialist', 4:'Expert Coordinator', 5:'LogistiXpert'};
+    const RANK_MULT  = {1:-0.25, 2:0.20, 3:0.50, 4:0.85, 5:1.25};
+    const SEM_COSTS  = [0, 5000, 12000, 28000, 65000]; // index = current level
+    const PROM_COSTS = [0, 8000, 20000, 45000, 100000]; // index = current rank
+    const UNLOCK_COSTS = {purchasing_agent:0, lead_mechanic:15000, router:35000};
 
-    // Simulated morale: derived from rank + level combination
-    function computeMorale(s) {
-      if (!s.unlocked) return 50;
-      // Morale is higher with higher rank and more training
-      const rankFactor  = (s.rank / 5) * 60;
-      const levelFactor = (s.level / 5) * 40;
-      return Math.min(100, Math.round(rankFactor + levelFactor));
+    // ── STATE ───────────────────────────────────────────────────
+    let state = {
+      staff: null,
+      balance: 0,
+      heat: 0,
+      loading: false,
+    };
+
+    // ── SAFE DOM HELPER ─────────────────────────────────────────
+    function $id(id) {
+      try { return document.getElementById(id); } catch(e) { return null; }
     }
 
-    // ==========================================================================
-    // DATA LOAD
-    // ==========================================================================
-    let staffData = null;
+    function safeSetText(id, text) {
+      try { const el = $id(id); if (el) el.textContent = text; } catch(e) {}
+    }
 
-    async function loadStaffOperations(animated = false) {
-      const container = document.getElementById("staff-roster-container");
+    // ── MINI TOAST (fallback if shared.js toast not ready) ──────
+    function toast(msg, type) {
+      try {
+        if (typeof showToast === 'function') {
+          showToast(msg, type || 'info');
+        }
+      } catch(e) {}
+    }
 
-      if (animated) {
-        container.style.opacity = '0.5';
-        container.style.transition = 'opacity 0.2s ease';
+    // ── HEADER BALANCE UPDATE ───────────────────────────────────
+    function updateHeaderStats(balance, heat) {
+      try {
+        const b = parseFloat(balance) || 0;
+        const h = parseFloat(heat) || 0;
+        state.balance = b;
+        state.heat = h;
+
+        safeSetText('header-clean-balance', '$' + b.toLocaleString('en-US', {minimumFractionDigits: 2}));
+        safeSetText('header-heat', Math.round(h) + '%');
+
+        // Also sync global header elements (other pages' pattern)
+        safeSetText('clean-amount', '$' + b.toLocaleString('en-US', {minimumFractionDigits: 2}));
+        safeSetText('dirty-amount', '$' + (parseFloat(SYSTEM_STATE.dirtyFunds)||0).toLocaleString('en-US', {minimumFractionDigits: 2}));
+
+        // Heat alarm
+        const heatOverlay = $id('heat-flash-overlay');
+        if (heatOverlay) {
+          if (h >= 70) heatOverlay.classList.add('alarming');
+          else heatOverlay.classList.remove('alarming');
+        }
+      } catch(err) {
+        console.warn('[Staff] updateHeaderStats error (non-fatal):', err);
+      }
+    }
+
+    // ── DATA FETCH ──────────────────────────────────────────────
+    async function fetchStaffData() {
+      if (!SYSTEM_STATE.token) return null;
+      try {
+        const res = await fetch(SYSTEM_STATE.restUrl + '/api/staff', {
+          headers: { 'Authorization': 'Bearer ' + SYSTEM_STATE.token }
+        });
+        if (!res.ok) return null;
+        return await res.json();
+      } catch(err) {
+        console.error('[Staff] Fetch failed:', err);
+        return null;
+      }
+    }
+
+    // ── MORALE CALCULATION ──────────────────────────────────────
+    function computeMorale(s) {
+      if (!s.unlocked) return 30;
+      const r = (s.rank || 1);
+      const l = (s.level || 1);
+      return Math.min(100, Math.round((r / 5) * 60 + (l / 5) * 40));
+    }
+
+    // ── EFFECT CALCULATION ──────────────────────────────────────
+    function computeEffect(role, s) {
+      const r = s.rank || 1;
+      const l = s.level || 1;
+      return role.base * l * RANK_MULT[r];
+    }
+
+    // ── ROI ESTIMATE ────────────────────────────────────────────
+    function computeROI(effect) {
+      return Math.round(effect * 280);
+    }
+
+    function computeTotalTrainingCost(level) {
+      let total = 0;
+      for (let i = 1; i < (level||1); i++) total += SEM_COSTS[i] || 0;
+      return total;
+    }
+
+    function computeTotalRankCost(rank) {
+      let total = 0;
+      for (let i = 1; i < (rank||1); i++) total += PROM_COSTS[i] || 0;
+      return total;
+    }
+
+    // ── BUILD LOCKED CARD ────────────────────────────────────────
+    function buildLockedCard(role) {
+      const cost = UNLOCK_COSTS[role.id] || 0;
+      const canHire = state.balance >= cost;
+
+      const card = document.createElement('div');
+      card.className = 'scard';
+      card.dataset.roleId = role.id;
+      card.style.setProperty('--role-color', role.color);
+      card.style.setProperty('--role-glow', role.glow);
+      card.style.setProperty('--role-bg', role.bg);
+      card.style.setProperty('--role-border', role.border);
+      card.style.borderColor = 'rgba(255,0,60,0.1)';
+
+      card.innerHTML = `
+        <div class="scard-topbar" style="background: rgba(255,0,60,0.4);"></div>
+        <div class="scard-body">
+          <div class="scard-role-header">
+            <div class="scard-role-icon" style="background:rgba(255,0,60,0.08); border-color:rgba(255,0,60,0.15);">${role.icon}</div>
+            <div class="scard-role-info">
+              <div class="scard-role-name" style="color: var(--neon-red);">${role.name.toUpperCase()}</div>
+              <div class="scard-role-desc">${role.desc}</div>
+            </div>
+            <div class="scard-status-pill pill-locked">VACANT</div>
+          </div>
+          <div class="scard-divider"></div>
+          <div class="scard-vacant">
+            <div class="scard-vacant-icon">🔒</div>
+            <div class="scard-vacant-title">SLOT UNOCCUPIED</div>
+            <div class="scard-vacant-desc">
+              ${role.positiveDesc}<br><br>
+              When hired, starts at <span style="color:var(--neon-orange)">Apprentice</span> rank — 
+              book seminars and promotions to unlock full potential.
+            </div>
+          </div>
+          <div class="scard-actions">
+            <button class="scard-btn primary" ${!canHire ? 'disabled' : ''} data-action="hire">
+              <span>${cost === 0 ? '✦ HIRE — FREE' : '✦ HIRE COORDINATOR'}</span>
+              <span class="scard-btn-cost">${cost === 0 ? 'IMMEDIATE' : '$' + cost.toLocaleString() + ' CLEAN'}</span>
+            </button>
+          </div>
+        </div>
+      `;
+
+      card.querySelector('[data-action="hire"]').addEventListener('click', () => onHire(role.id, cost));
+      addTilt(card);
+      return card;
+    }
+
+    // ── BUILD ACTIVE CARD ────────────────────────────────────────
+    function buildActiveCard(role, s) {
+      const rank = s.rank || 1;
+      const level = s.level || 1;
+      const effect = computeEffect(role, s);
+      const isPos = effect > 0;
+      const isNeg = effect < 0;
+      const morale = computeMorale(s);
+      const moraleClass = morale >= 70 ? 'hi' : morale >= 40 ? 'md' : 'lo';
+      const moraleEmoji = morale >= 70 ? '😎' : morale >= 40 ? '😐' : '😤';
+      const roi = computeROI(effect);
+
+      const nextSemCost = s.nextUpgradeCost;
+      const nextPromCost = s.nextPromotionCost;
+      const canSem  = nextSemCost  !== null && state.balance >= nextSemCost;
+      const canProm = nextPromCost !== null && state.balance >= nextPromCost;
+
+      // Level dots
+      let levelDotsHTML = '';
+      for (let i = 0; i < 5; i++) {
+        levelDotsHTML += `<div class="scard-dot ${i < level ? 'on' : ''}"></div>`;
+      }
+      // Rank pips
+      let rankPipsHTML = '';
+      for (let i = 0; i < 5; i++) {
+        rankPipsHTML += `<div class="scard-dot ${i < rank ? 'on' : ''}"></div>`;
       }
 
+      const effectClass = isPos ? 'pos' : (isNeg ? 'neg' : 'zero');
+      const effectSign  = isPos ? '+' : '';
+      const effectLabel = isPos
+        ? `✦ ACTIVE: ${effectSign}${effect.toFixed(2)}${role.unit}`
+        : (isNeg
+          ? `⚠ PENALTY: ${effect.toFixed(2)}${role.unit}`
+          : '○ INACTIVE — TRAIN TO ACTIVATE');
+
+      const card = document.createElement('div');
+      card.className = 'scard';
+      card.dataset.roleId = role.id;
+      card.style.setProperty('--role-color', role.color);
+      card.style.setProperty('--role-glow', role.glow);
+      card.style.setProperty('--role-bg', role.bg);
+      card.style.setProperty('--role-border', role.border);
+      card.style.borderColor = role.border;
+
+      card.innerHTML = `
+        <div class="scard-topbar" style="background: ${role.color};"></div>
+        <div class="scard-body">
+
+          <!-- Role header -->
+          <div class="scard-role-header">
+            <div class="scard-role-icon" style="background:${role.bg}; border-color:${role.border};">${role.icon}</div>
+            <div class="scard-role-info">
+              <div class="scard-role-name">${role.name.toUpperCase()}</div>
+              <div class="scard-role-desc">${role.desc}</div>
+            </div>
+            <div class="scard-status-pill ${morale >= 40 ? 'pill-active' : 'pill-warn'}">
+              ${moraleEmoji} ${morale >= 70 ? 'SHARP' : morale >= 40 ? 'STABLE' : 'JADED'}
+            </div>
+          </div>
+
+          <div class="scard-divider"></div>
+
+          <!-- Effect banner -->
+          <div class="scard-effect ${effectClass}">
+            ${effectLabel}
+            <div class="scard-effect-sub">${isPos ? role.positiveDesc : role.negativeDesc}</div>
+          </div>
+
+          <!-- Morale -->
+          <div class="scard-morale">
+            <div class="scard-morale-label">MORALE</div>
+            <div class="scard-morale-track">
+              <div class="scard-morale-fill ${moraleClass}" style="width:${morale}%"></div>
+            </div>
+            <div class="scard-morale-val">${morale}%</div>
+          </div>
+
+          <div class="scard-divider"></div>
+
+          <!-- Training level -->
+          <div class="scard-track-section">
+            <div class="scard-track-header">
+              <span class="scard-track-label">🎓 TRAINING SEMINARS</span>
+              <span class="scard-track-val">Lv ${level} / 5</span>
+            </div>
+            <div class="scard-track-dots">${levelDotsHTML}</div>
+            <button class="scard-btn ${canSem ? 'primary' : ''}" ${canSem ? '' : 'disabled'} data-action="seminar">
+              <span>${nextSemCost === null ? '✦ MAX TRAINING ACHIEVED' : 'BOOK SEMINAR'}</span>
+              <span class="scard-btn-cost">${nextSemCost === null ? '' : '$' + nextSemCost.toLocaleString() + ' CLEAN'}</span>
+            </button>
+          </div>
+
+          <div class="scard-divider"></div>
+
+          <!-- Rank -->
+          <div class="scard-track-section">
+            <div class="scard-track-header">
+              <span class="scard-track-label">⭐ RANK TIER</span>
+              <span class="scard-track-val" style="font-size:9px;">${RANK_NAMES[rank].toUpperCase()} &nbsp;·&nbsp; ${RANK_MULT[rank] > 0 ? '+' : ''}${RANK_MULT[rank].toFixed(2)}× mult</span>
+            </div>
+            <div class="scard-track-dots">${rankPipsHTML}</div>
+            <button class="scard-btn ${canProm ? 'primary' : ''}" ${canProm ? '' : 'disabled'} data-action="promote">
+              <span>${nextPromCost === null ? '✦ LOGISTIXPERT ELITE — MAX RANK' : 'PROMOTE TO ' + (RANK_NAMES[rank + 1] || 'LOGISTIXPERT').toUpperCase()}</span>
+              <span class="scard-btn-cost">${nextPromCost === null ? '' : '$' + nextPromCost.toLocaleString() + ' CLEAN'}</span>
+            </button>
+          </div>
+
+          <div class="scard-divider"></div>
+
+          <!-- ROI -->
+          <div class="scard-roi-grid">
+            <div class="scard-roi-cell">
+              <div class="scard-roi-label">EFFECT</div>
+              <div class="scard-roi-val ${isPos ? 'val-green' : (isNeg ? 'val-red' : 'val-muted')}">
+                ${isPos ? '+' : ''}${effect.toFixed(1)}${role.unit.split(' ')[0]}
+              </div>
+            </div>
+            <div class="scard-roi-cell">
+              <div class="scard-roi-label">EST. MONTHLY</div>
+              <div class="scard-roi-val ${roi >= 0 ? 'val-green' : 'val-red'}">
+                ${roi >= 0 ? '+' : ''}$${Math.abs(roi).toLocaleString()}
+              </div>
+            </div>
+            <div class="scard-roi-cell">
+              <div class="scard-roi-label">TRAINING SPENT</div>
+              <div class="scard-roi-val val-blue">$${computeTotalTrainingCost(level).toLocaleString()}</div>
+            </div>
+            <div class="scard-roi-cell">
+              <div class="scard-roi-label">RANK SPENT</div>
+              <div class="scard-roi-val val-blue">$${computeTotalRankCost(rank).toLocaleString()}</div>
+            </div>
+          </div>
+
+        </div>
+      `;
+
+      // Attach actions
+      const semBtn = card.querySelector('[data-action="seminar"]');
+      if (semBtn && !semBtn.disabled && nextSemCost !== null) {
+        semBtn.addEventListener('click', () => onSeminar(role.id, nextSemCost, role.color, level + 1));
+      }
+      const promBtn = card.querySelector('[data-action="promote"]');
+      if (promBtn && !promBtn.disabled && nextPromCost !== null) {
+        promBtn.addEventListener('click', () => onPromote(role.id, nextPromCost, role.color, rank + 1));
+      }
+
+      addTilt(card);
+      return card;
+    }
+
+    // ── RENDER ROSTER ────────────────────────────────────────────
+    function renderRoster(data) {
       try {
-        const response = await fetch(`${SYSTEM_STATE.restUrl}/api/staff`, {
-          headers: { 'Authorization': `Bearer ${SYSTEM_STATE.token}` }
+        const grid = $id('staff-roster-grid');
+        if (!grid) return;
+
+        grid.innerHTML = '';
+
+        const roleIds = ['purchasing_agent', 'lead_mechanic', 'router'];
+        roleIds.forEach(roleId => {
+          try {
+            const role = ROLES[roleId];
+            const s = data && data.staff && data.staff[roleId];
+            if (!role) return;
+
+            const card = (s && s.unlocked)
+              ? buildActiveCard(role, s)
+              : buildLockedCard(role);
+
+            grid.appendChild(card);
+          } catch(cardErr) {
+            console.error('[Staff] Card render error for', roleId, ':', cardErr);
+            // Render a fallback error card so the rest don't break
+            const errCard = document.createElement('div');
+            errCard.className = 'scard';
+            errCard.innerHTML = `
+              <div style="padding:20px; font-family:monospace; font-size:10px; color:rgba(255,0,60,0.8);">
+                ⚠ CARD RENDER ERROR — ${roleId}<br>
+                <span style="opacity:0.5">${cardErr && cardErr.message || 'Unknown error'}</span>
+              </div>
+            `;
+            grid.appendChild(errCard);
+          }
         });
 
-        if (!response.ok) {
-          showToast('UPLINK FAILURE: Could not reach staff database.', 'error');
-          if (animated) { container.style.opacity = '1'; }
+        // Update badge
+        const badge = $id('roster-status-badge');
+        if (badge) {
+          badge.textContent = 'SYNCED_' + new Date().toLocaleTimeString();
+          badge.className = 'staff-section-badge badge-green';
+        }
+      } catch(err) {
+        console.error('[Staff] renderRoster failed:', err);
+      }
+    }
+
+    // ── LOAD / REFRESH ────────────────────────────────────────────
+    async function loadStaff() {
+      if (state.loading) return;
+      state.loading = true;
+
+      try {
+        // Set badge to loading
+        const badge = $id('roster-status-badge');
+        if (badge) { badge.textContent = 'LOADING...'; badge.className = 'staff-section-badge'; }
+
+        const data = await fetchStaffData();
+
+        if (!data) {
+          toast('Cannot reach personnel server — check connection.', 'error');
+          if (badge) { badge.textContent = 'OFFLINE'; badge.className = 'staff-section-badge badge-red'; }
+          const grid = $id('staff-roster-grid');
+          if (grid) {
+            grid.innerHTML = `
+              <div class="scard" style="grid-column: 1 / -1; min-height: 200px; display: flex; flex-direction: column; align-items: center; justify-content: center; border-color: rgba(255,0,60,0.3);">
+                <div style="font-size: 32px; margin-bottom: 16px;">📡</div>
+                <div style="color: var(--neon-red); font-weight: bold; font-family: var(--font-cyber); font-size: 14px; letter-spacing: 2px;">UPLINK FAILED</div>
+                <div style="color: var(--color-text-muted); font-family: monospace; font-size: 11px; margin-top: 8px;">Personnel database offline. Check connection.</div>
+              </div>
+            `;
+          }
           return;
         }
 
-        const data = await response.json();
+        state.staff = data.staff;
+        updateHeaderStats(data.legalBalance, SYSTEM_STATE.policeHeat);
+        renderRoster(data);
 
-        // Safely update funds
-        const balance = parseFloat(data.legalBalance);
-        if (!isNaN(balance)) {
-          SYSTEM_STATE.cleanFunds = balance;
-        }
-        try { synchronizeHeaderUI(); } catch(e) {}
-
-        staffData = data.staff;
-        renderRoster(data.staff, animated);
-
-        if (animated) {
-          showToast('Staff roster synchronized.', 'info', 2000);
-        }
-
-      } catch (err) {
-        console.error('[Staff] Load error:', err);
-        showToast('Connection error — server may be offline.', 'error');
-        if (animated) { container.style.opacity = '1'; }
+      } catch(err) {
+        console.error('[Staff] loadStaff error:', err);
+        toast('Staff load error: ' + (err && err.message || 'unknown'), 'error');
+      } finally {
+        state.loading = false;
       }
     }
 
-    // ==========================================================================
-    // RENDER
-    // ==========================================================================
-    function renderRoster(staff, animated = false) {
-      const container = document.getElementById("staff-roster-container");
-
-      // Fade out → update → fade in
-      const doRender = () => {
-        container.innerHTML = "";
-        const roleIds = ['purchasing_agent', 'lead_mechanic', 'router'];
-
-        roleIds.forEach(roleId => {
-          const s = staff[roleId];
-          const meta = ROLES_META[roleId];
-          if (!s || !meta) return;
-
-          const card = document.createElement("div");
-          card.className = `staff-card ${meta.colorClass} ${s.unlocked ? 'unlocked' : 'locked'}`;
-          card.dataset.roleId = roleId;
-
-          if (!s.unlocked) {
-            renderLockedCard(card, s, meta, roleId);
-          } else {
-            renderActiveCard(card, s, meta, roleId);
-          }
-
-          // 3D tilt on hover
-          addTiltEffect(card);
-
-          container.appendChild(card);
-        });
-
-        container.style.opacity = '1';
-        container.style.transition = 'opacity 0.25s ease';
-      };
-
-      if (animated) {
-        setTimeout(doRender, 200);
-      } else {
-        doRender();
-      }
+    function refreshRoster() {
+      try { if (typeof AUDIO !== 'undefined') AUDIO.playClick(); } catch(e) {}
+      toast('Refreshing roster...', 'info', 1500);
+      loadStaff();
     }
+    window.refreshRoster = refreshRoster;
 
-    function renderLockedCard(card, s, meta, roleId) {
-      const canAfford = (parseFloat(SYSTEM_STATE.cleanFunds) || 0) >= (UNLOCK_COSTS[roleId] || 0);
-      const costLabel = UNLOCK_COSTS[roleId] === 0 ? 'FREE' : `$${UNLOCK_COSTS[roleId].toLocaleString()} Clean`;
-
-      card.innerHTML = `
-        <div class="staff-role-title">${meta.name.toUpperCase()}</div>
-        <div class="staff-role-desc">${meta.desc}</div>
-        <div class="card-divider"></div>
-        <div class="lock-overlay-content">
-          <svg class="lock-icon-svg" viewBox="0 0 24 24">
-            <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zM9 6c0-1.66 1.34-3 3-3s3 1.34 3 3v2H9V6zm9 14H6V10h12v10zm-6-3c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2z"/>
-          </svg>
-          <span style="font-size: var(--fs-xs); color: var(--color-text-muted);">STATUS: COORDINATOR VACANCY</span>
-          <div style="font-size:10px; color:var(--color-text-muted);">Impact: <span style="color:${meta.neonColor};">${meta.positiveText}</span></div>
-          <button class="action-btn-neon" style="margin-top: 8px;" ${!canAfford ? 'disabled' : ''} onclick="hireOperator('${roleId}')">
-            ${UNLOCK_COSTS[roleId] === 0 ? '✦ HIRE OPERATOR (FREE)' : `✦ HIRE OPERATOR — ${costLabel}`}
-          </button>
-        </div>
-      `;
-    }
-
-    function renderActiveCard(card, s, meta, roleId) {
-      const bonusVal  = meta.base * s.level * RANK_MULTIPLIERS[s.rank];
-      const isPositive = bonusVal > 0.0;
-      const isZero     = bonusVal === 0.0;
-      const morale     = computeMorale(s);
-      const moraleClass = morale >= 70 ? 'high' : morale >= 40 ? 'mid' : 'low';
-      const moraleEmoji = morale >= 70 ? '😎' : morale >= 40 ? '😐' : '😤';
-      const moraleLabel = morale >= 70 ? 'MOTIVATED' : morale >= 40 ? 'STABLE' : 'DISGRUNTLED';
-
-      let statusText = isZero
-        ? `⚪ EFFECT INACTIVE — LEVEL UP REQUIRED`
-        : isPositive
-          ? `✦ ACTIVE EFFECT: +${bonusVal.toFixed(2)}${meta.unit}`
-          : `⚠ ACTIVE PENALTY: -${Math.abs(bonusVal).toFixed(2)}${meta.unit}`;
-
-      let statusDesc  = isPositive ? meta.positiveText : meta.negativeText;
-      let bannerClass = isPositive ? 'positive' : 'negative';
-
-      // Level dots
-      let dotsHtml = '';
-      for (let i = 0; i < 5; i++) {
-        dotsHtml += `<div class="level-dot ${i < s.level ? 'active' : ''}"></div>`;
-      }
-
-      // Rank tier pips
-      let pipsHtml = '';
-      for (let i = 0; i < 5; i++) {
-        pipsHtml += `<div class="rank-tier-pip ${i < s.rank ? 'active' : ''}"></div>`;
-      }
-
-      // ROI calculations (per month estimate)
-      const roiMonthly = computeROI(meta, s);
-
-      const canAffordSeminar   = s.nextUpgradeCost !== null && (parseFloat(SYSTEM_STATE.cleanFunds) || 0) >= s.nextUpgradeCost;
-      const canAffordPromotion = s.nextPromotionCost !== null && (parseFloat(SYSTEM_STATE.cleanFunds) || 0) >= s.nextPromotionCost;
-
-      card.innerHTML = `
-        <div class="staff-role-title">${meta.name.toUpperCase()}</div>
-        <div class="staff-role-desc">${meta.desc}</div>
-
-        <div class="card-divider"></div>
-
-        <!-- Morale -->
-        <div class="morale-row">
-          <span class="morale-label">MORALE</span>
-          <div class="morale-bar-track">
-            <div class="morale-bar-fill ${moraleClass}" style="width:${morale}%"></div>
-          </div>
-          <span class="morale-emoji">${moraleEmoji}</span>
-          <span style="font-size:9px; color:var(--color-text-muted);">${moraleLabel}</span>
-        </div>
-
-        <div class="card-divider"></div>
-
-        <!-- Effect banner -->
-        <div class="status-banner ${bannerClass}">
-          <span>${statusText}</span>
-          <span class="status-banner-desc">${statusDesc}</span>
-        </div>
-
-        <div class="card-divider"></div>
-
-        <!-- Training seminars -->
-        <div style="display:flex; flex-direction:column; gap:6px;">
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-            <span style="font-size:10px; color:var(--color-text-muted);">🎓 TRAINING SEMINARS</span>
-            <span style="font-size:10px; font-weight:bold; color:${meta.neonColor};">Lv ${s.level} / 5</span>
-          </div>
-          <div class="level-dots-container">${dotsHtml}</div>
-          <button class="action-btn-neon" ${canAffordSeminar ? '' : 'disabled'}
-            onclick="handleSeminarUpgrade('${roleId}', ${s.nextUpgradeCost}, '${meta.neonColor}')">
-            ${s.nextUpgradeCost === null
-              ? '✦ MAX TRAINING LEVEL REACHED'
-              : `BOOK SEMINAR — $${s.nextUpgradeCost.toLocaleString()} Clean`}
-          </button>
-        </div>
-
-        <div class="card-divider"></div>
-
-        <!-- Rank -->
-        <div style="display:flex; flex-direction:column; gap:6px;">
-          <div class="rank-display-box">
-            <div style="display:flex; flex-direction:column; gap:2px;">
-              <span style="font-size:9px; color:var(--color-text-muted);">⭐ RANK ${s.rank} / 5</span>
-              <span class="rank-name">${RANK_NAMES[s.rank].toUpperCase()}</span>
-            </div>
-            <span class="rank-mult ${isPositive || isZero ? 'positive' : 'negative'}">${RANK_MULTIPLIERS[s.rank] > 0 ? '+' : ''}${RANK_MULTIPLIERS[s.rank].toFixed(2)}x</span>
-          </div>
-          <div class="rank-tier-track">${pipsHtml}</div>
-          <button class="action-btn-neon" style="margin-top:2px;" ${canAffordPromotion ? '' : 'disabled'}
-            onclick="handlePromotion('${roleId}', ${s.nextPromotionCost}, '${meta.neonColor}', '${RANK_NAMES[Math.min(s.rank+1,5)]}')">
-            ${s.nextPromotionCost === null
-              ? '✦ MAX RANK — LOGISTIXPERT ELITE'
-              : `PROMOTE TO ${RANK_NAMES[s.rank + 1]?.toUpperCase() || 'LOGISTIXPERT'} — $${s.nextPromotionCost.toLocaleString()} Clean`}
-          </button>
-        </div>
-
-        <div class="card-divider"></div>
-
-        <!-- ROI Panel -->
-        <div class="roi-panel">
-          <div class="roi-panel-title">📊 PROJECTED MONTHLY IMPACT</div>
-          <div class="roi-grid">
-            <div class="roi-cell">
-              <span class="roi-cell-label">EFFECT VALUE</span>
-              <span class="roi-cell-value ${isPositive ? 'positive' : isZero ? 'neutral' : 'negative'}">
-                ${isZero ? 'INACTIVE' : (isPositive ? '+' : '-') + Math.abs(bonusVal).toFixed(1) + meta.unit}
-              </span>
-            </div>
-            <div class="roi-cell">
-              <span class="roi-cell-label">EST. SAVINGS/MO</span>
-              <span class="roi-cell-value ${roiMonthly >= 0 ? 'positive' : 'negative'}">
-                ${roiMonthly >= 0 ? '+' : ''}$${Math.abs(roiMonthly).toLocaleString()}
-              </span>
-            </div>
-            <div class="roi-cell">
-              <span class="roi-cell-label">TRAINING INVESTED</span>
-              <span class="roi-cell-value neutral">$${computeTrainingCost(s.level).toLocaleString()}</span>
-            </div>
-            <div class="roi-cell">
-              <span class="roi-cell-label">RANK INVESTED</span>
-              <span class="roi-cell-value neutral">$${computeRankCost(s.rank).toLocaleString()}</span>
-            </div>
-          </div>
-        </div>
-      `;
-    }
-
-    // ==========================================================================
-    // ROI CALCULATIONS
-    // ==========================================================================
-    function computeROI(meta, s) {
-      const bonusVal = meta.base * s.level * RANK_MULTIPLIERS[s.rank];
-      // Rough estimate: each 1% effect = ~$300/month baseline (purchasing/mechanic = cost reduction, router = revenue boost)
-      return Math.round(bonusVal * 300);
-    }
-
-    function computeTrainingCost(level) {
-      let total = 0;
-      for (let i = 1; i < level; i++) total += SEMINAR_COSTS[i];
-      return total;
-    }
-
-    function computeRankCost(rank) {
-      let total = 0;
-      for (let i = 1; i < rank; i++) total += PROMOTION_COSTS[i];
-      return total;
-    }
-
-    // ==========================================================================
-    // 3D TILT EFFECT
-    // ==========================================================================
-    function addTiltEffect(card) {
-      card.addEventListener('mousemove', (e) => {
-        if (card.classList.contains('locked')) return;
-        const rect = card.getBoundingClientRect();
-        const cx = rect.left + rect.width / 2;
-        const cy = rect.top  + rect.height / 2;
-        const dx = (e.clientX - cx) / (rect.width / 2);
-        const dy = (e.clientY - cy) / (rect.height / 2);
-        card.style.transform = `perspective(800px) rotateY(${dx * 5}deg) rotateX(${-dy * 4}deg) translateZ(4px)`;
+    // ── ACTIONS ────────────────────────────────────────────────────
+    async function postStaffAction(endpoint, body) {
+      const res = await fetch(SYSTEM_STATE.restUrl + '/api/staff/' + endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + SYSTEM_STATE.token,
+        },
+        body: JSON.stringify(body),
       });
-      card.addEventListener('mouseleave', () => {
-        card.style.transform = '';
-      });
+      return { ok: res.ok, data: await res.json() };
     }
 
-    // ==========================================================================
-    // PARTICLE BURST ON RANK UP
-    // ==========================================================================
-    function spawnParticleBurst(card, color) {
-      const rect = card.getBoundingClientRect();
-      const cx   = rect.left + rect.width / 2;
-      const cy   = rect.top  + rect.height / 2;
-
-      for (let i = 0; i < 16; i++) {
-        const p = document.createElement('div');
-        p.className = 'particle-burst';
-        const angle = (i / 16) * Math.PI * 2;
-        const dist  = 60 + Math.random() * 60;
-        p.style.cssText = `
-          left: ${cx}px; top: ${cy}px;
-          background: ${color};
-          box-shadow: 0 0 4px ${color};
-          --dx: ${Math.cos(angle) * dist}px;
-          --dy: ${Math.sin(angle) * dist}px;
-          position: fixed;
-          animation-delay: ${Math.random() * 0.1}s;
-        `;
-        document.body.appendChild(p);
-        setTimeout(() => p.remove(), 900);
-      }
-
-      card.classList.add('rank-up-flash');
-      setTimeout(() => card.classList.remove('rank-up-flash'), 700);
-    }
-
-    // ==========================================================================
-    // ACTIONS
-    // ==========================================================================
-    async function hireOperator(roleId) {
+    function onHire(roleId, cost) {
       try { AUDIO.playClick(); } catch(e) {}
-      const meta = ROLES_META[roleId];
-      const cost = UNLOCK_COSTS[roleId];
-
+      const role = ROLES[roleId];
       const doHire = async () => {
         try {
-          const response = await fetch(`${SYSTEM_STATE.restUrl}/api/staff/unlock`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SYSTEM_STATE.token}` },
-            body: JSON.stringify({ roleId })
-          });
-          const data = await response.json();
-          if (response.ok) {
+          const { ok, data } = await postStaffAction('unlock', { roleId });
+          if (ok) {
             try { AUDIO.playSuccess(); } catch(e) {}
-            showToast(`✦ ${meta.name} hired and operational!`, 'success');
-            SYSTEM_STATE.cleanFunds = parseFloat(data.legalBalance) || SYSTEM_STATE.cleanFunds;
-            loadStaffOperations(true);
+            state.balance = parseFloat(data.legalBalance) || state.balance;
+            SYSTEM_STATE.cleanFunds = state.balance;
+            updateHeaderStats(state.balance, state.heat);
+            toast('✦ ' + role.name + ' hired and operational!', 'success');
+            await loadStaff();
           } else {
             try { AUDIO.playFailure(); } catch(e) {}
-            showToast(`HIRE ERROR: ${data.message}`, 'error');
+            toast('HIRE ERROR: ' + (data.message || 'unknown'), 'error');
           }
-        } catch (err) {
-          console.error(err);
-          showToast('Network error during hire operation.', 'error');
+        } catch(err) {
+          toast('Network error during hire.', 'error');
         }
       };
 
       if (cost > 0) {
-        showConfirmModal({
-          title: 'HIRE COORDINATOR',
-          message: `Confirm hiring a <strong>${meta.name}</strong> for your operation.<br>They will start at Apprentice rank and require training.`,
-          cost: `Investment: $${cost.toLocaleString()} Clean Cash`,
-          color: meta.neonColor,
-          onConfirm: doHire
-        });
+        try {
+          showConfirmModal({
+            title: 'HIRE COORDINATOR',
+            message: 'Hire a <strong>' + role.name + '</strong>.<br>They start at Apprentice rank and require training to become effective.',
+            cost: 'Cost: $' + cost.toLocaleString() + ' Clean Cash',
+            color: role.color,
+            onConfirm: doHire,
+          });
+        } catch(e) { doHire(); }
       } else {
         doHire();
       }
     }
 
-    async function handleSeminarUpgrade(roleId, cost, color) {
+    function onSeminar(roleId, cost, color, newLevel) {
       try { AUDIO.playClick(); } catch(e) {}
-      const meta = ROLES_META[roleId];
-
-      showConfirmModal({
-        title: 'BOOK TRAINING SEMINAR',
-        message: `Advance your <strong>${meta.name}</strong>'s expertise with a professional seminar.<br>This increases the base effect multiplier.`,
-        cost: `Cost: $${cost.toLocaleString()} Clean Cash`,
-        color: color,
-        onConfirm: async () => {
-          try {
-            const response = await fetch(`${SYSTEM_STATE.restUrl}/api/staff/upgrade`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SYSTEM_STATE.token}` },
-              body: JSON.stringify({ roleId })
-            });
-            const data = await response.json();
-            if (response.ok) {
-              try { AUDIO.playSuccess(); } catch(e) {}
-              showToast(`Seminar complete — ${meta.name} now Level ${data.newLevel}!`, 'success');
-              SYSTEM_STATE.cleanFunds = parseFloat(data.legalBalance) || SYSTEM_STATE.cleanFunds;
-              const card = document.querySelector(`[data-role-id="${roleId}"]`);
-              if (card) spawnParticleBurst(card, color);
-              loadStaffOperations(true);
-            } else {
-              try { AUDIO.playFailure(); } catch(e) {}
-              showToast(`SEMINAR ERROR: ${data.message}`, 'error');
-            }
-          } catch (err) {
-            console.error(err);
-            showToast('Network error during seminar booking.', 'error');
+      const role = ROLES[roleId];
+      const doUpgrade = async () => {
+        try {
+          const { ok, data } = await postStaffAction('upgrade', { roleId });
+          if (ok) {
+            try { AUDIO.playSuccess(); } catch(e) {}
+            state.balance = parseFloat(data.legalBalance) || state.balance;
+            SYSTEM_STATE.cleanFunds = state.balance;
+            updateHeaderStats(state.balance, state.heat);
+            toast('Seminar complete — ' + role.name + ' now Level ' + newLevel + '!', 'success');
+            burstParticles(roleId, color);
+            await loadStaff();
+          } else {
+            try { AUDIO.playFailure(); } catch(e) {}
+            toast('SEMINAR ERROR: ' + (data.message || 'unknown'), 'error');
           }
+        } catch(err) {
+          toast('Network error during seminar.', 'error');
         }
-      });
-    }
+      };
 
-    async function handlePromotion(roleId, cost, color, newRankName) {
-      try { AUDIO.playClick(); } catch(e) {}
-      const meta = ROLES_META[roleId];
-
-      showConfirmModal({
-        title: 'PROMOTE COORDINATOR',
-        message: `Promote your <strong>${meta.name}</strong> to <strong>${newRankName}</strong>.<br>Higher rank dramatically increases their effectiveness multiplier.`,
-        cost: `Cost: $${cost.toLocaleString()} Clean Cash`,
-        color: color,
-        onConfirm: async () => {
-          try {
-            const response = await fetch(`${SYSTEM_STATE.restUrl}/api/staff/promote`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SYSTEM_STATE.token}` },
-              body: JSON.stringify({ roleId })
-            });
-            const data = await response.json();
-            if (response.ok) {
-              try { AUDIO.playSuccess(); } catch(e) {}
-              showToast(`🌟 PROMOTED — ${meta.name} is now ${newRankName}!`, 'success', 4500);
-              SYSTEM_STATE.cleanFunds = parseFloat(data.legalBalance) || SYSTEM_STATE.cleanFunds;
-              const card = document.querySelector(`[data-role-id="${roleId}"]`);
-              if (card) spawnParticleBurst(card, color);
-              loadStaffOperations(true);
-            } else {
-              try { AUDIO.playFailure(); } catch(e) {}
-              showToast(`PROMOTION ERROR: ${data.message}`, 'error');
-            }
-          } catch (err) {
-            console.error(err);
-            showToast('Network error during promotion.', 'error');
-          }
-        }
-      });
-    }
-
-    // ==========================================================================
-    // KEYBOARD SHORTCUTS
-    // ==========================================================================
-    document.addEventListener('keydown', (e) => {
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-      const key = e.key.toUpperCase();
-
-      if (key === 'R') {
-        loadStaffOperations(true);
-      } else if (key === 'H') {
-        // Hire all affordable unoccupied slots
-        const roleIds = ['purchasing_agent', 'lead_mechanic', 'router'];
-        if (staffData) {
-          roleIds.forEach(id => {
-            const s = staffData[id];
-            if (s && !s.unlocked && (parseFloat(SYSTEM_STATE.cleanFunds) || 0) >= UNLOCK_COSTS[id]) {
-              hireOperator(id);
-            }
-          });
-        }
-      } else if (key === 'ESCAPE') {
-        window.location.href = 'index.html';
-      }
-    });
-
-    // ==========================================================================
-    // HEX PARTICLE BACKGROUND
-    // ==========================================================================
-    (function initHexParticles() {
-      const canvas = document.getElementById('staff-particle-canvas');
-      const ctx    = canvas.getContext('2d');
-      let W, H, hexes = [];
-
-      function resize() {
-        W = canvas.width  = window.innerWidth;
-        H = canvas.height = window.innerHeight;
-      }
-
-      function spawnHex() {
-        const colors = ['#00ff66', '#bd00ff', '#ff6600'];
-        return {
-          x:     Math.random() * W,
-          y:     Math.random() * H,
-          r:     4 + Math.random() * 14,
-          color: colors[Math.floor(Math.random() * colors.length)],
-          alpha: 0.04 + Math.random() * 0.1,
-          vx:   (Math.random() - 0.5) * 0.15,
-          vy:   -0.1 - Math.random() * 0.25,
-          rot:   Math.random() * Math.PI * 2,
-          vrot:  (Math.random() - 0.5) * 0.005,
-        };
-      }
-
-      function drawHex(cx, cy, r, rot) {
-        ctx.beginPath();
-        for (let i = 0; i < 6; i++) {
-          const a = rot + (i / 6) * Math.PI * 2;
-          const x = cx + r * Math.cos(a);
-          const y = cy + r * Math.sin(a);
-          if (i === 0) ctx.moveTo(x, y);
-          else ctx.lineTo(x, y);
-        }
-        ctx.closePath();
-      }
-
-      function animate() {
-        ctx.clearRect(0, 0, W, H);
-        hexes.forEach((h, i) => {
-          h.x += h.vx; h.y += h.vy; h.rot += h.vrot;
-          if (h.y + h.r < 0) hexes[i] = { ...spawnHex(), y: H + h.r };
-
-          ctx.save();
-          ctx.globalAlpha = h.alpha;
-          ctx.strokeStyle = h.color;
-          ctx.lineWidth = 0.8;
-          drawHex(h.x, h.y, h.r, h.rot);
-          ctx.stroke();
-          ctx.restore();
+      try {
+        showConfirmModal({
+          title: 'BOOK SEMINAR',
+          message: 'Send <strong>' + role.name + '</strong> to a specialist training seminar.<br>Increases base effect multiplier.',
+          cost: 'Cost: $' + cost.toLocaleString() + ' Clean Cash',
+          color: color,
+          onConfirm: doUpgrade,
         });
-        requestAnimationFrame(animate);
+      } catch(e) { doUpgrade(); }
+    }
+
+    function onPromote(roleId, cost, color, newRank) {
+      try { AUDIO.playClick(); } catch(e) {}
+      const role = ROLES[roleId];
+      const newRankName = RANK_NAMES[newRank] || 'LogistiXpert';
+      const doPromote = async () => {
+        try {
+          const { ok, data } = await postStaffAction('promote', { roleId });
+          if (ok) {
+            try { AUDIO.playSuccess(); } catch(e) {}
+            state.balance = parseFloat(data.legalBalance) || state.balance;
+            SYSTEM_STATE.cleanFunds = state.balance;
+            updateHeaderStats(state.balance, state.heat);
+            toast('🌟 PROMOTED — ' + role.name + ' is now ' + newRankName + '!', 'success', 5000);
+            burstParticles(roleId, color);
+            await loadStaff();
+          } else {
+            try { AUDIO.playFailure(); } catch(e) {}
+            toast('PROMOTE ERROR: ' + (data.message || 'unknown'), 'error');
+          }
+        } catch(err) {
+          toast('Network error during promotion.', 'error');
+        }
+      };
+
+      try {
+        showConfirmModal({
+          title: 'PROMOTE COORDINATOR',
+          message: 'Promote <strong>' + role.name + '</strong> to <strong>' + newRankName + '</strong>.<br>Dramatically increases effectiveness multiplier.',
+          cost: 'Cost: $' + cost.toLocaleString() + ' Clean Cash',
+          color: color,
+          onConfirm: doPromote,
+        });
+      } catch(e) { doPromote(); }
+    }
+
+    // ── 3D TILT ────────────────────────────────────────────────────
+    function addTilt(card) {
+      card.addEventListener('mousemove', function(e) {
+        try {
+          const r = this.getBoundingClientRect();
+          const dx = (e.clientX - (r.left + r.width / 2)) / (r.width / 2);
+          const dy = (e.clientY - (r.top  + r.height / 2)) / (r.height / 2);
+          this.style.transform = 'perspective(700px) rotateY(' + (dx * 4) + 'deg) rotateX(' + (-dy * 3) + 'deg) translateZ(3px)';
+        } catch(e) {}
+      });
+      card.addEventListener('mouseleave', function() {
+        this.style.transform = '';
+      });
+    }
+
+    // ── PARTICLE BURST ─────────────────────────────────────────────
+    function burstParticles(roleId, color) {
+      try {
+        const card = document.querySelector('[data-role-id="' + roleId + '"]');
+        if (!card) return;
+        const r = card.getBoundingClientRect();
+        const cx = r.left + r.width / 2;
+        const cy = r.top  + r.height / 2;
+
+        for (let i = 0; i < 18; i++) {
+          const p = document.createElement('div');
+          p.className = 'particle-burst';
+          const angle = (i / 18) * Math.PI * 2;
+          const dist  = 60 + Math.random() * 80;
+          p.style.cssText = [
+            'left:' + cx + 'px',
+            'top:' + cy + 'px',
+            'background:' + color,
+            'box-shadow:0 0 4px ' + color,
+            '--dx:' + (Math.cos(angle) * dist).toFixed(1) + 'px',
+            '--dy:' + (Math.sin(angle) * dist).toFixed(1) + 'px',
+            'animation-delay:' + (Math.random() * 0.08).toFixed(3) + 's',
+          ].join(';');
+          document.body.appendChild(p);
+          setTimeout(() => { try { p.remove(); } catch(e) {} }, 1000);
+        }
+
+        card.classList.add('rank-up-flash');
+        setTimeout(() => { try { card.classList.remove('rank-up-flash'); } catch(e) {} }, 800);
+      } catch(err) {}
+    }
+
+    // ── HEX PARTICLE CANVAS ─────────────────────────────────────────
+    function initHexParticles() {
+      try {
+        const canvas = document.getElementById('staff-particle-canvas');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        let W = 0, H = 0;
+        const hexes = [];
+        const colors = ['#00ff66', '#bd00ff', '#ff6600', '#00e5ff'];
+
+        function resize() {
+          W = canvas.width  = window.innerWidth;
+          H = canvas.height = window.innerHeight;
+        }
+
+        function spawnHex() {
+          return {
+            x: Math.random() * W,
+            y: Math.random() * H,
+            r: 4 + Math.random() * 12,
+            color: colors[Math.floor(Math.random() * colors.length)],
+            alpha: 0.03 + Math.random() * 0.08,
+            vx: (Math.random() - 0.5) * 0.12,
+            vy: -0.08 - Math.random() * 0.2,
+            rot: Math.random() * Math.PI * 2,
+            vrot: (Math.random() - 0.5) * 0.004,
+          };
+        }
+
+        function drawHex(cx, cy, r, rot) {
+          ctx.beginPath();
+          for (let i = 0; i < 6; i++) {
+            const a = rot + (i / 6) * Math.PI * 2;
+            if (i === 0) ctx.moveTo(cx + r * Math.cos(a), cy + r * Math.sin(a));
+            else          ctx.lineTo(cx + r * Math.cos(a), cy + r * Math.sin(a));
+          }
+          ctx.closePath();
+        }
+
+        function frame() {
+          ctx.clearRect(0, 0, W, H);
+          hexes.forEach((h, i) => {
+            h.x += h.vx; h.y += h.vy; h.rot += h.vrot;
+            if (h.y + h.r < 0) hexes[i] = Object.assign(spawnHex(), { y: H + h.r });
+            ctx.save();
+            ctx.globalAlpha = h.alpha;
+            ctx.strokeStyle = h.color;
+            ctx.lineWidth = 0.7;
+            drawHex(h.x, h.y, h.r, h.rot);
+            ctx.stroke();
+            ctx.restore();
+          });
+          requestAnimationFrame(frame);
+        }
+
+        resize();
+        window.addEventListener('resize', resize);
+        for (let i = 0; i < 50; i++) hexes.push(spawnHex());
+        requestAnimationFrame(frame);
+      } catch(err) {
+        console.warn('[Staff] Hex particles init failed (non-fatal):', err);
       }
+    }
 
-      resize();
-      window.addEventListener('resize', resize);
-      for (let i = 0; i < 40; i++) hexes.push(spawnHex());
-      animate();
-    })();
+    // ── NEWS TICKER ─────────────────────────────────────────────────
+    function initTicker() {
+      try {
+        const container = document.getElementById('ticker-inner');
+        if (!container) return;
 
-    // ==========================================================================
-    // INIT
-    // ==========================================================================
-    window.addEventListener("DOMContentLoaded", () => {
-      setTimeout(() => loadStaffOperations(false), 150);
-    });
+        const items = [
+          { text: 'POLICE INTEL: Increased checkpoint activity reported on Warsaw–Berlin corridor', cls: 'bad' },
+          { text: 'MARKET FLASH: Clean cargo rates up 8% across Schengen zone this week', cls: 'good' },
+          { text: 'LOGISTICS REPORT: Brest checkpoint delays averaging +3.5 hours — plan routes accordingly', cls: 'hot' },
+          { text: 'EMPLOYEE TIP: Trained coordinators reduce operational overhead by 12–40% vs. unmanaged routes', cls: '' },
+          { text: 'CONTRABAND ALERT: Class-III cargo seizure reported near Kaliningrad exclave border post', cls: 'bad' },
+          { text: 'MARKET UPDATE: Stockholm–Helsinki sea-lane traffic volume up 22% this quarter', cls: 'good' },
+          { text: 'LOGISTICS INTEL: Route optimization yields 15% higher payload efficiency on Nordic circuits', cls: 'good' },
+          { text: 'SECURITY: Three rival operators detained at Gdańsk terminal — consolidation opportunity detected', cls: 'hot' },
+          { text: 'STAFF INTEL: LogistiXpert-ranked Router generates 1.25× delivery multiplier — invest now', cls: '' },
+          { text: 'POLICE HEAT: Patrol density along Baltic coastal routes elevated — maintain safe policy', cls: 'bad' },
+          { text: 'MARKET FLASH: Contraband class-II premiums trending up 31% — high-risk operations profitable', cls: 'hot' },
+          { text: 'TERMINAL UPDATE: Minsk facility reports 70% police heat — external market operation recommended', cls: 'bad' },
+        ];
+
+        // Duplicate for seamless loop
+        const fullItems = [...items, ...items];
+        container.innerHTML = fullItems.map(item =>
+          `<span class="ticker-item ${item.cls}">◈ ${item.text}</span>`
+        ).join('');
+      } catch(err) {
+        console.warn('[Staff] Ticker init failed (non-fatal):', err);
+      }
+    }
+
+    // ── KEYBOARD SHORTCUTS ──────────────────────────────────────────
+    function initKeyboard() {
+      document.addEventListener('keydown', function(e) {
+        try {
+          if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+          const key = e.key ? e.key.toUpperCase() : '';
+          if (key === 'R') { refreshRoster(); }
+          else if (key === 'H') {
+            // Quick-hire all affordable
+            if (state.staff) {
+              Object.keys(ROLES).forEach(roleId => {
+                const s = state.staff[roleId];
+                const cost = UNLOCK_COSTS[roleId] || 0;
+                if (s && !s.unlocked && state.balance >= cost) {
+                  onHire(roleId, cost);
+                }
+              });
+            }
+          }
+          else if (key === 'ESCAPE') { window.location.href = 'index.html'; }
+        } catch(err) {}
+      });
+    }
+
+    // ── BOOTSTRAP ───────────────────────────────────────────────────
+    function boot() {
+      try {
+        // Start visual systems first — independent of data
+        initHexParticles();
+        initTicker();
+        initKeyboard();
+
+        // Then load data
+        // Slight delay to let the DOM settle and shared.js finish its own DOMContentLoaded handlers
+        setTimeout(loadStaff, 250);
+
+        // Also update header from SYSTEM_STATE if already populated (from shared.js fetchBalances)
+        setTimeout(() => {
+          updateHeaderStats(SYSTEM_STATE.cleanFunds, SYSTEM_STATE.policeHeat);
+        }, 1000);
+
+      } catch(err) {
+        console.error('[Staff] Boot error:', err);
+      }
+    }
+
+    // Boot as soon as DOM is ready
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', boot);
+    } else {
+      boot(); // already loaded
+    }
+
+  })(); // end StaffPageApp IIFE
   </script>
 </body>
 </html>

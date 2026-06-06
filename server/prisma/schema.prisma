@@ -175,6 +175,12 @@ model Truck {
   tuningTier       String      @default("STOCK") // STOCK, PERFORMANCE, ECONOMY, RELIABLE
   isVanCUpgrade    Boolean     @default(false) // Minivan C-class upgrade flag
 
+  // Chop Shop Upgrades
+  hasV8Engine               Boolean     @default(false)
+  hasReinforcedTires        Boolean     @default(false)
+  hasLeadLinedCompartment   Boolean     @default(false)
+  hasRadarScrambler         Boolean     @default(false)
+
   createdAt        DateTime    @default(now())
 
   company         Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)

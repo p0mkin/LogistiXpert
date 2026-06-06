@@ -9,7 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=JetBrains+Mono:wght@300;400;500;700&family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
   
   <!-- Modular Design System Styles -->
-  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./styles.css?v=2">
 </head>
 <body>
 
@@ -178,6 +178,8 @@
             <div class="active-connections-list" id="active-connections-list">
               <!-- Dynamically populated from JS city connections -->
             </div>
+            
+            <div id="sidebar-purchase-container" style="margin-top: var(--space-4);"></div>
           </div>
 
         </div>
@@ -650,7 +652,10 @@
 
   </div>
 
+  <!-- TopoJSON client for rendering real world geography -->
+  <script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
+
   <!-- Command Control Logic -->
-  <script src="./script.js"></script>
+  <script src="./script.js?v=2"></script>
 </body>
 </html>

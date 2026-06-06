@@ -299,7 +299,7 @@ func _render_role_cards() -> void:
 		# 2. Description
 		var desc_lbl = Label.new()
 		desc_lbl.text = r.desc
-		desc_lbl.add_theme_font_size_override("font_size", 10.5)
+		desc_lbl.add_theme_font_size_override("font_size", 10)
 		desc_lbl.add_theme_color_override("font_color", Color(0.65, 0.65, 0.75, 0.85))
 		desc_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		desc_lbl.custom_minimum_size = Vector2(card_w - 24, 52)
@@ -356,7 +356,7 @@ func _render_role_cards() -> void:
 			bonus_panel.add_child(bp_vbox)
 
 			var bp_lbl = Label.new()
-			bp_lbl.add_theme_font_size_override("font_size", 12.5)
+			bp_lbl.add_theme_font_size_override("font_size", 12)
 			if bonus_val > 0.0:
 				bp_lbl.text = "✨ ACTIVE EFFECT: +%s%s" % [String.num(bonus_val, 2), r.unit]
 				bp_lbl.add_theme_color_override("font_color", Color(0.2, 0.85, 0.45))
@@ -366,7 +366,7 @@ func _render_role_cards() -> void:
 			bp_vbox.add_child(bp_lbl)
 
 			var detail_lbl = Label.new()
-			detail_lbl.add_theme_font_size_override("font_size", 9.5)
+			detail_lbl.add_theme_font_size_override("font_size", 9)
 			detail_lbl.add_theme_color_override("font_color", Color(0.6, 0.6, 0.7, 0.8))
 			if role_id == "purchasing_agent":
 				detail_lbl.text = "Lowers truck & part prices." if bonus_val > 0.0 else "Apprentice raises kitted vehicle costs."

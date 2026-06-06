@@ -33,11 +33,13 @@
       display: flex;
       flex-direction: column;
       gap: var(--space-2);
-      transition: all var(--transition-fast);
+      transition: all var(--transition-smooth);
+      backdrop-filter: blur(8px);
     }
     .purchase-card:hover {
       border-color: var(--neon-blue);
-      box-shadow: 0 0 10px var(--neon-blue-glow);
+      box-shadow: 0 0 15px var(--neon-blue-glow);
+      transform: translateY(-2px) scale(1.01);
     }
     .purchase-card-header {
       display: flex;
@@ -93,6 +95,12 @@
       flex-direction: column;
       gap: var(--space-3);
       box-shadow: inset 0 0 20px rgba(0, 255, 102, 0.02);
+      backdrop-filter: blur(8px);
+      transition: transform var(--transition-smooth), box-shadow var(--transition-smooth);
+    }
+    .garage-card:hover {
+      box-shadow: inset 0 0 20px rgba(0, 255, 102, 0.05), 0 0 15px rgba(0, 255, 102, 0.1);
+      transform: translateY(-2px) scale(1.01);
     }
     .garage-card-header {
       display: flex;
@@ -167,11 +175,13 @@
       border-radius: var(--radius-sm);
       cursor: pointer;
       transition: all var(--transition-fast);
+      transform: scale(1);
     }
     .btn-upgrade:hover {
       background: var(--neon-green);
       color: #0d0d11;
-      box-shadow: 0 0 10px var(--neon-green-glow);
+      box-shadow: 0 0 12px var(--neon-green-glow);
+      transform: scale(1.05);
     }
     .contraband-stash-box {
       display: grid;

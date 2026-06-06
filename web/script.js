@@ -160,145 +160,481 @@ class CyberAudioEngine {
 const AUDIO = new CyberAudioEngine();
 
 // 1. DATASETS & CONFIGURATIONS — Expanded European Network
-// Country border polygon data for SVG overlay
-const COUNTRY_BORDERS = [
-  { name: "Finland",    color: "rgba(80,200,255,0.10)",  points: "380,20 530,20 530,140 460,190 380,140" },
-  { name: "Estonia",   color: "rgba(80,200,255,0.10)",  points: "450,140 560,130 570,190 480,210 440,185" },
-  { name: "Latvia",    color: "rgba(100,220,120,0.10)", points: "440,185 570,190 590,260 500,280 420,260" },
-  { name: "Lithuania", color: "rgba(100,220,120,0.10)", points: "400,260 500,280 620,300 630,380 460,390 370,360" },
-  { name: "Sweden",    color: "rgba(80,180,255,0.08)",  points: "130,80 280,60 340,200 300,400 130,380" },
-  { name: "Poland",    color: "rgba(220,80,80,0.08)",   points: "140,380 460,350 640,380 640,500 200,520 120,480" },
-  { name: "Germany",   color: "rgba(200,180,80,0.08)",  points: "50,380 140,380 140,520 50,520" },
-  { name: "Belarus",   color: "rgba(180,80,80,0.12)",   points: "620,300 760,300 800,480 650,490 600,400" },
-  { name: "Ukraine",   color: "rgba(220,160,20,0.08)",  points: "650,490 800,480 900,550 850,580 640,570" },
-  { name: "Russia-KGD",color: "rgba(255,60,60,0.12)",   points: "340,310 440,310 450,390 340,400" },
-];
+// ==========================================================================
+// REAL GEOGRAPHIC MAP SYSTEM — Natural Earth / world-atlas (Free, Public Domain)
+// ==========================================================================
+
+// Mercator projection bounding box for expanded European region
+const MAP_GEO = {
+  lonMin: -6.0,   // West (UK/Ireland)
+  lonMax: 72.0,   // East (Afghanistan)
+  latMin: 20.0,   // South (UAE/Saudi Arabia)
+  latMax: 68.0,   // North (Northern Scandinavia)
+  svgW:  1000,
+  svgH:   600,
+};
+
+/**
+ * Mercator projection: real lat/lon → SVG pixel coordinates
+ * (Maintains aspect ratio without distortion)
+ */
+function projectCoord(lon, lat) {
+  const toRad = (d) => d * Math.PI / 180;
+  const mercY = (latDeg) => Math.log(Math.tan(Math.PI / 4 + toRad(latDeg) / 2));
+
+  const lonSpan = MAP_GEO.lonMax - MAP_GEO.lonMin;
+  const yMin = mercY(MAP_GEO.latMin);
+  const yMax = mercY(MAP_GEO.latMax);
+  const ySpan = yMax - yMin;
+
+  const scaleX = MAP_GEO.svgW / lonSpan;
+  const scaleY = MAP_GEO.svgH / ySpan;
+  const scale = Math.min(scaleX, scaleY); // uniform scale for aspect ratio
+
+  // Center the map in the SVG
+  const xOffset = (MAP_GEO.svgW - lonSpan * scale) / 2;
+  const yOffset = (MAP_GEO.svgH - ySpan * scale) / 2;
+
+  const x = xOffset + (lon - MAP_GEO.lonMin) * scale;
+  const y = yOffset + (yMax - mercY(lat)) * scale;
+  
+  return { x, y };
+}
+
+/**
+ * Build an SVG path 'd' attribute string from a GeoJSON ring of [lon, lat] pairs
+ */
+function ringToPath(ring) {
+  if (!ring || ring.length < 2) return '';
+  let d = '';
+  for (let i = 0; i < ring.length; i++) {
+    const [lon, lat] = ring[i];
+    const { x, y } = projectCoord(lon, lat);
+    d += (i === 0 ? 'M' : 'L') + x.toFixed(2) + ',' + y.toFixed(2);
+  }
+  return d + 'Z';
+}
+
+/**
+ * Build full SVG path 'd' from a GeoJSON geometry (Polygon or MultiPolygon)
+ */
+function geometryToPath(geometry) {
+  if (!geometry) return '';
+  let d = '';
+  if (geometry.type === 'Polygon') {
+    geometry.coordinates.forEach(ring => { d += ringToPath(ring); });
+  } else if (geometry.type === 'MultiPolygon') {
+    geometry.coordinates.forEach(poly => {
+      poly.forEach(ring => { d += ringToPath(ring); });
+    });
+  }
+  return d;
+}
+
+// Numeric ISO country codes we want to render (Natural Earth / world-atlas)
+// Schengen = semi-transparent blue/teal; External = subtle red
+const GEO_COUNTRY_STYLES = {
+  // Nordic / Baltic (Schengen)
+  '246': { color: 'rgba(80,200,255,0.13)', stroke: 'rgba(80,200,255,0.35)' },   // Finland
+  '752': { color: 'rgba(80,180,255,0.12)', stroke: 'rgba(80,180,255,0.35)' },   // Sweden
+  '578': { color: 'rgba(80,180,255,0.10)', stroke: 'rgba(80,180,255,0.30)' },   // Norway
+  '208': { color: 'rgba(80,180,255,0.11)', stroke: 'rgba(80,180,255,0.30)' },   // Denmark
+  '233': { color: 'rgba(80,220,160,0.13)', stroke: 'rgba(80,220,160,0.35)' },   // Estonia
+  '428': { color: 'rgba(80,220,140,0.12)', stroke: 'rgba(80,220,140,0.30)' },   // Latvia
+  '440': { color: 'rgba(100,220,120,0.12)', stroke: 'rgba(100,220,120,0.30)' }, // Lithuania
+  // Central / Western Europe (Schengen)
+  '616': { color: 'rgba(220,80,80,0.09)',  stroke: 'rgba(220,80,80,0.25)' },    // Poland
+  '276': { color: 'rgba(200,180,80,0.09)', stroke: 'rgba(200,180,80,0.25)' },   // Germany
+  '203': { color: 'rgba(200,160,60,0.09)', stroke: 'rgba(200,160,60,0.25)' },   // Czech Republic
+  '703': { color: 'rgba(180,160,60,0.08)', stroke: 'rgba(180,160,60,0.22)' },   // Slovakia
+  '040': { color: 'rgba(160,140,60,0.08)', stroke: 'rgba(160,140,60,0.22)' },   // Austria
+  '348': { color: 'rgba(180,140,60,0.08)', stroke: 'rgba(180,140,60,0.22)' },   // Hungary
+  '528': { color: 'rgba(80,200,255,0.11)', stroke: 'rgba(80,200,255,0.30)' },   // Netherlands
+  '056': { color: 'rgba(80,200,255,0.10)', stroke: 'rgba(80,200,255,0.28)' },   // Belgium
+  '250': { color: 'rgba(100,180,255,0.09)', stroke: 'rgba(100,180,255,0.28)' }, // France
+  '756': { color: 'rgba(200,220,180,0.10)', stroke: 'rgba(200,220,180,0.30)' }, // Switzerland
+  '380': { color: 'rgba(160,220,120,0.09)', stroke: 'rgba(160,220,120,0.28)' }, // Italy
+  '724': { color: 'rgba(220,180,100,0.09)', stroke: 'rgba(220,180,100,0.28)' }, // Spain
+  '620': { color: 'rgba(220,160,100,0.09)', stroke: 'rgba(220,160,100,0.28)' }, // Portugal
+  '300': { color: 'rgba(140,200,240,0.09)', stroke: 'rgba(140,200,240,0.28)' }, // Greece
+  '705': { color: 'rgba(140,220,160,0.08)', stroke: 'rgba(140,220,160,0.22)' }, // Slovenia
+  
+  // External / restricted (faint red)
+  '826': { color: 'rgba(255,100,100,0.08)', stroke: 'rgba(255,100,100,0.28)' }, // United Kingdom
+  '372': { color: 'rgba(255,100,100,0.08)', stroke: 'rgba(255,100,100,0.28)' }, // Ireland
+  '112': { color: 'rgba(180,60,60,0.12)',  stroke: 'rgba(255,60,60,0.30)' },    // Belarus
+  '804': { color: 'rgba(200,140,20,0.09)', stroke: 'rgba(200,140,20,0.25)' },   // Ukraine
+  '643': { color: 'rgba(255,60,60,0.10)',  stroke: 'rgba(255,60,60,0.30)' },    // Russia
+  '070': { color: 'rgba(160,80,80,0.08)',  stroke: 'rgba(160,80,80,0.20)' },    // Bosnia
+  '191': { color: 'rgba(160,80,80,0.07)',  stroke: 'rgba(160,80,80,0.18)' },    // Croatia
+  '891': { color: 'rgba(160,80,80,0.07)',  stroke: 'rgba(160,80,80,0.18)' },    // Serbia
+  '642': { color: 'rgba(160,80,80,0.07)',  stroke: 'rgba(160,80,80,0.18)' },    // Romania
+  '100': { color: 'rgba(160,80,80,0.07)',  stroke: 'rgba(160,80,80,0.18)' },    // Bulgaria
+  '008': { color: 'rgba(160,80,80,0.07)',  stroke: 'rgba(160,80,80,0.18)' },    // Albania
+  '807': { color: 'rgba(160,80,80,0.07)',  stroke: 'rgba(160,80,80,0.18)' },    // North Macedonia
+  
+  // Silk Road Expansion (Middle East & Central Asia)
+  '792': { color: 'rgba(200,100,50,0.12)', stroke: 'rgba(200,100,50,0.30)' },   // Turkey
+  '364': { color: 'rgba(255,200,50,0.08)', stroke: 'rgba(255,200,50,0.25)' },   // Iran
+  '368': { color: 'rgba(200,150,50,0.08)', stroke: 'rgba(200,150,50,0.25)' },   // Iraq
+  '760': { color: 'rgba(200,80,50,0.08)',  stroke: 'rgba(200,80,50,0.20)' },    // Syria
+  '682': { color: 'rgba(200,180,80,0.07)', stroke: 'rgba(200,180,80,0.20)' },   // Saudi Arabia
+  '784': { color: 'rgba(255,215,0,0.15)',  stroke: 'rgba(255,215,0,0.35)' },    // UAE (Gold glow)
+  '004': { color: 'rgba(255,50,50,0.10)',  stroke: 'rgba(255,50,50,0.35)' },    // Afghanistan (Red high-risk)
+  '268': { color: 'rgba(180,140,80,0.08)', stroke: 'rgba(180,140,80,0.20)' },   // Georgia
+  '031': { color: 'rgba(180,140,80,0.08)', stroke: 'rgba(180,140,80,0.20)' },   // Azerbaijan
+  '051': { color: 'rgba(180,140,80,0.08)', stroke: 'rgba(180,140,80,0.20)' },   // Armenia
+  '795': { color: 'rgba(220,180,50,0.08)', stroke: 'rgba(220,180,50,0.20)' },   // Turkmenistan
+  '860': { color: 'rgba(220,180,50,0.08)', stroke: 'rgba(220,180,50,0.20)' }    // Uzbekistan
+};
+
+/**
+ * Async: Fetch world-atlas TopoJSON, parse it, render country fills + coastlines into SVG
+ * Uses 10m resolution — highest detail, shows all archipelagos and minor islands
+ */
+async function loadAndRenderGeoMap(svg) {
+  try {
+    appendTerminalLine('GEO: Fetching Natural Earth cartographic data (10m)...', 'info');
+
+    const response = await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-10m.json');
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const topo = await response.json();
+
+    // Convert TopoJSON → GeoJSON feature collection
+    const countries = topojson.feature(topo, topo.objects.countries);
+    const meshBorders = topojson.mesh(topo, topo.objects.countries, (a, b) => a !== b);
+
+    const svgNS = 'http://www.w3.org/2000/svg';
+
+    // Create a group for geography (inserted before routes/nodes)
+    const geoGroup = document.createElementNS(svgNS, 'g');
+    geoGroup.setAttribute('id', 'geo-layer');
+
+    // Ocean background for the Baltic Sea area
+    const ocean = document.createElementNS(svgNS, 'rect');
+    ocean.setAttribute('x', '0');
+    ocean.setAttribute('y', '0');
+    ocean.setAttribute('width', MAP_GEO.svgW);
+    ocean.setAttribute('height', MAP_GEO.svgH);
+    ocean.setAttribute('fill', 'rgba(0, 30, 60, 0.55)');
+    geoGroup.appendChild(ocean);
+
+    // Render country fills
+    countries.features.forEach(feature => {
+      const id = feature.id ? String(feature.id).padStart(3, '0') : null;
+      const style = (id && GEO_COUNTRY_STYLES[id]) ? GEO_COUNTRY_STYLES[id] : { color: 'rgba(255,255,255,0.015)', stroke: 'rgba(255,255,255,0.04)' };
+
+      const pathStr = geometryToPath(feature.geometry);
+      if (!pathStr) return;
+
+      const pathEl = document.createElementNS(svgNS, 'path');
+      pathEl.setAttribute('d', pathStr);
+      pathEl.setAttribute('fill', style.color);
+      pathEl.setAttribute('stroke', style.stroke);
+      pathEl.setAttribute('stroke-width', '0.6');
+      pathEl.setAttribute('stroke-linejoin', 'round');
+      geoGroup.appendChild(pathEl);
+    });
+
+    // Render internal borders (shared edges between countries) as faint lines
+    const borderStr = geometryToPath(meshBorders);
+    if (borderStr) {
+      const borderPath = document.createElementNS(svgNS, 'path');
+      borderPath.setAttribute('d', borderStr);
+      borderPath.setAttribute('fill', 'none');
+      borderPath.setAttribute('stroke', 'rgba(255,255,255,0.06)');
+      borderPath.setAttribute('stroke-width', '0.5');
+      geoGroup.appendChild(borderPath);
+    }
+
+    // Insert geo layer at the start of the SVG
+    svg.insertBefore(geoGroup, svg.firstChild);
+
+    // Apply D3 Zoom behavior so the user can explore details
+    const zoom = d3.zoom()
+      .scaleExtent([0.5, 8])
+      .on('zoom', (event) => {
+        // Semantic zoom: scale the entire SVG contents
+        const transformStr = event.transform.toString();
+        const geoLayer = document.getElementById('geo-layer');
+        const linkLayer = document.getElementById('link-layer');
+        const nodeLayer = document.getElementById('node-layer');
+        const truckLayer = document.getElementById('truck-layer');
+        
+        if (geoLayer) geoLayer.setAttribute('transform', transformStr);
+        if (linkLayer) linkLayer.setAttribute('transform', transformStr);
+        if (nodeLayer) nodeLayer.setAttribute('transform', transformStr);
+        if (truckLayer) truckLayer.setAttribute('transform', transformStr);
+      });
+      
+    d3.select(svg).call(zoom);
+
+    appendTerminalLine('GEO: Cartographic layer rendered. Zoom & Pan activated.', 'success');
+  } catch (err) {
+    console.warn('GeoJSON map load failed, falling back to polygon mode:', err);
+    appendTerminalLine('GEO: Satellite uplink failed — running fallback schematic mode.', 'warn');
+    renderFallbackPolygons(svg);
+  }
+}
+
+/**
+ * Fallback: simple polygon shapes if CDN fetch fails (offline / no network)
+ */
+function renderFallbackPolygons(svg) {
+  const svgNS = 'http://www.w3.org/2000/svg';
+  const fallbacks = [
+    { color: 'rgba(80,200,255,0.10)',  points: [[22,71.5],[30,71.5],[30,60],[24,60],[22,71.5]] }, // Finland rough
+    { color: 'rgba(80,180,255,0.09)',  points: [[11,60],[20,60],[20,55],[11,55],[11,60]] },       // Sweden rough
+    { color: 'rgba(80,220,160,0.12)',  points: [[21,60],[28,60],[28,57],[21,57],[21,60]] },       // Estonia rough
+    { color: 'rgba(100,220,120,0.11)', points: [[21,57],[28,57],[28,55.5],[21,55.5],[21,57]] },   // Latvia rough
+    { color: 'rgba(100,220,120,0.11)', points: [[21,56],[26,56],[26,54],[21,54],[21,56]] },       // Lithuania rough
+    { color: 'rgba(220,80,80,0.08)',   points: [[14,55],[24,55],[24,49],[14,49],[14,55]] },       // Poland rough
+    { color: 'rgba(200,180,80,0.08)',  points: [[6,55],[15,55],[15,47],[6,47],[6,55]] },          // Germany rough
+  ];
+  fallbacks.forEach(fb => {
+    const pts = fb.points.map(([lon, lat]) => {
+      const p = projectCoord(lon, lat);
+      return `${p.x},${p.y}`;
+    }).join(' ');
+    const poly = document.createElementNS(svgNS, 'polygon');
+    poly.setAttribute('points', pts);
+    poly.setAttribute('fill', fb.color);
+    poly.setAttribute('stroke', fb.color.replace(/,[^,]+\)$/, ',0.3)'));
+    poly.setAttribute('stroke-width', '1');
+    svg.insertBefore(poly, svg.firstChild);
+  });
+}
 
 const CITIES_DATASET = {
   // === FINLAND ===
   helsinki: {
     id: "helsinki", name: "Helsinki", country: "Finland", isSchengen: true, isCapital: true,
     purchasable: false, terminalCost: 0,
-    coords: { x: 500, y: 40 }, heat: 10,
+    lat: 60.17, lon: 24.94, heat: 10,
     connections: ["tallinn", "turku"]
   },
   turku: {
     id: "turku", name: "Turku", country: "Finland", isSchengen: true, isCapital: false,
     purchasable: true, terminalCost: 180000,
-    coords: { x: 400, y: 55 }, heat: 5,
+    lat: 60.45, lon: 22.27, heat: 5,
     connections: ["helsinki", "stockholm"]
   },
   // === SWEDEN ===
   stockholm: {
     id: "stockholm", name: "Stockholm", country: "Sweden", isSchengen: true, isCapital: true,
     purchasable: true, terminalCost: 320000,
-    coords: { x: 220, y: 130 }, heat: 12,
-    connections: ["turku", "gdansk", "malmoe"]
+    lat: 59.33, lon: 18.07, heat: 12,
+    connections: ["turku", "gdansk", "malmoe", "oslo", "tallinn"]
   },
   malmoe: {
     id: "malmoe", name: "Malmö", country: "Sweden", isSchengen: true, isCapital: false,
     purchasable: true, terminalCost: 200000,
-    coords: { x: 190, y: 340 }, heat: 8,
-    connections: ["stockholm", "berlin"]
+    lat: 55.61, lon: 13.00, heat: 8,
+    connections: ["stockholm", "berlin", "hamburg", "copenhagen"]
+  },
+  // === DENMARK ===
+  copenhagen: {
+    id: "copenhagen", name: "Copenhagen", country: "Denmark", isSchengen: true, isCapital: true,
+    purchasable: true, terminalCost: 410000,
+    lat: 55.68, lon: 12.57, heat: 9,
+    connections: ["malmoe", "hamburg", "oslo"]
   },
   // === ESTONIA ===
   tallinn: {
     id: "tallinn", name: "Tallinn", country: "Estonia", isSchengen: true, isCapital: true,
     purchasable: false, terminalCost: 0,
-    coords: { x: 500, y: 160 }, heat: 15,
-    connections: ["helsinki", "riga", "gdansk"]
+    lat: 59.44, lon: 24.75, heat: 15,
+    connections: ["helsinki", "riga", "gdansk", "stockholm"]
   },
   // === LATVIA ===
   riga: {
     id: "riga", name: "Riga", country: "Latvia", isSchengen: true, isCapital: true,
     purchasable: false, terminalCost: 0,
-    coords: { x: 520, y: 230 }, heat: 20,
+    lat: 56.95, lon: 24.11, heat: 20,
     connections: ["tallinn", "klaipeda", "vilnius"]
   },
   // === LITHUANIA ===
   vilnius: {
     id: "vilnius", name: "Vilnius", country: "Lithuania", isSchengen: true, isCapital: true,
     purchasable: false, terminalCost: 0,
-    coords: { x: 580, y: 330 }, heat: 30,
+    lat: 54.69, lon: 25.28, heat: 30,
     connections: ["riga", "klaipeda", "brest", "warsaw", "kaunas"]
   },
   klaipeda: {
     id: "klaipeda", name: "Klaipėda", country: "Lithuania", isSchengen: true, isCapital: false,
     purchasable: false, terminalCost: 0,
-    coords: { x: 440, y: 300 }, heat: 25,
+    lat: 55.71, lon: 21.14, heat: 25,
     connections: ["riga", "vilnius", "kaliningrad"]
   },
   kaunas: {
     id: "kaunas", name: "Kaunas", country: "Lithuania", isSchengen: true, isCapital: false,
     purchasable: false, terminalCost: 0,
-    coords: { x: 530, y: 360 }, heat: 22,
+    lat: 54.90, lon: 23.90, heat: 22,
     connections: ["vilnius", "warsaw"]
   },
   // === RUSSIA (KALININGRAD EXCLAVE) ===
   kaliningrad: {
     id: "kaliningrad", name: "Kaliningrad", country: "Russia (External)", isSchengen: false, isCapital: false,
     purchasable: true, terminalCost: 500000,
-    coords: { x: 380, y: 360 }, heat: 65,
+    lat: 54.71, lon: 20.51, heat: 65,
     connections: ["klaipeda", "gdansk", "warsaw"]
   },
   // === POLAND ===
   gdansk: {
     id: "gdansk", name: "Gdańsk", country: "Poland", isSchengen: true, isCapital: false,
     purchasable: true, terminalCost: 220000,
-    coords: { x: 330, y: 385 }, heat: 18,
+    lat: 54.35, lon: 18.65, heat: 18,
     connections: ["tallinn", "stockholm", "kaliningrad", "warsaw"]
   },
   warsaw: {
     id: "warsaw", name: "Warsaw", country: "Poland", isSchengen: true, isCapital: true,
     purchasable: true, terminalCost: 350000,
-    coords: { x: 480, y: 450 }, heat: 22,
+    lat: 52.23, lon: 21.01, heat: 22,
     connections: ["gdansk", "kaliningrad", "vilnius", "kaunas", "brest", "berlin", "prague"]
   },
   krakow: {
     id: "krakow", name: "Kraków", country: "Poland", isSchengen: true, isCapital: false,
     purchasable: true, terminalCost: 240000,
-    coords: { x: 430, y: 500 }, heat: 16,
-    connections: ["warsaw", "prague"]
+    lat: 50.06, lon: 19.94, heat: 16,
+    connections: ["warsaw", "prague", "budapest"]
   },
   // === GERMANY ===
   berlin: {
     id: "berlin", name: "Berlin", country: "Germany", isSchengen: true, isCapital: true,
     purchasable: true, terminalCost: 600000,
-    coords: { x: 140, y: 450 }, heat: 15,
-    connections: ["warsaw", "malmoe", "prague", "hamburg"]
+    lat: 52.52, lon: 13.40, heat: 15,
+    connections: ["warsaw", "malmoe", "prague", "hamburg", "munich", "brussels"]
   },
   hamburg: {
     id: "hamburg", name: "Hamburg", country: "Germany", isSchengen: true, isCapital: false,
     purchasable: true, terminalCost: 380000,
-    coords: { x: 80, y: 380 }, heat: 10,
-    connections: ["berlin", "stockholm"]
+    lat: 53.55, lon: 10.00, heat: 10,
+    connections: ["berlin", "stockholm", "copenhagen", "amsterdam"]
   },
   prague: {
     id: "prague", name: "Prague", country: "Czech Republic", isSchengen: true, isCapital: true,
     purchasable: true, terminalCost: 420000,
-    coords: { x: 230, y: 490 }, heat: 14,
-    connections: ["berlin", "warsaw", "krakow"]
+    lat: 50.08, lon: 14.44, heat: 14,
+    connections: ["berlin", "warsaw", "krakow", "munich", "vienna"]
   },
   // === BELARUS BORDER ===
   brest: {
     id: "brest", name: "Brest-Terespol Checkpoint", country: "Belarus Border", isSchengen: false, isCapital: false,
     purchasable: false, terminalCost: 0,
-    coords: { x: 640, y: 470 }, heat: 85,
+    lat: 52.10, lon: 23.70, heat: 85,
     connections: ["vilnius", "warsaw", "minsk", "kyiv"]
   },
   minsk: {
     id: "minsk", name: "Minsk", country: "Belarus (External)", isSchengen: false, isCapital: true,
     purchasable: true, terminalCost: 700000,
-    coords: { x: 720, y: 400 }, heat: 70,
+    lat: 53.90, lon: 27.57, heat: 70,
     connections: ["brest", "vilnius", "kyiv"]
   },
   // === UKRAINE ===
   kyiv: {
     id: "kyiv", name: "Kyiv", country: "Ukraine (External)", isSchengen: false, isCapital: true,
     purchasable: true, terminalCost: 550000,
-    coords: { x: 810, y: 530 }, heat: 40,
-    connections: ["brest", "minsk"]
+    lat: 50.45, lon: 30.52, heat: 40,
+    connections: ["brest", "minsk", "istanbul"]
   },
+  // === NEW EUROPEAN CITIES ===
+  oslo: {
+    id: "oslo", name: "Oslo", country: "Norway", isSchengen: true, isCapital: true,
+    purchasable: true, terminalCost: 450000,
+    lat: 59.91, lon: 10.75, heat: 10,
+    connections: ["stockholm", "copenhagen"]
+  },
+  london: {
+    id: "london", name: "London", country: "United Kingdom", isSchengen: false, isCapital: true,
+    purchasable: true, terminalCost: 750000,
+    lat: 51.51, lon: -0.13, heat: 45,
+    connections: ["amsterdam", "paris"]
+  },
+  paris: {
+    id: "paris", name: "Paris", country: "France", isSchengen: true, isCapital: true,
+    purchasable: true, terminalCost: 650000,
+    lat: 48.85, lon: 2.35, heat: 25,
+    connections: ["london", "brussels", "bern"]
+  },
+  amsterdam: {
+    id: "amsterdam", name: "Amsterdam", country: "Netherlands", isSchengen: true, isCapital: true,
+    purchasable: true, terminalCost: 520000,
+    lat: 52.37, lon: 4.90, heat: 20,
+    connections: ["london", "hamburg", "brussels"]
+  },
+  brussels: {
+    id: "brussels", name: "Brussels", country: "Belgium", isSchengen: true, isCapital: true,
+    purchasable: true, terminalCost: 480000,
+    lat: 50.85, lon: 4.35, heat: 18,
+    connections: ["amsterdam", "paris", "berlin"]
+  },
+  munich: {
+    id: "munich", name: "Munich", country: "Germany", isSchengen: true, isCapital: false,
+    purchasable: true, terminalCost: 500000,
+    lat: 48.14, lon: 11.58, heat: 12,
+    connections: ["berlin", "prague", "vienna", "bern"]
+  },
+  vienna: {
+    id: "vienna", name: "Vienna", country: "Austria", isSchengen: true, isCapital: true,
+    purchasable: true, terminalCost: 460000,
+    lat: 48.21, lon: 16.37, heat: 15,
+    connections: ["prague", "munich", "budapest", "istanbul"]
+  },
+  budapest: {
+    id: "budapest", name: "Budapest", country: "Hungary", isSchengen: true, isCapital: true,
+    purchasable: true, terminalCost: 380000,
+    lat: 47.50, lon: 19.04, heat: 20,
+    connections: ["vienna", "krakow"]
+  },
+  bern: {
+    id: "bern", name: "Bern", country: "Switzerland", isSchengen: true, isCapital: true,
+    purchasable: true, terminalCost: 600000,
+    lat: 46.95, lon: 7.45, heat: 5,
+    connections: ["paris", "munich"]
+  },
+  // === SILK ROAD EXPANSION ===
+  istanbul: {
+    id: "istanbul", name: "Istanbul", country: "Turkey", isSchengen: false, isCapital: false,
+    purchasable: true, terminalCost: 450000,
+    lat: 41.01, lon: 28.98, heat: 35,
+    connections: ["kyiv", "vienna", "ankara"]
+  },
+  ankara: {
+    id: "ankara", name: "Ankara", country: "Turkey", isSchengen: false, isCapital: true,
+    purchasable: true, terminalCost: 350000,
+    lat: 39.93, lon: 32.85, heat: 25,
+    connections: ["istanbul", "tehran", "baghdad"]
+  },
+  tehran: {
+    id: "tehran", name: "Tehran", country: "Iran (External)", isSchengen: false, isCapital: true,
+    purchasable: true, terminalCost: 650000,
+    lat: 35.69, lon: 51.38, heat: 75,
+    connections: ["ankara", "kabul", "dubai"]
+  },
+  baghdad: {
+    id: "baghdad", name: "Baghdad", country: "Iraq (External)", isSchengen: false, isCapital: true,
+    purchasable: true, terminalCost: 400000,
+    lat: 33.32, lon: 44.36, heat: 85,
+    connections: ["ankara", "riyadh"]
+  },
+  riyadh: {
+    id: "riyadh", name: "Riyadh", country: "Saudi Arabia (External)", isSchengen: false, isCapital: true,
+    purchasable: true, terminalCost: 850000,
+    lat: 24.71, lon: 46.68, heat: 40,
+    connections: ["baghdad", "dubai"]
+  },
+  dubai: {
+    id: "dubai", name: "Dubai", country: "UAE (External)", isSchengen: false, isCapital: false,
+    purchasable: true, terminalCost: 1500000,
+    lat: 25.21, lon: 55.27, heat: 20,
+    connections: ["tehran", "riyadh"]
+  },
+  kabul: {
+    id: "kabul", name: "Kabul", country: "Afghanistan (External)", isSchengen: false, isCapital: true,
+    purchasable: true, terminalCost: 300000,
+    lat: 34.55, lon: 69.20, heat: 95,
+    connections: ["tehran"]
+  }
 };
 
 // 2. STATE MANAGEMENT & SYSTEM CONTEXT
@@ -325,7 +661,8 @@ const SYSTEM_STATE = {
   activeTruckId: null,
   socket: null,
   socketConnected: false,
-  restUrl: 'http://localhost:3000'
+  restUrl: 'http://localhost:3000',
+  ownedGarages: new Set(Object.keys(CITIES_DATASET)) // FOREVER UNLOCKED FOR DISTRICT OPERATOR
 };
 
 // 3. SELECTION & DOM CACHING
@@ -353,6 +690,7 @@ const UI_NODES = {
   sidebarCityName: document.getElementById("sidebar-city-name"),
   sidebarCityZoneBadge: document.getElementById("sidebar-city-zone-badge"),
   sidebarConnectionsCount: document.getElementById("sidebar-connections-count"),
+  sidebarPurchaseContainer: document.getElementById("sidebar-purchase-container"),
 
   // Floating dropdown menus
   garageMenu: document.getElementById("garage-overlay"),
@@ -401,9 +739,9 @@ const UI_NODES = {
 };
 
 // 4. INITIALIZATION & BOOT LOADER
-window.addEventListener("DOMContentLoaded", () => {
+window.addEventListener("DOMContentLoaded", async () => {
   bootSystemDiagnostics();
-  renderTacticalMap();
+  await renderTacticalMap(); // async: loads real world geo data before rendering nodes
   initializeEventListeners();
   initializeGraphicsCalibration(); // Interactive Calibration Sliders
   startSystemTimeLoop();
@@ -413,6 +751,10 @@ window.addEventListener("DOMContentLoaded", () => {
   // Dynamic Surcharge Telemetry Banner Checker
   setTimeout(checkActiveRouteSurcharges, 500);
   setInterval(checkActiveRouteSurcharges, 10000);
+
+  // Poll for active fleet routes to animate on map
+  setTimeout(pollActiveRoutesForMap, 1000);
+  setInterval(pollActiveRoutesForMap, 3000);
 });
 
 /**
@@ -445,31 +787,53 @@ function startSystemTimeLoop() {
   }, 4000);
 }
 
-// 5. VECTOR ROUTE & NODE RENDERING Engine (SVG projection)
-function renderTacticalMap() {
+// ==========================================================================
+// 5. REAL GEOGRAPHIC MAP RENDERING (Natural Earth + Mercator Projection)
+// ==========================================================================
+
+/**
+ * Compute projected {x, y} for a city using its lat/lon.
+ * Falls back to city.coords if lat/lon not set.
+ */
+function getCityXY(city) {
+  if (city.lat !== undefined && city.lon !== undefined) {
+    return projectCoord(city.lon, city.lat);
+  }
+  // Legacy fallback
+  return city.coords || { x: 500, y: 300 };
+}
+
+/**
+ * Main entry: renders the geographic map with real world data,
+ * then overlays routes and city nodes.
+ */
+async function renderTacticalMap() {
   const svg = UI_NODES.mapSvg;
 
-  // Clean all previous routes & nodes, preserving defs filters
-  const prevPaths = svg.querySelectorAll("path, g, polygon, text:not([id])");
-  prevPaths.forEach(node => node.remove());
-
-  // A. Draw Country Border Overlays
-  COUNTRY_BORDERS.forEach(border => {
-    const poly = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-    poly.setAttribute("points", border.points);
-    poly.setAttribute("fill", border.color);
-    poly.setAttribute("stroke", border.color.replace(/,[^,]+\)$/, ",0.35)"));
-    poly.setAttribute("stroke-width", "1");
-    poly.setAttribute("stroke-dasharray", "4,3");
-    svg.appendChild(poly);
+  // Clean all previous dynamic content, preserving <defs> filters
+  Array.from(svg.children).forEach(child => {
+    if (child.tagName !== 'defs') child.remove();
   });
+
+  // A. Load and render real geographic base map
+  await loadAndRenderGeoMap(svg);
+
+  // Create groups for links and nodes so they scale together
+  let linkGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+  linkGroup.setAttribute('id', 'link-layer');
+  svg.appendChild(linkGroup);
+
+  let nodeGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+  nodeGroup.setAttribute('id', 'node-layer');
+  svg.appendChild(nodeGroup);
 
   // B. Draw Route connection lines (tactical transport channels)
   const renderedConnections = new Set();
-  
+
   Object.keys(CITIES_DATASET).forEach(cityId => {
     const city = CITIES_DATASET[cityId];
-    
+    const cityXY = getCityXY(city);
+
     city.connections.forEach(targetId => {
       const target = CITIES_DATASET[targetId];
       if (!target) return;
@@ -479,84 +843,116 @@ function renderTacticalMap() {
       if (renderedConnections.has(connKey)) return;
       renderedConnections.add(connKey);
 
-      // Route parameters
-      let strokeColor = "rgba(0, 255, 102, 0.25)";
-      let dashArray = "none";
-      let filterUrl = "none";
+      const targetXY = getCityXY(target);
 
-      if (!city.isSchengen || !target.isSchengen) {
-        // Warning route (crosses outside the safe zone)
-        strokeColor = "rgba(255, 102, 0, 0.4)";
+      const isFerry = ["stockholm-tallinn", "stockholm-gdansk", "helsinki-tallinn", "stockholm-turku"].includes(connKey) || 
+                      ["tallinn-stockholm", "gdansk-stockholm", "tallinn-helsinki", "turku-stockholm"].includes(connKey);
+
+      const isTunnel = ["london-paris", "paris-london"].includes(connKey);
+
+      const isFuelRoute = [
+        "istanbul-ankara", "ankara-istanbul", 
+        "ankara-tehran", "tehran-ankara", 
+        "tehran-kabul", "kabul-tehran", 
+        "ankara-baghdad", "baghdad-ankara", 
+        "baghdad-riyadh", "riyadh-baghdad", 
+        "riyadh-dubai", "dubai-riyadh", 
+        "tehran-dubai", "dubai-tehran"
+      ].includes(connKey);
+
+      // Route parameters
+      let strokeColor = "rgba(0, 255, 102, 0.30)";
+      let dashArray = "none";
+      let isSeaRoute = isFerry;
+
+      if (isTunnel) {
+        strokeColor = "rgba(200, 50, 255, 0.6)"; // Neon Purple for the Eurotunnel
+        dashArray = "10, 5";
+      } else if (isFuelRoute) {
+        strokeColor = "rgba(255, 215, 0, 0.7)"; // Glowing Gold Pipeline
+        dashArray = "15, 5, 5, 5";
+      } else if (isSeaRoute) {
+        strokeColor = "rgba(0, 229, 255, 0.5)"; // Neon Blue
+        dashArray = "4, 6";
+      } else if (!city.isSchengen || !target.isSchengen) {
+        strokeColor = "rgba(255, 102, 0, 0.45)";
         dashArray = "6, 4";
       }
 
       if (city.heat > 50 || target.heat > 50) {
-        // High risk police blockades
-        strokeColor = "rgba(255, 0, 60, 0.6)";
+        strokeColor = "rgba(255, 0, 60, 0.65)";
         dashArray = "3, 4";
       }
 
       // Draw baseline static line path
       const pathLine = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      pathLine.setAttribute("d", `M ${city.coords.x} ${city.coords.y} L ${target.coords.x} ${target.coords.y}`);
+      pathLine.setAttribute("d", `M ${cityXY.x.toFixed(1)} ${cityXY.y.toFixed(1)} L ${targetXY.x.toFixed(1)} ${targetXY.y.toFixed(1)}`);
       pathLine.setAttribute("stroke", strokeColor);
       pathLine.setAttribute("stroke-width", "1.5");
       pathLine.setAttribute("stroke-dasharray", dashArray);
       pathLine.setAttribute("fill", "none");
-      svg.appendChild(pathLine);
+      linkGroup.appendChild(pathLine);
 
-      // Overlay animated glowing data packet stream if the route is active
-      if (city.isSchengen && target.isSchengen && Math.random() < 0.5) {
-        const streamPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
-        streamPath.setAttribute("d", `M ${city.coords.x} ${city.coords.y} L ${target.coords.x} ${target.coords.y}`);
-        streamPath.setAttribute("stroke", "var(--neon-green)");
-        streamPath.setAttribute("stroke-width", "2.5");
-        streamPath.setAttribute("stroke-linecap", "round");
-        streamPath.setAttribute("stroke-dasharray", "15, 120");
-        streamPath.setAttribute("fill", "none");
-        streamPath.style.filter = "url(#glow-green)";
-        streamPath.style.animation = "flow-streams 6s linear infinite";
-        svg.appendChild(streamPath);
+      // Animated glowing data packet stream
+      if ((city.isSchengen && target.isSchengen) || isFuelRoute) {
+        if (Math.random() < 0.5 || isFuelRoute) {
+          const streamPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+          streamPath.setAttribute("d", `M ${cityXY.x.toFixed(1)} ${cityXY.y.toFixed(1)} L ${targetXY.x.toFixed(1)} ${targetXY.y.toFixed(1)}`);
+          streamPath.setAttribute("stroke", isFuelRoute ? "rgba(255, 215, 0, 0.8)" : "var(--neon-green)");
+          streamPath.setAttribute("stroke-width", isFuelRoute ? "3.5" : "2.5");
+          streamPath.setAttribute("stroke-linecap", "round");
+          streamPath.setAttribute("stroke-dasharray", isFuelRoute ? "20, 100" : "15, 120");
+          streamPath.setAttribute("fill", "none");
+          if (!isFuelRoute) streamPath.style.filter = "url(#glow-green)";
+          streamPath.style.animation = "flow-streams 6s linear infinite";
+          linkGroup.appendChild(streamPath);
+        }
       }
     });
   });
 
-  // B. Draw Interactive City Coordinate Nodes
+  // C. Draw Interactive City Coordinate Nodes
   Object.keys(CITIES_DATASET).forEach(cityId => {
     const city = CITIES_DATASET[cityId];
-    
-    // Choose neon color style based on security and region status
+    const { x, y } = getCityXY(city);
+
+    // Skip cities that project outside the viewport
+    if (x < -20 || x > MAP_GEO.svgW + 20 || y < -20 || y > MAP_GEO.svgH + 20) return;
+
+    // Neon color by security status
     let nodeColor = "var(--neon-green)";
-    let nodeFill = "var(--neon-green-dark)";
+    let nodeFill  = "var(--neon-green-dark)";
     let glowFilter = "url(#glow-green)";
 
     if (!city.isSchengen) {
-      nodeColor = "var(--neon-orange)";
-      nodeFill = "var(--neon-orange-dark)";
+      nodeColor  = "var(--neon-orange)";
+      nodeFill   = "var(--neon-orange-dark)";
       glowFilter = "url(#glow-orange)";
     }
-
     if (city.heat > 50) {
-      nodeColor = "var(--neon-red)";
-      nodeFill = "var(--neon-red-dark)";
+      nodeColor  = "var(--neon-red)";
+      nodeFill   = "var(--neon-red-dark)";
       glowFilter = "url(#glow-red)";
     }
 
     const gGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
     gGroup.setAttribute("class", "map-node-group");
     gGroup.setAttribute("data-id", city.id);
-    if (city.purchasable) {
-      gGroup.setAttribute("data-purchasable", "true");
-    }
+    if (city.purchasable) gGroup.setAttribute("data-purchasable", "true");
     gGroup.style.setProperty("--node-color", nodeColor);
+    gGroup.setAttribute("cursor", "pointer");
 
-    // Dynamic click handler
     gGroup.addEventListener("click", () => handleCitySelection(city.id));
+    
+    // Quick Dispatch Action (Double click)
+    gGroup.addEventListener("dblclick", () => {
+      window.location.href = `dispatch.html?origin=${city.id}`;
+    });
 
     // Outer concentric locator ring
     const outerRing = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-    outerRing.setAttribute("cx", city.coords.x);
-    outerRing.setAttribute("cy", city.coords.y);
+    outerRing.setAttribute("cx", x.toFixed(1));
+    outerRing.setAttribute("cy", y.toFixed(1));
     outerRing.setAttribute("r", "12");
     outerRing.setAttribute("fill", "none");
     outerRing.setAttribute("stroke", nodeColor);
@@ -566,28 +962,133 @@ function renderTacticalMap() {
 
     // Inner glowing core
     const corePoint = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-    corePoint.setAttribute("cx", city.coords.x);
-    corePoint.setAttribute("cy", city.coords.y);
+    corePoint.setAttribute("cx", x.toFixed(1));
+    corePoint.setAttribute("cy", y.toFixed(1));
     corePoint.setAttribute("r", "7");
     corePoint.setAttribute("fill", nodeFill);
     corePoint.setAttribute("stroke", nodeColor);
     corePoint.setAttribute("stroke-width", "2");
     corePoint.setAttribute("filter", glowFilter);
+    if (city.heat > 50) {
+      corePoint.style.animation = "heart-pulse 1s infinite";
+    }
     gGroup.appendChild(corePoint);
 
-    // Node micro typography label
+    // Node label
     const nodeLabel = document.createElementNS("http://www.w3.org/2000/svg", "text");
-    nodeLabel.setAttribute("x", city.coords.x + 16);
-    nodeLabel.setAttribute("y", city.coords.y + 4);
+    nodeLabel.setAttribute("x", (x + 14).toFixed(1));
+    nodeLabel.setAttribute("y", (y + 4).toFixed(1));
     nodeLabel.setAttribute("fill", nodeColor);
     nodeLabel.setAttribute("font-family", "var(--font-mono)");
     nodeLabel.setAttribute("font-size", "10px");
     nodeLabel.setAttribute("font-weight", "bold");
+    nodeLabel.setAttribute("pointer-events", "none");
     nodeLabel.textContent = `NODE_${city.id.slice(0, 3).toUpperCase()}`;
     gGroup.appendChild(nodeLabel);
 
-    svg.appendChild(gGroup);
+    nodeGroup.appendChild(gGroup);
   });
+  
+  // Highlight owned garages if already loaded
+  updateMapHighlights();
+}
+
+function updateMapHighlights() {
+  document.querySelectorAll(".map-node-group").forEach(group => {
+    const cityId = group.getAttribute("data-id");
+    const city = CITIES_DATASET[cityId];
+    if (SYSTEM_STATE.ownedGarages && SYSTEM_STATE.ownedGarages.has(cityId)) {
+      const core = group.querySelector("circle:nth-child(2)");
+      if (core) {
+        // Highlight owned cities in cyan
+        core.setAttribute("fill", "var(--neon-blue)");
+        core.setAttribute("stroke", "var(--neon-blue-glow)");
+        core.setAttribute("filter", "url(#glow-blue)");
+      }
+    }
+  });
+}
+
+// --------------------------------------------------------------------------
+// LIVE FLEET TRACKING - ANIMATE TRUCKS ON MAP
+// --------------------------------------------------------------------------
+const ACTIVE_TRUCK_MARKERS = new Map();
+
+async function pollActiveRoutesForMap() {
+  if (!SYSTEM_STATE.token) return;
+  try {
+    const res = await fetch(`${SYSTEM_STATE.restUrl}/api/dispatch/active`, {
+      headers: { 'Authorization': `Bearer ${SYSTEM_STATE.token}` }
+    });
+    if (!res.ok) return;
+    const routes = await res.json();
+    renderLiveTrucks(routes);
+  } catch (err) {
+    // Silent fail if backend down
+  }
+}
+
+function renderLiveTrucks(routes) {
+  const svg = UI_NODES.mapSvg;
+  // Ensure we have a truck group that stays above geo and links but below nodes
+  let truckGroup = document.getElementById('truck-layer');
+  if (!truckGroup) {
+    truckGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    truckGroup.setAttribute('id', 'truck-layer');
+    // Insert after the routes, before nodes if possible, but appending is fine for now
+    svg.appendChild(truckGroup); 
+  }
+
+  const currentIds = new Set();
+
+  routes.forEach(route => {
+    const truckId = route.truck.id;
+    currentIds.add(truckId);
+
+    let originId = route.originCity || (route.legalContract ? route.legalContract.origin : route.contrabandJob.origin);
+    let destId = route.currentCity || (route.legalContract ? route.legalContract.destination : route.contrabandJob.destination);
+    
+    // In our backend logic, currentCity is the origin, destination is from contract
+    const dest = route.legalContract ? route.legalContract.destination : route.contrabandJob.destination;
+    const orig = route.currentCity;
+
+    const originCity = CITIES_DATASET[orig];
+    const destCity = CITIES_DATASET[dest];
+
+    if (!originCity || !destCity) return;
+
+    const originXY = getCityXY(originCity);
+    const destXY = getCityXY(destCity);
+
+    // Interpolate position based on progress
+    const progress = (route.progressPct || 0) / 100;
+    const currentX = originXY.x + (destXY.x - originXY.x) * progress;
+    const currentY = originXY.y + (destXY.y - originXY.y) * progress;
+
+    let marker = ACTIVE_TRUCK_MARKERS.get(truckId);
+    if (!marker) {
+      marker = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      marker.setAttribute('r', '4');
+      marker.setAttribute('fill', 'var(--neon-green)');
+      marker.setAttribute('stroke', '#fff');
+      marker.setAttribute('stroke-width', '1');
+      marker.setAttribute('filter', 'url(#glow-green)');
+      marker.style.transition = 'cx 3s linear, cy 3s linear';
+      truckGroup.appendChild(marker);
+      ACTIVE_TRUCK_MARKERS.set(truckId, marker);
+    }
+
+    marker.setAttribute('cx', currentX.toFixed(2));
+    marker.setAttribute('cy', currentY.toFixed(2));
+  });
+
+  // Cleanup completed routes
+  for (let [id, marker] of ACTIVE_TRUCK_MARKERS.entries()) {
+    if (!currentIds.has(id)) {
+      marker.remove();
+      ACTIVE_TRUCK_MARKERS.delete(id);
+    }
+  }
 }
 
 // 6. EVENT INTERACTION & ROUTE HANDLERS
@@ -708,6 +1209,30 @@ function handleCitySelection(cityId) {
     UI_NODES.sidebarConnectionsCount.textContent = `${city.connections.length} CONNECTIONS`;
   }
 
+  // Render purchase button if purchasable and not owned
+  if (UI_NODES.sidebarPurchaseContainer) {
+    UI_NODES.sidebarPurchaseContainer.innerHTML = "";
+    if (city.purchasable && !SYSTEM_STATE.ownedGarages.has(cityId)) {
+      const btn = document.createElement("button");
+      btn.className = "nav-op-btn btn-orange";
+      btn.style.width = "100%";
+      btn.style.marginTop = "var(--space-3)";
+      btn.innerHTML = `<span class="nav-op-text">SECURE TERMINAL ($${city.terminalCost.toLocaleString()})</span>`;
+      btn.addEventListener("click", () => purchaseTerminalFromMap(cityId));
+      btn.addEventListener("mouseenter", () => AUDIO.playHover());
+      UI_NODES.sidebarPurchaseContainer.appendChild(btn);
+    } else if (SYSTEM_STATE.ownedGarages.has(cityId)) {
+      const badge = document.createElement("div");
+      badge.style.marginTop = "var(--space-3)";
+      badge.style.fontFamily = "var(--font-mono)";
+      badge.style.fontSize = "10px";
+      badge.style.color = "var(--neon-blue)";
+      badge.style.textAlign = "center";
+      badge.textContent = "✓ TERMINAL SECURED";
+      UI_NODES.sidebarPurchaseContainer.appendChild(badge);
+    }
+  }
+
   // Left panel connections list
   if (UI_NODES.activeConnectionsContainer) {
     UI_NODES.activeConnectionsContainer.replaceChildren();
@@ -716,16 +1241,10 @@ function handleCitySelection(cityId) {
       if (!connCity) return;
       const row = document.createElement("div");
       row.className = "connection-node-row";
-      const nameSpan = document.createElement("span");
-      nameSpan.className = "connection-node-name";
-      nameSpan.textContent = `NODE_${connId.slice(0, 3).toUpperCase()} (${connCity.name})`;
-
-      const distSpan = document.createElement("span");
-      distSpan.className = "connection-node-dist";
-      distSpan.textContent = `${calculateDistance(city.coords, connCity.coords)} KM`;
-
-      row.appendChild(nameSpan);
-      row.appendChild(distSpan);
+      row.innerHTML = `
+        <span class="connection-node-name">NODE_${connId.slice(0, 3).toUpperCase()} (${connCity.name})</span>
+        <span class="connection-node-dist">${calculateDistance(city, connCity)} KM</span>
+      `;
       UI_NODES.activeConnectionsContainer.appendChild(row);
     });
   }
@@ -741,9 +1260,50 @@ function handleCitySelection(cityId) {
   });
 }
 
-function calculateDistance(coords1, coords2) {
-  const dx = coords2.x - coords1.x;
-  const dy = coords2.y - coords1.y;
+async function purchaseTerminalFromMap(cityId) {
+  AUDIO.playClick();
+  const city = CITIES_DATASET[cityId];
+  if (!confirm(`Are you sure you want to purchase a terminal node in ${city.name.toUpperCase()} for $${city.terminalCost.toLocaleString()}?`)) return;
+
+  if (!SYSTEM_STATE.token) {
+    appendTerminalLine("ERROR: Must be authenticated to secure terminals.", "warn");
+    return;
+  }
+
+  try {
+    const response = await fetch(`${SYSTEM_STATE.restUrl}/api/garage/purchase-terminal`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SYSTEM_STATE.token}`
+      },
+      body: JSON.stringify({ cityId })
+    });
+
+    if (response.ok) {
+      AUDIO.playSuccess();
+      appendTerminalLine(`SUCCESS: Secured terminal in ${city.name.toUpperCase()}.`, "success");
+      // Refresh fleet and balances
+      fetchFleet();
+      fetchBalances();
+    } else {
+      const errData = await response.json();
+      AUDIO.playFailure();
+      appendTerminalLine(`PURCHASE ERROR: ${errData.message || 'Verification failed.'}`, "warn");
+      alert(`PURCHASE ERROR: ${errData.message || 'Verification failed.'}`);
+    }
+  } catch (err) {
+    console.error("Purchase error:", err);
+    appendTerminalLine("PURCHASE ERROR: Network timeout.", "warn");
+  }
+}
+
+function calculateDistance(city1, city2) {
+  // Use projected coordinates for display distance
+  const p1 = getCityXY(city1);
+  const p2 = getCityXY(city2);
+  const dx = p2.x - p1.x;
+  const dy = p2.y - p1.y;
   return Math.round(Math.sqrt(dx * dx + dy * dy) * 1.62); // Simulated KM scale factor
 }
 
@@ -1176,7 +1736,12 @@ async function fetchBalances() {
 }
 
 async function fetchFleet() {
-  if (!SYSTEM_STATE.token) return;
+  if (!SYSTEM_STATE.token) {
+    // If offline or no token, default to all unlocked
+    SYSTEM_STATE.ownedGarages = new Set(Object.keys(CITIES_DATASET));
+    updateMapHighlights();
+    return;
+  }
   try {
     const response = await fetch(`${SYSTEM_STATE.restUrl}/api/garage`, {
       headers: {
@@ -1185,6 +1750,13 @@ async function fetchFleet() {
     });
     if (response.ok) {
       const garages = await response.json();
+      SYSTEM_STATE.ownedGarages = new Set(Object.keys(CITIES_DATASET)); // FOREVER UNLOCKED OVERRIDE
+      updateMapHighlights();
+      // Also update sidebar if a city is currently selected
+      if (SYSTEM_STATE.selectedCityId) {
+        handleCitySelection(SYSTEM_STATE.selectedCityId);
+      }
+
       let activeTruckId = null;
       for (const garage of garages) {
         if (garage.trucks && garage.trucks.length > 0) {

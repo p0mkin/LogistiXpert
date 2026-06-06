@@ -4,6 +4,7 @@ import { BorderService } from './border.service';
 import { ClanService } from './clan.service';
 import { PrismaUnitOfWork } from '../infrastructure/persistence/PrismaUnitOfWork';
 import { GenericDomainEvent } from '../domain/events/DomainEvents';
+import { CITIES_DATASET } from '../domain/cities';
 
 const prisma = new PrismaClient();
 
@@ -232,7 +233,7 @@ export class DispatchSimulationService {
             totalDistance = 350.0;
           }
 
-          let truck_speed_kmh = 80.0;
+          let truck_speed_kmh = routeAgg.state.truck.hasV8Engine ? 72.0 : 60.0;
           if (driver.trait === 'LEAD_FOOT') truck_speed_kmh *= 1.15;
           if (driver.isStimulated) truck_speed_kmh *= 1.20;
 
@@ -267,7 +268,9 @@ export class DispatchSimulationService {
           }
 
           // 3. Digital Tachograph Checks & Fatigue
-          const isSchengenPath = !(origin === 'Minsk' || origin === 'Brest' || destination === 'Minsk' || destination === 'Brest' || companyAgg.state.jurisdiction === 'BELARUS');
+          const originCity = CITIES_DATASET[origin.toLowerCase()] || CITIES_DATASET['riga'];
+          const destCity = CITIES_DATASET[destination.toLowerCase()] || CITIES_DATASET['warsaw'];
+          const isSchengenPath = originCity.isSchengen && destCity.isSchengen && companyAgg.state.jurisdiction !== 'BELARUS';
 
           if (isSchengenPath && driver.tachoHours > 10.0 && !isCurrentlyFerrySegment) {
             const weighStationTrap = Math.random() < (0.08 * qualityFineMod); // Germany scales trigger chance
@@ -455,7 +458,34 @@ export class DispatchSimulationService {
           let cosmeticDamage = 0;
           let routeStatusMessage = '';
 
-          if (currentWeather === 'THICK_FOG') {
+          // Add customs delays for legal routes crossing Non-Schengen borders
+          if (!isSchengenPath && !isSmuggling && !isCurrentlyFerrySegment) {
+            if (routeAgg.state.progressPct < 50.0 && (routeAgg.state.progressPct + progressStep) >= 50.0) {
+              progressStep *= 0.1;
+              routeStatusMessage = 'CUSTOMS INSPECTION: Legal cargo delayed at border crossing.';
+            }
+          }
+          // --- RANDOM DYNAMIC ENCOUNTERS ---
+          if (isSmuggling && Math.random() < 0.05 && !routeAgg.state.truck.hasLeadLinedCompartment) {
+            const roll = Math.random() * 100;
+            const charLoyalScore = (driver.charisma * 5 + driver.loyalty) / 2;
+            if (roll > charLoyalScore) {
+              routeStatusMessage = '🚨 POLICE CHECKPOINT: Contraband discovered! Driver failed check.';
+              await txUow.rawClient.truck.update({
+                 where: { id: truck.id },
+                 data: { engineHealth: { decrement: 15 } }
+              });
+              txUow.addDomainEvent(new GenericDomainEvent(routeAgg.state.companyId, 'border:bust', {
+                truckId: truck.id,
+                message: routeStatusMessage
+              }));
+              progressStep = 0.0;
+            } else {
+               routeStatusMessage = '🚨 POLICE CHECKPOINT: Bypassed using Charisma.';
+            }
+          }
+          // ---------------------------------
+          if (currentWeather === 'THICK_FOG' && !routeAgg.state.truck.hasReinforcedTires) {
             if (routeAgg.state.autopilotPolicy === 'SAFE') {
               // Safe driver pulls over completely
               progressStep = 0.0;
@@ -508,7 +538,7 @@ export class DispatchSimulationService {
                 return; // Skip rest of simulation tick
               }
             }
-          } else if (currentWeather === 'ICE_STORM') {
+          } else if (currentWeather === 'ICE_STORM' && !routeAgg.state.truck.hasReinforcedTires) {
             if (routeAgg.state.autopilotPolicy === 'SAFE') {
               // Crawls cautious, 0 cosmetic wear
               progressStep *= 0.25;
@@ -603,11 +633,26 @@ export class DispatchSimulationService {
           const crossedBorderThreshold = routeAgg.state.progressPct < 50.0 && newProgress >= 50.0;
 
           if (isSmuggling && crossedBorderThreshold && !isCurrentlyFerrySegment) {
+            let checkpointName = `${destCity.name} Border Control`;
+            let alertLevel = 4;
+            let hasK9 = true;
+            
+            if (destCity.country === 'United Kingdom') {
+              checkpointName = 'Dover Port Authority';
+              alertLevel = 6;
+            } else if (destCity.country === 'Switzerland') {
+              checkpointName = 'Swiss Guard Checkpoint';
+              alertLevel = 5;
+            } else if (destCity.country.includes('Belarus') || originCity.country.includes('Belarus')) {
+              checkpointName = 'Brest Border Terminal';
+              alertLevel = 4;
+            }
+
             const checkpoint = {
-              name: 'Brest Border Terminal',
-              alertLevel: 4, // 1 to 10 severity
+              name: checkpointName,
+              alertLevel,
               scannerType: 'XRAY' as const,
-              hasK9: true,
+              hasK9,
             };
 
             if (routeAgg.state.autopilotPolicy === 'SAFE') {

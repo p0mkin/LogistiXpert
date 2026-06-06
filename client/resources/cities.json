@@ -5,11 +5,26 @@
       "country": "Estonia",
       "is_schengen": true,
       "type": "friendly",
-      "coords": { "x": 59.4370, "y": 24.7535 },
+      "coords": {
+        "x": 59.437,
+        "y": 24.7535
+      },
       "connections": {
-        "helsinki": { "distance_km": 80, "is_border_crossing": false, "type": "legal" },
-        "tartu": { "distance_km": 185, "is_border_crossing": false, "type": "legal" },
-        "parnu": { "distance_km": 130, "is_border_crossing": false, "type": "legal" }
+        "helsinki": {
+          "distance_km": 80,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "tartu": {
+          "distance_km": 185,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "parnu": {
+          "distance_km": 130,
+          "is_border_crossing": false,
+          "type": "legal"
+        }
       }
     },
     "tartu": {
@@ -17,24 +32,58 @@
       "country": "Estonia",
       "is_schengen": true,
       "type": "underworld",
-      "coords": { "x": 58.3780, "y": 26.7290 },
+      "coords": {
+        "x": 58.378,
+        "y": 26.729
+      },
       "connections": {
-        "tallinn": { "distance_km": 185, "is_border_crossing": false, "type": "legal" },
-        "parnu": { "distance_km": 110, "is_border_crossing": false, "type": "legal" },
-        "riga": { "distance_km": 245, "is_border_crossing": false, "type": "underworld" },
-        "daugavpils": { "distance_km": 170, "is_border_crossing": false, "type": "legal" }
+        "tallinn": {
+          "distance_km": 185,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "parnu": {
+          "distance_km": 110,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "riga": {
+          "distance_km": 245,
+          "is_border_crossing": false,
+          "type": "underworld"
+        },
+        "daugavpils": {
+          "distance_km": 170,
+          "is_border_crossing": false,
+          "type": "legal"
+        }
       }
     },
     "parnu": {
-      "name": "Pärnu",
+      "name": "P\u00e4rnu",
       "country": "Estonia",
       "is_schengen": true,
       "type": "friendly",
-      "coords": { "x": 58.3859, "y": 24.4971 },
+      "coords": {
+        "x": 58.3859,
+        "y": 24.4971
+      },
       "connections": {
-        "tallinn": { "distance_km": 130, "is_border_crossing": false, "type": "legal" },
-        "tartu": { "distance_km": 110, "is_border_crossing": false, "type": "legal" },
-        "riga": { "distance_km": 180, "is_border_crossing": false, "type": "legal" }
+        "tallinn": {
+          "distance_km": 130,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "tartu": {
+          "distance_km": 110,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "riga": {
+          "distance_km": 180,
+          "is_border_crossing": false,
+          "type": "legal"
+        }
       }
     },
     "riga": {
@@ -42,16 +91,51 @@
       "country": "Latvia",
       "is_schengen": true,
       "type": "friendly",
-      "coords": { "x": 56.9496, "y": 24.1052 },
+      "coords": {
+        "x": 56.9496,
+        "y": 24.1052
+      },
       "connections": {
-        "parnu": { "distance_km": 180, "is_border_crossing": false, "type": "legal" },
-        "tartu": { "distance_km": 245, "is_border_crossing": false, "type": "underworld" },
-        "siauliai": { "distance_km": 130, "is_border_crossing": false, "type": "legal" },
-        "panevezys": { "distance_km": 150, "is_border_crossing": false, "type": "legal" },
-        "liepaja": { "distance_km": 220, "is_border_crossing": false, "type": "legal" },
-        "stockholm": { "distance_km": 450, "is_border_crossing": false, "type": "underworld" },
-        "visby": { "distance_km": 280, "is_border_crossing": false, "type": "underworld" },
-        "daugavpils": { "distance_km": 230, "is_border_crossing": false, "type": "legal" }
+        "parnu": {
+          "distance_km": 180,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "tartu": {
+          "distance_km": 245,
+          "is_border_crossing": false,
+          "type": "underworld"
+        },
+        "siauliai": {
+          "distance_km": 130,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "panevezys": {
+          "distance_km": 150,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "liepaja": {
+          "distance_km": 220,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "stockholm": {
+          "distance_km": 450,
+          "is_border_crossing": false,
+          "type": "underworld"
+        },
+        "visby": {
+          "distance_km": 280,
+          "is_border_crossing": false,
+          "type": "underworld"
+        },
+        "daugavpils": {
+          "distance_km": 230,
+          "is_border_crossing": false,
+          "type": "legal"
+        }
       }
     },
     "liepaja": {
@@ -59,10 +143,21 @@
       "country": "Latvia",
       "is_schengen": true,
       "type": "high_risk",
-      "coords": { "x": 56.5047, "y": 21.0108 },
+      "coords": {
+        "x": 56.5047,
+        "y": 21.0108
+      },
       "connections": {
-        "riga": { "distance_km": 220, "is_border_crossing": false, "type": "legal" },
-        "klaipeda": { "distance_km": 100, "is_border_crossing": false, "type": "legal" }
+        "riga": {
+          "distance_km": 220,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "klaipeda": {
+          "distance_km": 100,
+          "is_border_crossing": false,
+          "type": "legal"
+        }
       }
     },
     "daugavpils": {
@@ -70,12 +165,31 @@
       "country": "Latvia",
       "is_schengen": true,
       "type": "high_risk",
-      "coords": { "x": 55.8747, "y": 26.5361 },
+      "coords": {
+        "x": 55.8747,
+        "y": 26.5361
+      },
       "connections": {
-        "riga": { "distance_km": 230, "is_border_crossing": false, "type": "legal" },
-        "tartu": { "distance_km": 170, "is_border_crossing": false, "type": "legal" },
-        "panevezys": { "distance_km": 145, "is_border_crossing": false, "type": "legal" },
-        "minsk": { "distance_km": 270, "is_border_crossing": true, "type": "underworld" }
+        "riga": {
+          "distance_km": 230,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "tartu": {
+          "distance_km": 170,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "panevezys": {
+          "distance_km": 145,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "minsk": {
+          "distance_km": 270,
+          "is_border_crossing": true,
+          "type": "underworld"
+        }
       }
     },
     "siauliai": {
@@ -83,12 +197,31 @@
       "country": "Lithuania",
       "is_schengen": true,
       "type": "friendly",
-      "coords": { "x": 55.9349, "y": 23.3137 },
+      "coords": {
+        "x": 55.9349,
+        "y": 23.3137
+      },
       "connections": {
-        "riga": { "distance_km": 130, "is_border_crossing": false, "type": "legal" },
-        "panevezys": { "distance_km": 80, "is_border_crossing": false, "type": "legal" },
-        "kaunas": { "distance_km": 140, "is_border_crossing": false, "type": "legal" },
-        "klaipeda": { "distance_km": 160, "is_border_crossing": false, "type": "legal" }
+        "riga": {
+          "distance_km": 130,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "panevezys": {
+          "distance_km": 80,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "kaunas": {
+          "distance_km": 140,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "klaipeda": {
+          "distance_km": 160,
+          "is_border_crossing": false,
+          "type": "legal"
+        }
       }
     },
     "panevezys": {
@@ -96,12 +229,31 @@
       "country": "Lithuania",
       "is_schengen": true,
       "type": "high_risk",
-      "coords": { "x": 55.7348, "y": 24.3575 },
+      "coords": {
+        "x": 55.7348,
+        "y": 24.3575
+      },
       "connections": {
-        "riga": { "distance_km": 150, "is_border_crossing": false, "type": "legal" },
-        "siauliai": { "distance_km": 80, "is_border_crossing": false, "type": "legal" },
-        "vilnius": { "distance_km": 135, "is_border_crossing": false, "type": "legal" },
-        "daugavpils": { "distance_km": 145, "is_border_crossing": false, "type": "legal" }
+        "riga": {
+          "distance_km": 150,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "siauliai": {
+          "distance_km": 80,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "vilnius": {
+          "distance_km": 135,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "daugavpils": {
+          "distance_km": 145,
+          "is_border_crossing": false,
+          "type": "legal"
+        }
       }
     },
     "vilnius": {
@@ -109,11 +261,31 @@
       "country": "Lithuania",
       "is_schengen": true,
       "type": "friendly",
-      "coords": { "x": 54.6872, "y": 25.2797 },
+      "coords": {
+        "x": 54.6872,
+        "y": 25.2797
+      },
       "connections": {
-        "panevezys": { "distance_km": 135, "is_border_crossing": false, "type": "legal" },
-        "kaunas": { "distance_km": 102, "is_border_crossing": false, "type": "legal" },
-        "minsk": { "distance_km": 185, "is_border_crossing": true, "type": "underworld" }
+        "panevezys": {
+          "distance_km": 135,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "kaunas": {
+          "distance_km": 102,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "minsk": {
+          "distance_km": 185,
+          "is_border_crossing": true,
+          "type": "underworld"
+        },
+        "brest": {
+          "distance_km": 380,
+          "is_border_crossing": true,
+          "type": "legal"
+        }
       }
     },
     "kaunas": {
@@ -121,13 +293,36 @@
       "country": "Lithuania",
       "is_schengen": true,
       "type": "friendly",
-      "coords": { "x": 54.8985, "y": 23.9036 },
+      "coords": {
+        "x": 54.8985,
+        "y": 23.9036
+      },
       "connections": {
-        "vilnius": { "distance_km": 102, "is_border_crossing": false, "type": "legal" },
-        "siauliai": { "distance_km": 140, "is_border_crossing": false, "type": "legal" },
-        "klaipeda": { "distance_km": 215, "is_border_crossing": false, "type": "legal" },
-        "warsaw": { "distance_km": 340, "is_border_crossing": false, "type": "legal" },
-        "kaliningrad": { "distance_km": 250, "is_border_crossing": true, "type": "underworld" }
+        "vilnius": {
+          "distance_km": 102,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "siauliai": {
+          "distance_km": 140,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "klaipeda": {
+          "distance_km": 215,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "warsaw": {
+          "distance_km": 340,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "kaliningrad": {
+          "distance_km": 250,
+          "is_border_crossing": true,
+          "type": "underworld"
+        }
       }
     },
     "klaipeda": {
@@ -135,14 +330,41 @@
       "country": "Lithuania",
       "is_schengen": true,
       "type": "friendly",
-      "coords": { "x": 55.7068, "y": 21.1442 },
+      "coords": {
+        "x": 55.7068,
+        "y": 21.1442
+      },
       "connections": {
-        "siauliai": { "distance_km": 160, "is_border_crossing": false, "type": "legal" },
-        "kaunas": { "distance_km": 215, "is_border_crossing": false, "type": "legal" },
-        "liepaja": { "distance_km": 100, "is_border_crossing": false, "type": "legal" },
-        "gdansk": { "distance_km": 290, "is_border_crossing": false, "type": "legal" },
-        "visby": { "distance_km": 300, "is_border_crossing": false, "type": "underworld" },
-        "kaliningrad": { "distance_km": 140, "is_border_crossing": true, "type": "underworld" }
+        "siauliai": {
+          "distance_km": 160,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "kaunas": {
+          "distance_km": 215,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "liepaja": {
+          "distance_km": 100,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "gdansk": {
+          "distance_km": 290,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "visby": {
+          "distance_km": 300,
+          "is_border_crossing": false,
+          "type": "underworld"
+        },
+        "kaliningrad": {
+          "distance_km": 140,
+          "is_border_crossing": true,
+          "type": "underworld"
+        }
       }
     },
     "stockholm": {
@@ -150,11 +372,36 @@
       "country": "Sweden",
       "is_schengen": true,
       "type": "underworld",
-      "coords": { "x": 59.3293, "y": 18.0686 },
+      "coords": {
+        "x": 59.3293,
+        "y": 18.0686
+      },
       "connections": {
-        "visby": { "distance_km": 150, "is_border_crossing": false, "type": "legal" },
-        "helsinki": { "distance_km": 400, "is_border_crossing": false, "type": "legal" },
-        "riga": { "distance_km": 450, "is_border_crossing": false, "type": "underworld" }
+        "visby": {
+          "distance_km": 150,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "helsinki": {
+          "distance_km": 400,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "riga": {
+          "distance_km": 450,
+          "is_border_crossing": false,
+          "type": "underworld"
+        },
+        "malmoe": {
+          "distance_km": 600,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "oslo": {
+          "distance_km": 520,
+          "is_border_crossing": false,
+          "type": "legal"
+        }
       }
     },
     "helsinki": {
@@ -162,10 +409,21 @@
       "country": "Finland",
       "is_schengen": true,
       "type": "underworld",
-      "coords": { "x": 60.1699, "y": 24.9384 },
+      "coords": {
+        "x": 60.1699,
+        "y": 24.9384
+      },
       "connections": {
-        "tallinn": { "distance_km": 80, "is_border_crossing": false, "type": "legal" },
-        "stockholm": { "distance_km": 400, "is_border_crossing": false, "type": "legal" }
+        "tallinn": {
+          "distance_km": 80,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "stockholm": {
+          "distance_km": 400,
+          "is_border_crossing": false,
+          "type": "legal"
+        }
       }
     },
     "visby": {
@@ -173,11 +431,26 @@
       "country": "Sweden",
       "is_schengen": true,
       "type": "underworld",
-      "coords": { "x": 57.6348, "y": 18.2948 },
+      "coords": {
+        "x": 57.6348,
+        "y": 18.2948
+      },
       "connections": {
-        "stockholm": { "distance_km": 150, "is_border_crossing": false, "type": "legal" },
-        "riga": { "distance_km": 280, "is_border_crossing": false, "type": "underworld" },
-        "klaipeda": { "distance_km": 300, "is_border_crossing": false, "type": "underworld" }
+        "stockholm": {
+          "distance_km": 150,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "riga": {
+          "distance_km": 280,
+          "is_border_crossing": false,
+          "type": "underworld"
+        },
+        "klaipeda": {
+          "distance_km": 300,
+          "is_border_crossing": false,
+          "type": "underworld"
+        }
       }
     },
     "gdansk": {
@@ -185,12 +458,31 @@
       "country": "Poland",
       "is_schengen": true,
       "type": "friendly",
-      "coords": { "x": 54.3520, "y": 18.6466 },
+      "coords": {
+        "x": 54.352,
+        "y": 18.6466
+      },
       "connections": {
-        "klaipeda": { "distance_km": 290, "is_border_crossing": false, "type": "legal" },
-        "warsaw": { "distance_km": 340, "is_border_crossing": false, "type": "legal" },
-        "berlin": { "distance_km": 420, "is_border_crossing": false, "type": "legal" },
-        "kaliningrad": { "distance_km": 160, "is_border_crossing": true, "type": "underworld" }
+        "klaipeda": {
+          "distance_km": 290,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "warsaw": {
+          "distance_km": 340,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "berlin": {
+          "distance_km": 420,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "kaliningrad": {
+          "distance_km": 160,
+          "is_border_crossing": true,
+          "type": "underworld"
+        }
       }
     },
     "warsaw": {
@@ -198,12 +490,41 @@
       "country": "Poland",
       "is_schengen": true,
       "type": "high_risk",
-      "coords": { "x": 52.2297, "y": 21.0122 },
+      "coords": {
+        "x": 52.2297,
+        "y": 21.0122
+      },
       "connections": {
-        "gdansk": { "distance_km": 340, "is_border_crossing": false, "type": "legal" },
-        "kaunas": { "distance_km": 340, "is_border_crossing": false, "type": "legal" },
-        "berlin": { "distance_km": 570, "is_border_crossing": false, "type": "legal" },
-        "minsk": { "distance_km": 500, "is_border_crossing": true, "type": "underworld" }
+        "gdansk": {
+          "distance_km": 340,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "kaunas": {
+          "distance_km": 340,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "berlin": {
+          "distance_km": 570,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "minsk": {
+          "distance_km": 500,
+          "is_border_crossing": true,
+          "type": "underworld"
+        },
+        "brest": {
+          "distance_km": 200,
+          "is_border_crossing": true,
+          "type": "legal"
+        },
+        "prague": {
+          "distance_km": 680,
+          "is_border_crossing": false,
+          "type": "legal"
+        }
       }
     },
     "berlin": {
@@ -211,10 +532,41 @@
       "country": "Germany",
       "is_schengen": true,
       "type": "friendly",
-      "coords": { "x": 52.5200, "y": 13.4050 },
+      "coords": {
+        "x": 52.52,
+        "y": 13.405
+      },
       "connections": {
-        "warsaw": { "distance_km": 570, "is_border_crossing": false, "type": "legal" },
-        "gdansk": { "distance_km": 420, "is_border_crossing": false, "type": "legal" }
+        "warsaw": {
+          "distance_km": 570,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "gdansk": {
+          "distance_km": 420,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "hamburg": {
+          "distance_km": 280,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "munich": {
+          "distance_km": 580,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "prague": {
+          "distance_km": 350,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "brussels": {
+          "distance_km": 760,
+          "is_border_crossing": false,
+          "type": "legal"
+        }
       }
     },
     "minsk": {
@@ -222,11 +574,36 @@
       "country": "Belarus",
       "is_schengen": false,
       "type": "high_risk",
-      "coords": { "x": 53.9006, "y": 27.5590 },
+      "coords": {
+        "x": 53.9006,
+        "y": 27.559
+      },
       "connections": {
-        "vilnius": { "distance_km": 185, "is_border_crossing": true, "type": "underworld" },
-        "warsaw": { "distance_km": 500, "is_border_crossing": true, "type": "underworld" },
-        "daugavpils": { "distance_km": 270, "is_border_crossing": true, "type": "underworld" }
+        "vilnius": {
+          "distance_km": 185,
+          "is_border_crossing": true,
+          "type": "underworld"
+        },
+        "warsaw": {
+          "distance_km": 500,
+          "is_border_crossing": true,
+          "type": "underworld"
+        },
+        "daugavpils": {
+          "distance_km": 270,
+          "is_border_crossing": true,
+          "type": "underworld"
+        },
+        "brest": {
+          "distance_km": 350,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "kyiv": {
+          "distance_km": 530,
+          "is_border_crossing": true,
+          "type": "legal"
+        }
       }
     },
     "kaliningrad": {
@@ -234,11 +611,696 @@
       "country": "External",
       "is_schengen": false,
       "type": "high_risk",
-      "coords": { "x": 54.7104, "y": 20.4522 },
+      "coords": {
+        "x": 54.7104,
+        "y": 20.4522
+      },
       "connections": {
-        "klaipeda": { "distance_km": 140, "is_border_crossing": true, "type": "underworld" },
-        "gdansk": { "distance_km": 160, "is_border_crossing": true, "type": "underworld" },
-        "kaunas": { "distance_km": 250, "is_border_crossing": true, "type": "underworld" }
+        "klaipeda": {
+          "distance_km": 140,
+          "is_border_crossing": true,
+          "type": "underworld"
+        },
+        "gdansk": {
+          "distance_km": 160,
+          "is_border_crossing": true,
+          "type": "underworld"
+        },
+        "kaunas": {
+          "distance_km": 250,
+          "is_border_crossing": true,
+          "type": "underworld"
+        }
+      }
+    },
+    "brest": {
+      "name": "Brest",
+      "country": "Belarus",
+      "is_schengen": false,
+      "type": "high_risk",
+      "coords": {
+        "x": 52.1,
+        "y": 23.7
+      },
+      "connections": {
+        "warsaw": {
+          "distance_km": 200,
+          "is_border_crossing": true,
+          "type": "legal"
+        },
+        "minsk": {
+          "distance_km": 350,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "vilnius": {
+          "distance_km": 380,
+          "is_border_crossing": true,
+          "type": "legal"
+        },
+        "kyiv": {
+          "distance_km": 600,
+          "is_border_crossing": true,
+          "type": "legal"
+        }
+      }
+    },
+    "kyiv": {
+      "name": "Kyiv",
+      "country": "Ukraine",
+      "is_schengen": false,
+      "type": "high_risk",
+      "coords": {
+        "x": 50.45,
+        "y": 30.52
+      },
+      "connections": {
+        "brest": {
+          "distance_km": 600,
+          "is_border_crossing": true,
+          "type": "legal"
+        },
+        "minsk": {
+          "distance_km": 530,
+          "is_border_crossing": true,
+          "type": "legal"
+        },
+        "bucharest": {
+          "distance_km": 900,
+          "is_border_crossing": true,
+          "type": "legal"
+        }
+      }
+    },
+    "oslo": {
+      "name": "Oslo",
+      "country": "Norway",
+      "is_schengen": true,
+      "type": "friendly",
+      "coords": {
+        "x": 59.91,
+        "y": 10.75
+      },
+      "connections": {
+        "stockholm": {
+          "distance_km": 520,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "copenhagen": {
+          "distance_km": 600,
+          "is_border_crossing": false,
+          "type": "legal"
+        }
+      }
+    },
+    "malmoe": {
+      "name": "Malmoe",
+      "country": "Sweden",
+      "is_schengen": true,
+      "type": "friendly",
+      "coords": {
+        "x": 55.61,
+        "y": 13.0
+      },
+      "connections": {
+        "stockholm": {
+          "distance_km": 600,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "copenhagen": {
+          "distance_km": 40,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "berlin": {
+          "distance_km": 400,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "hamburg": {
+          "distance_km": 330,
+          "is_border_crossing": false,
+          "type": "legal"
+        }
+      }
+    },
+    "copenhagen": {
+      "name": "Copenhagen",
+      "country": "Denmark",
+      "is_schengen": true,
+      "type": "friendly",
+      "coords": {
+        "x": 55.68,
+        "y": 12.57
+      },
+      "connections": {
+        "malmoe": {
+          "distance_km": 40,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "oslo": {
+          "distance_km": 600,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "hamburg": {
+          "distance_km": 330,
+          "is_border_crossing": false,
+          "type": "legal"
+        }
+      }
+    },
+    "hamburg": {
+      "name": "Hamburg",
+      "country": "Germany",
+      "is_schengen": true,
+      "type": "friendly",
+      "coords": {
+        "x": 53.55,
+        "y": 10.0
+      },
+      "connections": {
+        "copenhagen": {
+          "distance_km": 330,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "malmoe": {
+          "distance_km": 330,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "berlin": {
+          "distance_km": 280,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "amsterdam": {
+          "distance_km": 460,
+          "is_border_crossing": false,
+          "type": "legal"
+        }
+      }
+    },
+    "prague": {
+      "name": "Prague",
+      "country": "Czech Republic",
+      "is_schengen": true,
+      "type": "friendly",
+      "coords": {
+        "x": 50.08,
+        "y": 14.44
+      },
+      "connections": {
+        "berlin": {
+          "distance_km": 350,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "warsaw": {
+          "distance_km": 680,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "munich": {
+          "distance_km": 380,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "vienna": {
+          "distance_km": 330,
+          "is_border_crossing": false,
+          "type": "legal"
+        }
+      }
+    },
+    "munich": {
+      "name": "Munich",
+      "country": "Germany",
+      "is_schengen": true,
+      "type": "friendly",
+      "coords": {
+        "x": 48.14,
+        "y": 11.58
+      },
+      "connections": {
+        "berlin": {
+          "distance_km": 580,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "prague": {
+          "distance_km": 380,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "vienna": {
+          "distance_km": 430,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "bern": {
+          "distance_km": 450,
+          "is_border_crossing": false,
+          "type": "legal"
+        }
+      }
+    },
+    "vienna": {
+      "name": "Vienna",
+      "country": "Austria",
+      "is_schengen": true,
+      "type": "friendly",
+      "coords": {
+        "x": 48.21,
+        "y": 16.37
+      },
+      "connections": {
+        "prague": {
+          "distance_km": 330,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "munich": {
+          "distance_km": 430,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "budapest": {
+          "distance_km": 240,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "belgrade": {
+          "distance_km": 600,
+          "is_border_crossing": true,
+          "type": "legal"
+        }
+      }
+    },
+    "budapest": {
+      "name": "Budapest",
+      "country": "Hungary",
+      "is_schengen": true,
+      "type": "friendly",
+      "coords": {
+        "x": 47.5,
+        "y": 19.04
+      },
+      "connections": {
+        "vienna": {
+          "distance_km": 240,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "bucharest": {
+          "distance_km": 800,
+          "is_border_crossing": true,
+          "type": "legal"
+        },
+        "belgrade": {
+          "distance_km": 380,
+          "is_border_crossing": true,
+          "type": "legal"
+        }
+      }
+    },
+    "london": {
+      "name": "London",
+      "country": "United Kingdom",
+      "is_schengen": false,
+      "type": "high_risk",
+      "coords": {
+        "x": 51.51,
+        "y": -0.13
+      },
+      "connections": {
+        "amsterdam": {
+          "distance_km": 360,
+          "is_border_crossing": true,
+          "type": "legal"
+        },
+        "paris": {
+          "distance_km": 470,
+          "is_border_crossing": true,
+          "type": "underworld"
+        }
+      }
+    },
+    "paris": {
+      "name": "Paris",
+      "country": "France",
+      "is_schengen": true,
+      "type": "friendly",
+      "coords": {
+        "x": 48.85,
+        "y": 2.35
+      },
+      "connections": {
+        "london": {
+          "distance_km": 470,
+          "is_border_crossing": true,
+          "type": "underworld"
+        },
+        "brussels": {
+          "distance_km": 310,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "bern": {
+          "distance_km": 570,
+          "is_border_crossing": false,
+          "type": "legal"
+        }
+      }
+    },
+    "amsterdam": {
+      "name": "Amsterdam",
+      "country": "Netherlands",
+      "is_schengen": true,
+      "type": "friendly",
+      "coords": {
+        "x": 52.37,
+        "y": 4.9
+      },
+      "connections": {
+        "london": {
+          "distance_km": 360,
+          "is_border_crossing": true,
+          "type": "legal"
+        },
+        "hamburg": {
+          "distance_km": 460,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "brussels": {
+          "distance_km": 210,
+          "is_border_crossing": false,
+          "type": "legal"
+        }
+      }
+    },
+    "brussels": {
+      "name": "Brussels",
+      "country": "Belgium",
+      "is_schengen": true,
+      "type": "friendly",
+      "coords": {
+        "x": 50.85,
+        "y": 4.35
+      },
+      "connections": {
+        "amsterdam": {
+          "distance_km": 210,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "paris": {
+          "distance_km": 310,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "berlin": {
+          "distance_km": 760,
+          "is_border_crossing": false,
+          "type": "legal"
+        }
+      }
+    },
+    "bern": {
+      "name": "Bern",
+      "country": "Switzerland",
+      "is_schengen": true,
+      "type": "friendly",
+      "coords": {
+        "x": 46.95,
+        "y": 7.45
+      },
+      "connections": {
+        "paris": {
+          "distance_km": 570,
+          "is_border_crossing": false,
+          "type": "legal"
+        },
+        "munich": {
+          "distance_km": 450,
+          "is_border_crossing": false,
+          "type": "legal"
+        }
+      }
+    },
+    "istanbul": {
+      "name": "Istanbul",
+      "country": "Turkey",
+      "is_schengen": false,
+      "type": "underworld",
+      "coords": {
+        "x": 41.01,
+        "y": 28.98
+      },
+      "connections": {
+        "ankara": {
+          "distance_km": 450,
+          "is_border_crossing": false,
+          "type": "underworld"
+        },
+        "bucharest": {
+          "distance_km": 630,
+          "is_border_crossing": true,
+          "type": "legal"
+        },
+        "sofia": {
+          "distance_km": 550,
+          "is_border_crossing": true,
+          "type": "legal"
+        }
+      }
+    },
+    "ankara": {
+      "name": "Ankara",
+      "country": "Turkey",
+      "is_schengen": false,
+      "type": "underworld",
+      "coords": {
+        "x": 39.93,
+        "y": 32.85
+      },
+      "connections": {
+        "istanbul": {
+          "distance_km": 450,
+          "is_border_crossing": false,
+          "type": "underworld"
+        },
+        "tehran": {
+          "distance_km": 2000,
+          "is_border_crossing": true,
+          "type": "underworld"
+        },
+        "baghdad": {
+          "distance_km": 1200,
+          "is_border_crossing": true,
+          "type": "underworld"
+        }
+      }
+    },
+    "tehran": {
+      "name": "Tehran",
+      "country": "Iran",
+      "is_schengen": false,
+      "type": "underworld",
+      "coords": {
+        "x": 35.69,
+        "y": 51.38
+      },
+      "connections": {
+        "ankara": {
+          "distance_km": 2000,
+          "is_border_crossing": true,
+          "type": "underworld"
+        },
+        "kabul": {
+          "distance_km": 1600,
+          "is_border_crossing": true,
+          "type": "underworld"
+        },
+        "dubai": {
+          "distance_km": 1200,
+          "is_border_crossing": true,
+          "type": "underworld"
+        }
+      }
+    },
+    "baghdad": {
+      "name": "Baghdad",
+      "country": "Iraq",
+      "is_schengen": false,
+      "type": "underworld",
+      "coords": {
+        "x": 33.32,
+        "y": 44.36
+      },
+      "connections": {
+        "ankara": {
+          "distance_km": 1200,
+          "is_border_crossing": true,
+          "type": "underworld"
+        },
+        "riyadh": {
+          "distance_km": 980,
+          "is_border_crossing": true,
+          "type": "underworld"
+        }
+      }
+    },
+    "riyadh": {
+      "name": "Riyadh",
+      "country": "Saudi Arabia",
+      "is_schengen": false,
+      "type": "underworld",
+      "coords": {
+        "x": 24.71,
+        "y": 46.68
+      },
+      "connections": {
+        "baghdad": {
+          "distance_km": 980,
+          "is_border_crossing": true,
+          "type": "underworld"
+        },
+        "dubai": {
+          "distance_km": 1000,
+          "is_border_crossing": true,
+          "type": "underworld"
+        }
+      }
+    },
+    "dubai": {
+      "name": "Dubai",
+      "country": "UAE",
+      "is_schengen": false,
+      "type": "underworld",
+      "coords": {
+        "x": 25.21,
+        "y": 55.27
+      },
+      "connections": {
+        "tehran": {
+          "distance_km": 1200,
+          "is_border_crossing": true,
+          "type": "underworld"
+        },
+        "riyadh": {
+          "distance_km": 1000,
+          "is_border_crossing": true,
+          "type": "underworld"
+        }
+      }
+    },
+    "kabul": {
+      "name": "Kabul",
+      "country": "Afghanistan",
+      "is_schengen": false,
+      "type": "underworld",
+      "coords": {
+        "x": 34.55,
+        "y": 69.2
+      },
+      "connections": {
+        "tehran": {
+          "distance_km": 1600,
+          "is_border_crossing": true,
+          "type": "underworld"
+        }
+      }
+    },
+    "bucharest": {
+      "name": "Bucharest",
+      "country": "Romania",
+      "is_schengen": true,
+      "type": "friendly",
+      "coords": {
+        "x": 44.42,
+        "y": 26.1
+      },
+      "connections": {
+        "budapest": {
+          "distance_km": 800,
+          "is_border_crossing": true,
+          "type": "legal"
+        },
+        "kyiv": {
+          "distance_km": 900,
+          "is_border_crossing": true,
+          "type": "legal"
+        },
+        "istanbul": {
+          "distance_km": 630,
+          "is_border_crossing": true,
+          "type": "legal"
+        },
+        "sofia": {
+          "distance_km": 360,
+          "is_border_crossing": true,
+          "type": "legal"
+        }
+      }
+    },
+    "sofia": {
+      "name": "Sofia",
+      "country": "Bulgaria",
+      "is_schengen": true,
+      "type": "friendly",
+      "coords": {
+        "x": 42.69,
+        "y": 23.32
+      },
+      "connections": {
+        "bucharest": {
+          "distance_km": 360,
+          "is_border_crossing": true,
+          "type": "legal"
+        },
+        "istanbul": {
+          "distance_km": 550,
+          "is_border_crossing": true,
+          "type": "legal"
+        },
+        "belgrade": {
+          "distance_km": 390,
+          "is_border_crossing": true,
+          "type": "legal"
+        }
+      }
+    },
+    "belgrade": {
+      "name": "Belgrade",
+      "country": "Serbia",
+      "is_schengen": false,
+      "type": "high_risk",
+      "coords": {
+        "x": 44.81,
+        "y": 20.45
+      },
+      "connections": {
+        "sofia": {
+          "distance_km": 390,
+          "is_border_crossing": true,
+          "type": "legal"
+        },
+        "budapest": {
+          "distance_km": 380,
+          "is_border_crossing": true,
+          "type": "legal"
+        },
+        "vienna": {
+          "distance_km": 600,
+          "is_border_crossing": true,
+          "type": "legal"
+        }
       }
     }
   }

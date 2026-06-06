@@ -66,10 +66,10 @@ var hovered_city_id: String = ""
 var selected_city_id: String = ""
 
 # Map Projection Scales
-var map_min_lat: float = 48.0
-var map_max_lat: float = 61.5
-var map_min_lon: float = 9.5
-var map_max_lon: float = 31.5
+var map_min_lat: float = 20.0
+var map_max_lat: float = 65.0
+var map_min_lon: float = -8.0
+var map_max_lon: float = 72.0
 const MAP_MARGIN = 150 # screen offset bounds
 var view_size = Vector2(2500, 1600) # Massive virtual tactical canvas for high-density rendering
 var view_offset = Vector2(0, 0) # Unrestrict canvas coordinates to full resolution
@@ -79,6 +79,199 @@ var time_passed: float = 0.0
 # Geographic Border & Coastline Data
 # Format: Array of points (Vector2(lat, lon))
 var coastlines: Array = [
+	# === NORTH SEA / ENGLISH CHANNEL / ATLANTIC ===
+	[
+		Vector2(51.9, 4.1),    # Rotterdam
+		Vector2(51.45, 3.5),   # Zeeland
+		Vector2(51.1, 2.5),    # Belgian coast
+		Vector2(50.9, 1.8),    # Dunkirk
+		Vector2(50.95, 1.6),   # Calais
+		Vector2(51.1, 1.3),    # Cap Gris-Nez
+		Vector2(51.3, 1.0),    # Margate
+		Vector2(51.5, 0.5),    # Thames Estuary
+		Vector2(51.5, 0.1),    # London (Thames)
+		Vector2(51.3, -0.2),   # South London suburbs
+		Vector2(50.85, -0.15), # Brighton
+		Vector2(50.7, -1.1),   # Portsmouth
+		Vector2(50.6, -2.5),   # Dorset
+		Vector2(50.35, -3.5),  # Devon
+		Vector2(50.1, -5.5),   # Cornwall tip
+		Vector2(51.0, -5.2),   # North Devon
+		Vector2(51.7, -5.0),   # Pembrokeshire
+		Vector2(52.8, -4.7),   # Barmouth
+		Vector2(53.3, -4.6),   # Anglesey
+		Vector2(53.7, -3.0),   # Blackpool
+		Vector2(54.0, -2.0),   # Lancaster
+		Vector2(54.6, -1.4),   # Hartlepool
+		Vector2(55.0, -1.6),   # Newcastle
+		Vector2(55.9, -2.1),   # Berwick
+		Vector2(56.4, -2.4),   # Dundee
+		Vector2(57.7, -2.5),   # Aberdeen
+		Vector2(58.6, -3.2),   # Caithness
+	],
+	# === NETHERLANDS / BELGIUM / FRANCE ATLANTIC ===
+	[
+		Vector2(53.5, 7.2),    # North Sea German-Dutch border
+		Vector2(53.2, 6.5),    # Groningen coast
+		Vector2(52.9, 5.7),    # Friesland
+		Vector2(52.7, 5.1),    # Ijsselmeer
+		Vector2(52.5, 4.6),    # North Holland
+		Vector2(52.1, 4.3),    # The Hague
+		Vector2(51.9, 4.1),    # Rotterdam
+		Vector2(51.1, 2.5),    # Belgian coast
+		Vector2(50.9, 1.8),    # Dunkirk
+		Vector2(50.5, 1.5),    # Cap de la Heve
+		Vector2(49.5, -0.2),   # Normandy
+		Vector2(48.7, -1.8),   # Brittany
+		Vector2(48.0, -4.5),   # Brest tip
+		Vector2(47.3, -2.5),   # Loire Atlantique
+		Vector2(46.2, -1.5),   # Charente-Maritime
+		Vector2(45.5, -1.2),   # Gironde
+		Vector2(44.3, -1.4),   # Basque-Landes
+		Vector2(43.4, -1.8),   # Pays Basque
+	],
+	# === IBERIAN (simplified) ===
+	[
+		Vector2(43.4, -1.8),   # Pays Basque / Spain border
+		Vector2(43.6, -2.5),   # Asturias
+		Vector2(43.7, -7.5),   # Galicia
+		Vector2(42.0, -8.8),   # Vigo
+		Vector2(38.8, -9.5),   # Lisbon
+		Vector2(37.0, -8.9),   # Algarve
+		Vector2(36.0, -5.4),   # Gibraltar
+		Vector2(36.5, -2.0),   # Almeria
+		Vector2(37.5, 0.2),    # Alicante
+		Vector2(39.5, 3.3),    # Balearics / Valencia
+		Vector2(41.4, 2.2),    # Barcelona
+		Vector2(42.4, 3.2),    # Costa Brava
+		Vector2(43.4, 4.0),    # Gulf du Lion
+		Vector2(43.2, 5.3),    # Marseille
+	],
+	# === MEDITERRANEAN FRANCE / ITALY WEST ===
+	[
+		Vector2(43.2, 5.3),    # Marseille
+		Vector2(43.5, 6.8),    # Nice
+		Vector2(43.75, 7.4),   # Monaco
+		Vector2(44.1, 8.1),    # Genoa
+		Vector2(43.8, 9.8),    # Cinque Terre
+		Vector2(43.5, 10.3),   # Livorno
+		Vector2(42.6, 10.9),   # Tuscany
+		Vector2(41.8, 12.3),   # Tiber mouth / Rome
+		Vector2(41.0, 13.4),   # Gaeta
+		Vector2(40.0, 15.0),   # Gulf of Policastro
+		Vector2(38.0, 15.5),   # Calabria tip / Strait of Messina
+		Vector2(37.5, 15.1),   # Sicily NE
+		Vector2(37.5, 12.5),   # Sicily south
+		Vector2(37.9, 13.3),   # Sicily west / Palermo
+	],
+	# === ITALY ADRIATIC ===
+	[
+		Vector2(38.0, 15.5),   # Calabria
+		Vector2(39.8, 15.8),   # Basilicata
+		Vector2(41.3, 15.9),   # Foggia
+		Vector2(41.9, 15.5),   # Gargano Promontory
+		Vector2(43.5, 13.5),   # Ancona
+		Vector2(44.4, 12.2),   # Rimini
+		Vector2(45.5, 13.0),   # Trieste
+		Vector2(45.3, 13.6),   # Istrian coast
+	],
+	# === CROATIA / BALKANS ADRIATIC ===
+	[
+		Vector2(45.3, 13.6),   # Istrian coast
+		Vector2(44.2, 14.5),   # Zadar
+		Vector2(43.5, 16.5),   # Split
+		Vector2(42.7, 17.5),   # Dubrovnik
+		Vector2(42.3, 18.5),   # Montenegro
+		Vector2(41.3, 19.5),   # Albania
+		Vector2(40.6, 19.7),   # Vlore
+		Vector2(39.6, 20.0),   # Ionian coast
+	],
+	# === GREECE / AEGEAN ===
+	[
+		Vector2(39.6, 20.0),   # Ionian
+		Vector2(38.9, 20.8),   # Lefkada
+		Vector2(37.7, 21.0),   # Peloponnese W
+		Vector2(36.9, 21.7),   # Cape Matapan
+		Vector2(37.1, 22.5),   # Laconia
+		Vector2(37.6, 23.0),   # Argolis
+		Vector2(37.9, 23.7),   # Athens / Piraeus
+		Vector2(38.4, 24.0),   # Evia S
+		Vector2(39.1, 23.0),   # Thessaly coast
+		Vector2(39.5, 22.8),   # Volos
+		Vector2(40.0, 22.5),   # Pieria
+		Vector2(40.5, 22.8),   # Thessaloniki
+		Vector2(40.9, 24.8),   # Kavala
+		Vector2(41.3, 26.3),   # Alexandroupolis / Turkish border
+	],
+	# === BLACK SEA (EUROPEAN COAST) ===
+	[
+		Vector2(41.3, 26.3),   # Alexandroupolis
+		Vector2(41.0, 27.0),   # Thrace
+		Vector2(41.1, 28.0),   # Istanbul Bosphorus W
+		Vector2(41.0, 29.1),   # Istanbul Bosphorus E
+		Vector2(41.2, 30.5),   # Sakarya
+		Vector2(41.6, 32.0),   # Sinop coast
+		Vector2(41.3, 33.5),   # Kastamonu coast
+		Vector2(41.0, 36.0),   # Samsun
+		Vector2(41.1, 38.5),   # Trabzon
+		Vector2(41.5, 41.5),   # Rize
+	],
+	# === BLACK SEA (UKRAINE/RUSSIA NORTH COAST) ===
+	[
+		Vector2(46.5, 30.7),   # Odessa
+		Vector2(46.2, 31.8),   # Ochakiv
+		Vector2(46.3, 33.0),   # Kherson
+		Vector2(45.8, 33.5),   # Crimea NW
+		Vector2(44.5, 33.5),   # Sevastopol
+		Vector2(44.9, 34.8),   # Yalta
+		Vector2(44.9, 36.5),   # Kerch Strait W
+		Vector2(45.3, 36.8),   # Kerch Strait
+		Vector2(46.0, 37.5),   # Azov coast
+	],
+	# === ROMANIA / MOLDOVA (Danube mouth) ===
+	[
+		Vector2(45.2, 29.8),   # Danube delta N
+		Vector2(44.9, 29.6),   # Danube delta S
+		Vector2(44.2, 28.7),   # Constanta
+		Vector2(43.8, 28.5),   # Bulgaria Black Sea
+		Vector2(43.2, 28.0),   # Varna
+		Vector2(42.5, 27.5),   # Burgas
+		Vector2(41.9, 27.8),   # Turkey border / Tekirdag
+		Vector2(41.3, 26.3),   # Alexandroupolis
+	],
+	# === SCANDINAVIA (Norway/Sweden west coast) ===
+	[
+		Vector2(57.7, 8.0),    # Stavanger area
+		Vector2(58.5, 5.7),    # Stavanger fjord
+		Vector2(59.1, 5.3),    # Rogaland
+		Vector2(60.3, 5.1),    # Bergen
+		Vector2(61.0, 4.7),    # Sognefjord
+		Vector2(62.5, 6.0),    # Alesund
+		Vector2(63.5, 8.0),    # Trondheim fjord
+		Vector2(65.0, 14.0),   # Bodo area
+	],
+	# === SCANDINAVIA (Sweden / Denmark east) ===
+	[
+		Vector2(56.0, 10.6),   # Jutland E
+		Vector2(56.5, 10.3),   # Jutland N
+		Vector2(57.7, 9.5),    # Skagen
+		Vector2(58.5, 9.5),    # Norway south
+		Vector2(59.3, 10.6),   # Oslo fjord
+		Vector2(59.0, 11.0),   # Swedish border
+		Vector2(58.5, 11.1),   # Gothenburg N
+		Vector2(57.7, 12.0),   # Gothenburg
+		Vector2(56.2, 12.5),   # Helsingborg
+		Vector2(55.6, 13.0),   # Malmoe
+		Vector2(55.4, 14.5),   # Bornholm strait
+		Vector2(55.1, 15.1),   # S. Sweden
+		Vector2(56.5, 16.5),   # Kalmar
+		Vector2(57.5, 18.3),   # Gotland W
+		Vector2(58.5, 17.5),   # Nykoping
+		Vector2(59.3, 18.1),   # Stockholm
+		Vector2(60.3, 18.5),   # Uppsala coast
+		Vector2(60.5, 17.7),   # Gavle
+	],
+	# === BALTIC SEA: FINLAND & GULF OF FINLAND ===
 	[
 		Vector2(59.45, 27.559),
 		Vector2(59.48, 27.0),
@@ -87,69 +280,88 @@ var coastlines: Array = [
 		Vector2(59.52, 25.3),
 		Vector2(59.46, 24.75),  # Tallinn near here
 		Vector2(59.35, 24.1),
-		Vector2(59.20, 23.4),  # Rohuküla area
+		Vector2(59.20, 23.4),
+		Vector2(59.45, 22.8),  # Turu/Turku
+		Vector2(60.1, 22.0),
+		Vector2(60.2, 21.0),
+		Vector2(60.8, 21.3),
+		Vector2(61.1, 21.4),   # Pori
+		Vector2(61.4, 21.5),   # Rauma
+		Vector2(61.9, 21.3),
+		Vector2(62.5, 21.5),
+		Vector2(63.3, 21.5),
+		Vector2(63.7, 22.8),
+		Vector2(64.0, 24.5),   # Oulu
+		Vector2(65.0, 25.0),
+	],
+	# === LATVIA COAST ===
+	[
 		Vector2(58.38, 24.4),  # Pärnu
 		Vector2(57.8, 24.3),   # Ainaži
 		Vector2(57.2, 24.4),   # Saulkrasti
 		Vector2(57.0, 24.1),   # Riga
-		Vector2(57.0, 23.5),   # Jūrmala
+		Vector2(57.0, 23.5),   # Jurmala
 		Vector2(57.75, 22.6),  # Cape Kolka
 		Vector2(57.4, 21.5),   # Ventspils
-		Vector2(56.5, 21.0122) # Down to Liepaja/west limit
+		Vector2(56.5, 21.0),   # Liepaja
+		Vector2(55.7, 21.1),   # Klaipeda area
 	],
+	# === POLAND COAST / GDANSK ===
 	[
-		Vector2(59.0, 22.5),
-		Vector2(58.85, 22.2),
-		Vector2(58.75, 22.4),
-		Vector2(58.85, 23.0),
-		Vector2(59.0, 22.8),
-		Vector2(59.0, 22.5) # Hiiumaa Island
+		Vector2(55.7, 21.1),   # Klaipeda
+		Vector2(55.2, 21.0),   # Kaliningrad border W
+		Vector2(54.7, 19.9),   # Kaliningrad coast
+		Vector2(54.4, 19.6),   # Braniewo area
+		Vector2(54.35, 18.65), # Gdansk
+		Vector2(54.5, 18.0),   # Gdynia
+		Vector2(54.7, 17.5),   # Leba
+		Vector2(54.6, 16.0),   # Slupsk
+		Vector2(54.3, 14.5),   # Kolobrzeg
+		Vector2(53.9, 14.2),   # Szczecin mouth
+		Vector2(54.2, 13.9),   # Rugen
+		Vector2(54.5, 13.5),   # Rugen
+		Vector2(54.35, 12.0),  # Rostock
+		Vector2(54.0, 10.9),   # Lubeck Bay
+		Vector2(54.5, 10.2),   # Kiel
+		Vector2(55.0, 9.9),    # Flensburg
+		Vector2(56.0, 10.2),   # Jutland E
 	],
+	# === TURKEY (AEGEAN + SOUTH) ===
 	[
-		Vector2(58.55, 22.2),
-		Vector2(58.4, 21.8),
-		Vector2(57.9, 22.1),  # Sõrve Peninsula
-		Vector2(58.3, 22.8),
-		Vector2(58.6, 23.2),
-		Vector2(58.5, 22.5),
-		Vector2(58.55, 22.2) # Saaremaa Island
+		Vector2(41.5, 26.3),   # Turkey NW border
+		Vector2(40.9, 26.5),   # Edirne coast
+		Vector2(40.4, 26.7),   # Dardanelles N
+		Vector2(40.1, 27.0),   # Dardanelles exit
+		Vector2(39.5, 26.6),   # Izmir N coast
+		Vector2(38.4, 26.7),   # Izmir
+		Vector2(37.5, 27.3),   # Bodrum
+		Vector2(36.5, 28.0),   # Marmaris
+		Vector2(36.2, 29.6),   # Kas
+		Vector2(36.2, 31.2),   # Alanya
+		Vector2(36.5, 32.8),   # Silifke
+		Vector2(36.8, 35.0),   # Iskenderun
+		Vector2(36.6, 36.2),   # Turkish-Syrian border
 	],
+	# === MEDITERRANEAN EAST (Syria / Lebanon / Israel) ===
 	[
-		Vector2(55.9, 21.08),  # Palanga area
-		Vector2(55.7, 21.1),   # Klaipėda
-		Vector2(55.3, 21.0122) # Curonian Spit limit
+		Vector2(36.6, 36.2),   # Turkish-Syrian border
+		Vector2(35.5, 35.8),   # Latakia
+		Vector2(34.5, 35.9),   # Tripoli Lebanon
+		Vector2(33.9, 35.5),   # Beirut
+		Vector2(33.0, 35.1),   # Haifa
+		Vector2(31.9, 34.7),   # Tel Aviv
+		Vector2(31.2, 34.3),   # Gaza
+		Vector2(31.0, 32.5),   # Port Said
+		Vector2(30.5, 32.3),   # Suez Canal entrance
 	],
-	# --- FINLAND BALTIC COASTLINE ---
+	# === RED SEA ENTRANCE / ARABIAN GULF (simplified) ===
 	[
-		Vector2(60.18, 27.5),
-		Vector2(60.20, 26.5),
-		Vector2(60.17, 24.9384), # Helsinki
-		Vector2(59.85, 23.2),
-		Vector2(60.30, 22.1),     # Turku / Southwest limit
-		Vector2(61.20, 21.3),
-		Vector2(61.50, 21.5)      # Gulf of Bothnia (East coast)
+		Vector2(27.0, 49.5),   # Saudi Gulf Coast
+		Vector2(26.0, 50.6),   # Bahrain area
+		Vector2(25.3, 51.5),   # Qatar
+		Vector2(25.2, 55.3),   # Dubai / Abu Dhabi
+		Vector2(24.0, 57.0),   # Oman border
 	],
-	# --- SWEDEN BALTIC COASTLINE ---
-	[
-		Vector2(61.50, 17.2),     # Northern Bothnia (West coast)
-		Vector2(60.60, 17.5),
-		Vector2(59.90, 18.8),
-		Vector2(59.3293, 18.0686), # Stockholm
-		Vector2(58.90, 17.9),
-		Vector2(58.10, 16.5),
-		Vector2(57.00, 16.5),
-		Vector2(56.10, 15.0),     # Karlskrona
-		Vector2(55.40, 13.0)      # Southern Sweden / Scania
-	],
-	# --- GERMANY BALTIC COASTLINE ---
-	[
-		Vector2(54.80, 9.9),       # Flensburg / Denmark limit
-		Vector2(54.30, 10.15),     # Kiel
-		Vector2(54.00, 10.9),      # Lübeck
-		Vector2(54.18, 12.1),      # Rostock
-		Vector2(54.40, 13.5),      # Rügen Island
-		Vector2(53.95, 14.2)       # Poland border coast Usedom
-	]
 ]
 
 var borders: Array = [
@@ -297,6 +509,36 @@ var borders: Array = [
 ]
 
 func _ready() -> void:
+	_setup_world_events()
+	var side_panel = get_node_or_null("HUD/SidePanel")
+	if side_panel:
+		side_panel.visible = false
+	
+	var phone = SmartphoneHUD.new()
+	phone.name = "SmartphoneHUD"
+	add_child(phone)
+	
+	var toggle_btn = Button.new()
+	toggle_btn.text = "📱 OPEN iDROID"
+	toggle_btn.custom_minimum_size = Vector2(200, 48)
+	toggle_btn.add_theme_font_size_override("font_size", 14)
+	toggle_btn.add_theme_color_override("font_color", Color(0.2, 0.9, 0.7))
+	toggle_btn.position = Vector2(1060, 650)
+	
+	var btn_st = StyleBoxFlat.new()
+	btn_st.bg_color = Color(0.05, 0.05, 0.05, 0.9)
+	btn_st.border_color = Color(0.2, 0.9, 0.7, 0.5)
+	btn_st.border_width_left = 2
+	btn_st.border_width_right = 2
+	btn_st.border_width_top = 2
+	btn_st.border_width_bottom = 2
+	btn_st.set_corner_radius_all(12)
+	toggle_btn.add_theme_stylebox_override("normal", btn_st)
+	toggle_btn.add_theme_stylebox_override("hover", btn_st)
+	
+	toggle_btn.pressed.connect(phone.toggle_phone)
+	add_child(toggle_btn)
+
 	# Set up visual telemetry theme overrides
 	_apply_hud_theme()
 	
@@ -516,8 +758,70 @@ func _load_map_data() -> void:
 # ==========================================
 # ANIMATIONS AND PROJECTIONS
 # ==========================================
+var active_map_events = []
+var active_ai_trucks = []
+var event_timer: Timer
+
+func _setup_world_events():
+	event_timer = Timer.new()
+	event_timer.wait_time = 15.0
+	event_timer.autostart = true
+	event_timer.timeout.connect(_spawn_random_map_event)
+	add_child(event_timer)
+	
+	NetworkManager.ws_message_received.connect(func(json):
+		if typeof(json) == TYPE_DICTIONARY and json.has("type") and json.type == "ai_truck_spawn":
+			var payload = json.payload
+			var o_id = payload.origin
+			var d_id = payload.destination
+			if map_data.has("cities") and map_data.cities.has(o_id) and map_data.cities.has(d_id):
+				var oc = map_data.cities[o_id].coords
+				var dc = map_data.cities[d_id].coords
+				active_ai_trucks.append({
+					"pos1": _coords_to_pos(oc.x, oc.y),
+					"pos2": _coords_to_pos(dc.x, dc.y),
+					"color": Color(payload.color),
+					"name": payload.companyName,
+					"timer": 0.0,
+					"duration": payload.duration
+				})
+	)
+
+func _spawn_random_map_event():
+	if map_data.is_empty() or not map_data.has("cities"): return
+	var cities = map_data.cities.keys()
+	if cities.size() < 2: return
+	var city_id = cities[randi() % cities.size()]
+	var city = map_data.cities[city_id]
+	if not city.has("connections") or city.connections.is_empty(): return
+	var conns = city.connections.keys()
+	var target_id = conns[randi() % conns.size()]
+	var target = map_data.cities[target_id]
+	var pos1 = _coords_to_pos(city.coords.x, city.coords.y)
+	var pos2 = _coords_to_pos(target.coords.x, target.coords.y)
+	var ev_pos = pos1.lerp(pos2, 0.5)
+	var types = [
+		{"name": "POLICE_BLOCKADE", "icon": "🚨", "color": Color(1.0, 0.2, 0.2)},
+		{"name": "SEVERE_STORM", "icon": "⛈️", "color": Color(0.2, 0.5, 1.0)},
+		{"name": "SURGE_PRICING", "icon": "💰", "color": Color(0.2, 0.9, 0.4)}
+	]
+	var ev = types[randi() % types.size()]
+	ev["pos"] = ev_pos
+	ev["timer"] = 30.0 
+	active_map_events.append(ev)
+
 func _process(delta: float) -> void:
 	time_passed += delta
+	if active_map_events.size() > 0:
+		for i in range(active_map_events.size() - 1, -1, -1):
+			active_map_events[i].timer -= delta
+			if active_map_events[i].timer <= 0:
+				active_map_events.remove_at(i)
+	if active_ai_trucks.size() > 0:
+		for i in range(active_ai_trucks.size() - 1, -1, -1):
+			active_ai_trucks[i].timer += delta
+			if active_ai_trucks[i].timer >= active_ai_trucks[i].duration:
+				active_ai_trucks.remove_at(i)
 	if map_drawer:
 		map_drawer.queue_redraw()
 	if clock_lbl and is_instance_valid(clock_lbl):
@@ -936,18 +1240,51 @@ func _draw_vector_map() -> void:
 					_draw_dashed_line(flow_from, flow_to, flow_color, 2.0 / zoom, 8.0 / zoom, 6.0 / zoom, time_passed * 42.0)
 					
 				else:
+					var is_tunnel = (city_id == "london" and conn_id == "paris") or (city_id == "paris" and conn_id == "london")
+					var sea_routes = ["stockholm_tallinn", "stockholm_gdansk", "helsinki_tallinn", "turku_stockholm", "stockholm_turku", "visby_stockholm", "visby_riga", "visby_klaipeda", "oslo_copenhagen", "stockholm_oslo"]
+					var is_sea_route = sea_routes.has(city_id + "_" + conn_id) or sea_routes.has(conn_id + "_" + city_id)
+					var fuel_routes = ["istanbul_ankara", "ankara_tehran", "tehran_kabul", "ankara_baghdad", "baghdad_riyadh", "riyadh_dubai", "tehran_dubai"]
+					var is_fuel_route = fuel_routes.has(city_id + "_" + conn_id) or fuel_routes.has(conn_id + "_" + city_id)
+
 					var line_color = Color(0.0, 0.85, 1.0, 0.35) # cyan legal routes
 					var route_width = 1.5 / zoom
-					
+					var is_dashed = false
+					var dash_l = 6.0 / zoom
+					var gap_l = 4.0 / zoom
+					var dash_anim = 0.0
+
 					var conn_type = conn.get("type", "legal")
 					if conn_type == "underworld":
 						line_color = Color(0.92, 0.45, 0.15, 0.35) # underworld orange
 						
+					if is_tunnel:
+						line_color = Color(0.78, 0.20, 1.0, 0.6) # Neon purple
+						is_dashed = true
+						dash_l = 10.0 / zoom
+						gap_l = 5.0 / zoom
+					elif is_sea_route:
+						line_color = Color(0.0, 0.90, 1.0, 0.5) # Neon blue
+						is_dashed = true
+						dash_l = 4.0 / zoom
+						gap_l = 6.0 / zoom
+					elif is_fuel_route:
+						line_color = Color(1.0, 0.84, 0.0, 0.7) # Glowing gold
+						is_dashed = true
+						dash_l = 15.0 / zoom
+						gap_l = 5.0 / zoom
+						dash_anim = time_passed * 15.0 # steady flow animation
+						
 					if is_selected_conn:
 						line_color.a = 0.7
 						route_width = 2.0 / zoom
+						if is_fuel_route:
+							route_width = 3.5 / zoom
+							line_color = Color(1.0, 0.84, 0.0, 0.9)
 						
-					_draw_aberrated_line(start_pos, end_pos, line_color, route_width)
+					if is_dashed:
+						_draw_dashed_line(start_pos, end_pos, line_color, route_width, dash_l, gap_l, dash_anim)
+					else:
+						_draw_aberrated_line(start_pos, end_pos, line_color, route_width)
  
 	# 5. DRAW ACTIVE TELEMETRY PULSES
 	for pulse_city_id in cities_data:
@@ -1163,6 +1500,44 @@ func _draw_vector_map() -> void:
 			map_drawer.draw_rect(Rect2(Vector2(mouse_pos.x - 26.0 / zoom, visible_top - 15.0 / zoom), Vector2(52.0 / zoom, 12.0 / zoom)), Color(0.04, 0.04, 0.06, 0.85), true)
 			map_drawer.draw_rect(Rect2(Vector2(mouse_pos.x - 26.0 / zoom, visible_top - 15.0 / zoom), Vector2(52.0 / zoom, 12.0 / zoom)), Color(0.2, 0.9, 0.7, 0.3), false, 1.0 / zoom)
 			map_drawer.draw_string(cursor_label_font, Vector2(mouse_pos.x - 22.0 / zoom, visible_top - 6.0 / zoom), lon_text, HORIZONTAL_ALIGNMENT_LEFT, -1, clamp(int(7.0 / zoom), 5, 20), Color(0.2, 0.9, 0.7, 0.85))
+
+	for ev in active_map_events:
+		var size = 20.0 / zoom + sin(Time.get_ticks_msec() * 0.005) * 5.0 / zoom
+		var r = Rect2(ev.pos - Vector2(size/2.0, size/2.0), Vector2(size, size))
+		map_drawer.draw_rect(r, ev.color, false, 2.0 / zoom)
+		var f = ThemeDB.fallback_font
+		if not f:
+			f = get_theme_font("font")
+		map_drawer.draw_string(f, ev.pos + Vector2(-8.0 / zoom, 6.0 / zoom), ev.icon, HORIZONTAL_ALIGNMENT_CENTER, -1, clamp(int(16.0 / zoom), 8, 32))
+
+	for ai in active_ai_trucks:
+		var progress = ease(ai.timer / ai.duration, 0.8) # Apply slight ease-out
+		var current_pos = ai.pos1.lerp(ai.pos2, progress)
+		var tail_progress = max(0.0, progress - 0.08) # Trail length
+		var tail_pos = ai.pos1.lerp(ai.pos2, tail_progress)
+		
+		# Draw glowing trail
+		if progress > 0.02:
+			var trail_color = ai.color
+			trail_color.a = 0.6
+			var fade_color = ai.color
+			fade_color.a = 0.0
+			var points = PackedVector2Array([tail_pos, current_pos])
+			var colors = PackedColorArray([fade_color, trail_color])
+			map_drawer.draw_polyline_colors(points, colors, 4.0 / zoom, true)
+			map_drawer.draw_polyline_colors(points, colors, 8.0 / zoom, true) # outer glow
+
+		# Draw dynamic pulsing truck icon
+		var f = ThemeDB.fallback_font
+		if not f:
+			f = get_theme_font("font")
+		var pulse_scale = 1.0 + sin(Time.get_ticks_msec() * 0.008) * 0.15
+		var font_size = clamp(int((18.0 * pulse_scale) / zoom), 8, 48)
+		map_drawer.draw_string(f, current_pos + Vector2(-font_size/2.0, font_size/2.5), "🚛", HORIZONTAL_ALIGNMENT_CENTER, -1, font_size)
+		
+		# Draw syndicate name tag
+		var tag_size = clamp(int(10.0 / zoom), 6, 20)
+		map_drawer.draw_string(f, current_pos + Vector2(12.0/zoom, 4.0/zoom), ai.name, HORIZONTAL_ALIGNMENT_LEFT, -1, tag_size, ai.color)
 
 
 # ==========================================

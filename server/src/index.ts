@@ -28,6 +28,7 @@ import { ContractService } from './services/contract.service';
 import { CommodityMarketService } from './services/commodity.service';
 import { FinanceService } from './services/finance.service';
 import { seedDatabase } from './seed';
+import { AISyndicateService } from './services/ai.service';
 
 const app = express();
 const server = http.createServer(app);
@@ -207,6 +208,7 @@ async function main() {
 
     // 4. Start active fleet dispatch simulation ticker
     DispatchSimulationService.startTicker();
+  AISyndicateService.startTicker();
 
     // 4.1. Start active corporate financial ticker
     FinanceService.startTicker();

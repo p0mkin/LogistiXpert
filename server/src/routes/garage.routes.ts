@@ -347,3 +347,80 @@ router.post('/purchase-terminal', async (req: AuthRequest, res: Response) => {
 
 export default router;
 
+
+
+// POST /api/garage/upgrade
+// Buys an underworld Chop Shop upgrade for a specific truck
+router.post('/upgrade', async (req: AuthRequest, res: Response) => {
+  const companyId = req.user!.companyId;
+  const { truckId, upgradeType } = req.body;
+
+  if (!truckId || !upgradeType) {
+    return res.status(400).json({ error: 'BAD_REQUEST', message: 'Missing truckId or upgradeType' });
+  }
+
+  try {
+    const truck = await prisma.truck.findUnique({
+      where: { id: truckId },
+      include: { company: true }
+    });
+
+    if (!truck || truck.companyId !== companyId) {
+      return res.status(404).json({ error: 'NOT_FOUND', message: 'Truck not found or unauthorized' });
+    }
+
+    let cost = 0;
+    let updateData: any = {};
+
+    switch (upgradeType) {
+      case 'V8_ENGINE':
+        if (truck.hasV8Engine) return res.status(400).json({ error: 'ALREADY_OWNED', message: 'Truck already has this.' });
+        cost = 15000;
+        updateData = { hasV8Engine: true };
+        break;
+      case 'REINFORCED_TIRES':
+        if (truck.hasReinforcedTires) return res.status(400).json({ error: 'ALREADY_OWNED', message: 'Truck already has this.' });
+        cost = 8500;
+        updateData = { hasReinforcedTires: true };
+        break;
+      case 'LEAD_COMPARTMENT':
+        if (truck.hasLeadLinedCompartment) return res.status(400).json({ error: 'ALREADY_OWNED', message: 'Truck already has this.' });
+        cost = 45000;
+        updateData = { hasLeadLinedCompartment: true };
+        break;
+      case 'RADAR_SCRAMBLER':
+        if (truck.hasRadarScrambler) return res.status(400).json({ error: 'ALREADY_OWNED', message: 'Truck already has this.' });
+        cost = 22000;
+        updateData = { hasRadarScrambler: true };
+        break;
+      default:
+        return res.status(400).json({ error: 'INVALID_UPGRADE', message: 'Unknown upgrade type' });
+    }
+
+    if (truck.company.underworldBalance.toNumber() < cost) {
+      return res.status(400).json({ error: 'INSUFFICIENT_FUNDS', message: 'Not enough Underworld cash (C500)!' });
+    }
+
+    await prisma.([
+      prisma.company.update({
+        where: { id: companyId },
+        data: { underworldBalance: { decrement: cost } }
+      }),
+      prisma.truck.update({
+        where: { id: truckId },
+        data: updateData
+      }),
+      prisma.truckHistory.create({
+        data: {
+          truckId: truckId,
+          eventType: 'UPGRADE_INSTALLED',
+          description: \Installed \ at the Chop Shop for \$\ C500.        }
+      })
+    ]);
+
+    res.json({ success: true, message: 'Upgrade installed successfully!' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'SERVER_ERROR', message: 'Failed to apply upgrade.' });
+  }
+});
