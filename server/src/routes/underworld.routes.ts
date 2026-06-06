@@ -1,13 +1,13 @@
 import { Router } from 'express';
 import { PrismaClient, SabotageType } from '@prisma/client';
-import { requireAuth } from '../middleware/auth.middleware';
+import { authenticateJWT, AuthRequest } from '../middleware/auth';
 import { GameWebSocketServer } from '../websocket';
 
 const router = Router();
 const prisma = new PrismaClient();
 
 // List all known syndicates / targets
-router.get('/targets', requireAuth, async (req, res) => {
+router.get('/targets', authenticateJWT, async (req: AuthRequest, res) => {
   try {
     const targets = await prisma.company.findMany({
       select: {
@@ -27,7 +27,7 @@ router.get('/targets', requireAuth, async (req, res) => {
 });
 
 // Launch a sabotage attack
-router.post('/sabotage', requireAuth, async (req, res) => {
+router.post('/sabotage', authenticateJWT, async (req: AuthRequest, res) => {
   try {
     const { targetId, type } = req.body;
     const attackerId = req.user?.companyId;
@@ -105,7 +105,7 @@ router.post('/sabotage', requireAuth, async (req, res) => {
       } else if (type === 'ENGINE_FIRE') {
         await tx.truck.update({ where: { id: victimTruck.id }, data: { engineHealth: Math.max(0, victimTruck.engineHealth - 80) }});
       } else if (type === 'CARGO_THEFT') {
-        await tx.company.update({ where: { id: targetId }, data: { legitBalance: { decrement: damageCost } }});
+        await tx.company.update({ where: { id: targetId }, data: { legalBalance: { decrement: damageCost } }});
       } else if (type === 'DRIVER_ASSAULT') {
         const d = await tx.driver.findFirst({ where: { assignedTruckId: victimTruck.id } });
         if (d) {
