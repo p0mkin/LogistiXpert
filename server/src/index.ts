@@ -32,6 +32,7 @@ import { FinanceService } from './services/finance.service';
 import { seedDatabase } from './seed';
 import { AISyndicateService } from './services/ai.service';
 import { WeatherService } from './services/weather.service';
+import { TimeSimulationService } from './services/time.service';
 
 const app = express();
 const server = http.createServer(app);
@@ -212,6 +213,7 @@ async function main() {
 
     // 4. Start active fleet dispatch simulation ticker
     DispatchSimulationService.startTicker();
+    TimeSimulationService.startTicker();
     AISyndicateService.startTicker();
     WeatherService.startTicker();
 

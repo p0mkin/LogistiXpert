@@ -1,6 +1,7 @@
 import { GameWebSocketServer } from '../websocket';
 import fs from 'fs';
 import path from 'path';
+import { TimeSimulationService, Season } from './time.service';
 
 export class WeatherService {
   private static isRunning = false;
@@ -37,8 +38,25 @@ export class WeatherService {
     const epicenter = this.citiesData[epicenterId];
 
     // Pick a weather type
+    const season = TimeSimulationService.getCurrentSeason();
     const types = ['SEVERE_STORM', 'THICK_FOG', 'BLIZZARD'];
-    const weights = [0.4, 0.4, 0.2]; // 40% storm, 40% fog, 20% blizzard
+    let weights = [0.4, 0.4, 0.2]; // Default
+
+    switch (season) {
+      case Season.WINTER:
+        weights = [0.1, 0.2, 0.7]; // Lots of blizzards
+        break;
+      case Season.SPRING:
+        weights = [0.6, 0.3, 0.1]; // Lots of storms
+        break;
+      case Season.SUMMER:
+        weights = [0.3, 0.6, 0.1]; // Mostly fog / heat hazes
+        break;
+      case Season.AUTUMN:
+        weights = [0.5, 0.4, 0.1]; // Balanced storms and fog
+        break;
+    }
+
     let r = Math.random();
     let type = types[0];
     for (let i = 0; i < types.length; i++) {

@@ -374,6 +374,10 @@ func _parse_and_route_message(json_str: String) -> void:
 			
 		"market:price_update":
 			market_prices_updated.emit(payload)
+
+		"time_sync":
+			if payload.has("simulatedTimeUnix") and payload.has("season"):
+				GameState.sync_time(float(payload.simulatedTimeUnix), payload.season)
 			
 		"market:gold_update":
 			market_gold_updated.emit(payload)

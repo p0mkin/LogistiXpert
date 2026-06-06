@@ -128,6 +128,10 @@ signal fleet_updated()
 signal route_progress_updated(truck_id, progress)
 signal company_updated(id, name)
 signal staff_updated(role_id)
+signal time_synced(unix_time, season)
+signal season_changed(new_season)
+
+var current_season: String = "SUMMER"
 
 func _ready() -> void:
 	pass
@@ -160,12 +164,22 @@ func set_graphics_quality(quality: String) -> void:
 		graphics_quality = quality
 		graphics_settings_changed.emit(graphics_quality)
 
-# Simulated Game Clock & Calendar Scale (5 real seconds = 1 simulated hour)
-var simulated_time_unix: float = 1780287120.0 # Starts June 1, 2026 04:12:00
-const TIME_SPEED_MULTIPLIER: float = 720.0 # 1 real second = 720 simulated seconds (12 mins)
+# Simulated Game Clock & Calendar Scale
+var simulated_time_unix: float = 1780287120.0
+const TIME_SPEED_MULTIPLIER: float = 720.0
 
 func _process(delta: float) -> void:
 	simulated_time_unix += delta * TIME_SPEED_MULTIPLIER
+
+func sync_time(unix_time: float, season: String) -> void:
+	# Keep Godot clock in lockstep with the server
+	simulated_time_unix = unix_time
+	
+	if current_season != season:
+		current_season = season
+		season_changed.emit(current_season)
+		
+	time_synced.emit(simulated_time_unix, current_season)
 
 func get_simulated_time_string() -> String:
 	var dt = Time.get_datetime_dict_from_unix_time(int(simulated_time_unix))

@@ -803,16 +803,6 @@ function bootSystemDiagnostics() {
  */
 function startSystemTimeLoop() {
   setInterval(() => {
-    // Add 1 minute to simulated game time every 4 real seconds
-    SYSTEM_STATE.simulationTime.setMinutes(SYSTEM_STATE.simulationTime.getMinutes() + 1);
-    
-    // Refresh digital terminal clock display
-    const timeOptions = { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' };
-    const dateFormatted = SYSTEM_STATE.simulationTime.toLocaleDateString('en-US', timeOptions).toUpperCase();
-    const timeFormatted = SYSTEM_STATE.simulationTime.toTimeString().split(' ')[0];
-    
-    UI_NODES.systemClock.textContent = `${dateFormatted} ${timeFormatted}`;
-
     // Occasional simulated terminal activity
     if (Math.random() < 0.15) {
       triggerSimulatedTelemetry();
@@ -1665,6 +1655,17 @@ function handleWSMessage(msg) {
       }
       fetchBalances();
       checkActiveRouteSurcharges();
+      break;
+    }
+    
+    case 'time_sync': {
+      // Sync clock to global server time
+      const date = new Date(payload.simulatedTimeUnix * 1000);
+      const timeOptions = { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' };
+      const dateFormatted = date.toLocaleDateString('en-US', timeOptions).toUpperCase();
+      const timeFormatted = date.toTimeString().split(' ')[0];
+      
+      UI_NODES.systemClock.textContent = `${dateFormatted} ${timeFormatted} [${payload.season}]`;
       break;
     }
     

@@ -582,3 +582,9 @@ model SabotageEvent {
 }
 
 
+
+model SystemState {
+  id                String   @id @default("GLOBAL")
+  simulatedTimeUnix Float    @default(1780287120.0)
+  updatedAt         DateTime @updatedAt
+}
