@@ -134,128 +134,6 @@ export const CITIES_DATASET: Record<string, City> = {
   minsk: {
     id: "minsk", name: "Minsk", country: "Belarus (External)", isSchengen: false, isCapital: true,
     purchasable: true, terminalCost: 700000,
-export const CITIES_DATASET: Record<string, City> = {
-  // === FINLAND ===
-  helsinki: {
-    id: "helsinki", name: "Helsinki", country: "Finland", isSchengen: true, isCapital: true,
-    purchasable: false, terminalCost: 0,
-    lat: 60.17, lon: 24.94, heat: 10,
-    connections: ["tallinn", "turku"]
-  },
-  turku: {
-    id: "turku", name: "Turku", country: "Finland", isSchengen: true, isCapital: false,
-    purchasable: true, terminalCost: 180000,
-    lat: 60.45, lon: 22.27, heat: 5,
-    connections: ["helsinki", "stockholm"]
-  },
-  // === SWEDEN ===
-  stockholm: {
-    id: "stockholm", name: "Stockholm", country: "Sweden", isSchengen: true, isCapital: true,
-    purchasable: true, terminalCost: 320000,
-    lat: 59.33, lon: 18.07, heat: 12,
-    connections: ["turku", "gdansk", "malmoe", "oslo", "tallinn"]
-  },
-  malmoe: {
-    id: "malmoe", name: "Malmö", country: "Sweden", isSchengen: true, isCapital: false,
-    purchasable: true, terminalCost: 200000,
-    lat: 55.61, lon: 13.00, heat: 8,
-    connections: ["stockholm", "berlin", "hamburg", "copenhagen"]
-  },
-  // === DENMARK ===
-  copenhagen: {
-    id: "copenhagen", name: "Copenhagen", country: "Denmark", isSchengen: true, isCapital: true,
-    purchasable: true, terminalCost: 410000,
-    lat: 55.68, lon: 12.57, heat: 9,
-    connections: ["malmoe", "hamburg", "oslo"]
-  },
-  // === ESTONIA ===
-  tallinn: {
-    id: "tallinn", name: "Tallinn", country: "Estonia", isSchengen: true, isCapital: true,
-    purchasable: false, terminalCost: 0,
-    lat: 59.44, lon: 24.75, heat: 15,
-    connections: ["helsinki", "riga", "gdansk", "stockholm"]
-  },
-  // === LATVIA ===
-  riga: {
-    id: "riga", name: "Riga", country: "Latvia", isSchengen: true, isCapital: true,
-    purchasable: false, terminalCost: 0,
-    lat: 56.95, lon: 24.11, heat: 20,
-    connections: ["tallinn", "klaipeda", "vilnius"]
-  },
-  // === LITHUANIA ===
-  vilnius: {
-    id: "vilnius", name: "Vilnius", country: "Lithuania", isSchengen: true, isCapital: true,
-    purchasable: false, terminalCost: 0,
-    lat: 54.69, lon: 25.28, heat: 30,
-    connections: ["riga", "klaipeda", "brest", "warsaw", "kaunas"]
-  },
-  klaipeda: {
-    id: "klaipeda", name: "Klaipėda", country: "Lithuania", isSchengen: true, isCapital: false,
-    purchasable: false, terminalCost: 0,
-    lat: 55.71, lon: 21.14, heat: 25,
-    connections: ["riga", "vilnius", "kaliningrad"]
-  },
-  kaunas: {
-    id: "kaunas", name: "Kaunas", country: "Lithuania", isSchengen: true, isCapital: false,
-    purchasable: false, terminalCost: 0,
-    lat: 54.90, lon: 23.90, heat: 22,
-    connections: ["vilnius", "warsaw"]
-  },
-  // === RUSSIA (KALININGRAD EXCLAVE) ===
-  kaliningrad: {
-    id: "kaliningrad", name: "Kaliningrad", country: "Russia (External)", isSchengen: false, isCapital: false,
-    purchasable: true, terminalCost: 500000,
-    lat: 54.71, lon: 20.51, heat: 65,
-    connections: ["klaipeda", "gdansk", "warsaw"]
-  },
-  // === POLAND ===
-  gdansk: {
-    id: "gdansk", name: "Gdańsk", country: "Poland", isSchengen: true, isCapital: false,
-    purchasable: true, terminalCost: 220000,
-    lat: 54.35, lon: 18.65, heat: 18,
-    connections: ["tallinn", "stockholm", "kaliningrad", "warsaw"]
-  },
-  warsaw: {
-    id: "warsaw", name: "Warsaw", country: "Poland", isSchengen: true, isCapital: true,
-    purchasable: true, terminalCost: 350000,
-    lat: 52.23, lon: 21.01, heat: 22,
-    connections: ["gdansk", "kaliningrad", "vilnius", "kaunas", "brest", "berlin", "prague"]
-  },
-  krakow: {
-    id: "krakow", name: "Kraków", country: "Poland", isSchengen: true, isCapital: false,
-    purchasable: true, terminalCost: 240000,
-    lat: 50.06, lon: 19.94, heat: 16,
-    connections: ["warsaw", "prague", "budapest"]
-  },
-  // === GERMANY ===
-  berlin: {
-    id: "berlin", name: "Berlin", country: "Germany", isSchengen: true, isCapital: true,
-    purchasable: true, terminalCost: 600000,
-    lat: 52.52, lon: 13.40, heat: 15,
-    connections: ["warsaw", "malmoe", "prague", "hamburg", "munich", "brussels"]
-  },
-  hamburg: {
-    id: "hamburg", name: "Hamburg", country: "Germany", isSchengen: true, isCapital: false,
-    purchasable: true, terminalCost: 380000,
-    lat: 53.55, lon: 10.00, heat: 10,
-    connections: ["berlin", "stockholm", "copenhagen", "amsterdam"]
-  },
-  prague: {
-    id: "prague", name: "Prague", country: "Czech Republic", isSchengen: true, isCapital: true,
-    purchasable: true, terminalCost: 420000,
-    lat: 50.08, lon: 14.44, heat: 14,
-    connections: ["berlin", "warsaw", "krakow", "munich", "vienna"]
-  },
-  // === BELARUS BORDER ===
-  brest: {
-    id: "brest", name: "Brest-Terespol Checkpoint", country: "Belarus Border", isSchengen: false, isCapital: false,
-    purchasable: false, terminalCost: 0,
-    lat: 52.10, lon: 23.70, heat: 85,
-    connections: ["vilnius", "warsaw", "minsk", "kyiv"]
-  },
-  minsk: {
-    id: "minsk", name: "Minsk", country: "Belarus (External)", isSchengen: false, isCapital: true,
-    purchasable: true, terminalCost: 700000,
     lat: 53.90, lon: 27.57, heat: 70,
     connections: ["brest", "vilnius", "kyiv"]
   },
@@ -264,7 +142,40 @@ export const CITIES_DATASET: Record<string, City> = {
     id: "kyiv", name: "Kyiv", country: "Ukraine (External)", isSchengen: false, isCapital: true,
     purchasable: true, terminalCost: 550000,
     lat: 50.45, lon: 30.52, heat: 40,
-    connections: ["brest", "minsk", "istanbul"]
+    connections: ["brest", "minsk", "bucharest"]
+  },
+
+  // === EUROTUNNEL ===
+  calais: {
+    id: "calais", name: "Calais", country: "France", isSchengen: true, isCapital: false,
+    purchasable: true, terminalCost: 200000,
+    lat: 50.95, lon: 1.85, heat: 10,
+    connections: ["paris", "dover"]
+  },
+  dover: {
+    id: "dover", name: "Dover", country: "United Kingdom", isSchengen: false, isCapital: false,
+    purchasable: true, terminalCost: 250000,
+    lat: 51.13, lon: 1.30, heat: 15,
+    connections: ["calais", "london"]
+  },
+  // === BALKANS ===
+  sofia: {
+    id: "sofia", name: "Sofia", country: "Bulgaria", isSchengen: true, isCapital: true,
+    purchasable: true, terminalCost: 300000,
+    lat: 42.70, lon: 23.32, heat: 25,
+    connections: ["istanbul", "belgrade"]
+  },
+  belgrade: {
+    id: "belgrade", name: "Belgrade", country: "Serbia (External)", isSchengen: false, isCapital: true,
+    purchasable: true, terminalCost: 280000,
+    lat: 44.82, lon: 20.46, heat: 30,
+    connections: ["sofia", "budapest"]
+  },
+  bucharest: {
+    id: "bucharest", name: "Bucharest", country: "Romania", isSchengen: true, isCapital: true,
+    purchasable: true, terminalCost: 320000,
+    lat: 44.43, lon: 26.10, heat: 20,
+    connections: ["istanbul", "kyiv", "budapest"]
   },
   // === NEW EUROPEAN CITIES ===
   oslo: {
@@ -277,13 +188,13 @@ export const CITIES_DATASET: Record<string, City> = {
     id: "london", name: "London", country: "United Kingdom", isSchengen: false, isCapital: true,
     purchasable: true, terminalCost: 750000,
     lat: 51.51, lon: -0.13, heat: 45,
-    connections: ["amsterdam", "paris"]
+    connections: ["amsterdam", "dover"]
   },
   paris: {
     id: "paris", name: "Paris", country: "France", isSchengen: true, isCapital: true,
     purchasable: true, terminalCost: 650000,
     lat: 48.85, lon: 2.35, heat: 25,
-    connections: ["london", "brussels", "bern"]
+    connections: ["calais", "brussels", "bern"]
   },
   amsterdam: {
     id: "amsterdam", name: "Amsterdam", country: "Netherlands", isSchengen: true, isCapital: true,
@@ -313,7 +224,7 @@ export const CITIES_DATASET: Record<string, City> = {
     id: "budapest", name: "Budapest", country: "Hungary", isSchengen: true, isCapital: true,
     purchasable: true, terminalCost: 380000,
     lat: 47.50, lon: 19.04, heat: 20,
-    connections: ["vienna", "krakow"]
+    connections: ["vienna", "krakow", "belgrade", "bucharest"]
   },
   bern: {
     id: "bern", name: "Bern", country: "Switzerland", isSchengen: true, isCapital: true,
@@ -326,7 +237,7 @@ export const CITIES_DATASET: Record<string, City> = {
     id: "istanbul", name: "Istanbul", country: "Turkey", isSchengen: false, isCapital: false,
     purchasable: true, terminalCost: 450000,
     lat: 41.01, lon: 28.98, heat: 35,
-    connections: ["kyiv", "vienna", "ankara"]
+    connections: ["bucharest", "sofia", "ankara"]
   },
   ankara: {
     id: "ankara", name: "Ankara", country: "Turkey", isSchengen: false, isCapital: true,

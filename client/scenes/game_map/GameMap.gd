@@ -783,7 +783,8 @@ func _setup_world_events():
 					"color": Color(payload.color),
 					"name": payload.companyName,
 					"timer": 0.0,
-					"duration": payload.duration
+					"duration": payload.duration,
+					"is_police": payload.has("isPolice") and payload.isPolice
 				})
 	)
 
@@ -1240,8 +1241,8 @@ func _draw_vector_map() -> void:
 					_draw_dashed_line(flow_from, flow_to, flow_color, 2.0 / zoom, 8.0 / zoom, 6.0 / zoom, time_passed * 42.0)
 					
 				else:
-					var is_tunnel = (city_id == "london" and conn_id == "paris") or (city_id == "paris" and conn_id == "london")
-					var sea_routes = ["stockholm_tallinn", "stockholm_gdansk", "helsinki_tallinn", "turku_stockholm", "stockholm_turku", "visby_stockholm", "visby_riga", "visby_klaipeda", "oslo_copenhagen", "stockholm_oslo"]
+					var is_tunnel = (city_id == "calais" and conn_id == "dover") or (city_id == "dover" and conn_id == "calais")
+					var sea_routes = ["stockholm_tallinn", "stockholm_gdansk", "helsinki_tallinn", "turku_stockholm", "stockholm_turku", "visby_stockholm", "visby_riga", "visby_klaipeda", "oslo_copenhagen", "stockholm_oslo", "london_amsterdam", "amsterdam_london"]
 					var is_sea_route = sea_routes.has(city_id + "_" + conn_id) or sea_routes.has(conn_id + "_" + city_id)
 					var fuel_routes = ["istanbul_ankara", "ankara_tehran", "tehran_kabul", "ankara_baghdad", "baghdad_riyadh", "riyadh_dubai", "tehran_dubai"]
 					var is_fuel_route = fuel_routes.has(city_id + "_" + conn_id) or fuel_routes.has(conn_id + "_" + city_id)
@@ -1519,8 +1520,13 @@ func _draw_vector_map() -> void:
 		# Draw glowing trail
 		if progress > 0.02:
 			var trail_color = ai.color
+			if ai.get("is_police", false):
+				# Flashing red and blue siren lights!
+				var flash = int(Time.get_ticks_msec() / 150.0) % 2
+				trail_color = Color(1.0, 0.0, 0.0) if flash == 0 else Color(0.0, 0.0, 1.0)
+				
 			trail_color.a = 0.6
-			var fade_color = ai.color
+			var fade_color = trail_color
 			fade_color.a = 0.0
 			var points = PackedVector2Array([tail_pos, current_pos])
 			var colors = PackedColorArray([fade_color, trail_color])

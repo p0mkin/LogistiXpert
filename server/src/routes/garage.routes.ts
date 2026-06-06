@@ -414,7 +414,8 @@ router.post('/upgrade', async (req: AuthRequest, res: Response) => {
         data: {
           truckId: truckId,
           eventType: 'UPGRADE_INSTALLED',
-          description: \Installed \ at the Chop Shop for \$\ C500.        }
+          description: `Installed ${upgradeType} at the Chop Shop for C${cost}.`
+        }
       })
     ]);
 
