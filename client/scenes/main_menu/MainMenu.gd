@@ -24,16 +24,53 @@ func _ready() -> void:
 	NetworkManager.auth_completed.connect(_on_auth_completed)
 
 func _apply_visual_theme() -> void:
+	# 0. Wrap LeftPanel in a Glassmorphism Container
+	var left_panel = $Margin/HBox/LeftPanel
+	if left_panel:
+		var parent = left_panel.get_parent()
+		var glass_panel = PanelContainer.new()
+		glass_panel.name = "GlassPanel"
+		var glass_style = StyleBoxFlat.new()
+		glass_style.bg_color = Color(0.04, 0.05, 0.06, 0.75) # Dark frosted glass
+		glass_style.border_color = Color(0.925, 0.607, 0.141, 0.5) # Neon amber edge
+		glass_style.border_width_right = 2
+		glass_style.border_width_bottom = 2
+		glass_style.border_width_left = 1
+		glass_style.border_width_top = 1
+		glass_style.set_corner_radius_all(12)
+		glass_style.shadow_color = Color(0, 0, 0, 0.7)
+		glass_style.shadow_size = 24
+		glass_style.content_margin_left = 32
+		glass_style.content_margin_right = 32
+		glass_style.content_margin_top = 32
+		glass_style.content_margin_bottom = 32
+		glass_panel.add_theme_stylebox_override("panel", glass_style)
+		
+		parent.remove_child(left_panel)
+		parent.add_child(glass_panel)
+		parent.move_child(glass_panel, 0)
+		glass_panel.add_child(left_panel)
+
 	# 1. Styled amber accent flat buttons
 	var style_login_normal = StyleBoxFlat.new()
-	style_login_normal.bg_color = Color(0.925, 0.607, 0.141, 1.0) # Amber
-	style_login_normal.set_corner_radius_all(4)
-	style_login_normal.content_margin_left = 12
-	style_login_normal.content_margin_right = 12
+	style_login_normal.bg_color = Color(0.925, 0.607, 0.141, 0.9) # Amber
+	style_login_normal.border_color = Color(1.0, 0.8, 0.4, 0.8)
+	style_login_normal.border_width_top = 1
+	style_login_normal.border_width_bottom = 1
+	style_login_normal.border_width_left = 1
+	style_login_normal.border_width_right = 1
+	style_login_normal.set_corner_radius_all(6)
+	style_login_normal.content_margin_left = 16
+	style_login_normal.content_margin_right = 16
+	style_login_normal.content_margin_top = 12
+	style_login_normal.content_margin_bottom = 12
+	style_login_normal.shadow_color = Color(0.925, 0.607, 0.141, 0.3)
+	style_login_normal.shadow_size = 12
 	
-	var style_login_hover = StyleBoxFlat.new()
-	style_login_hover.bg_color = Color(0.976, 0.702, 0.282, 1.0) # Lighter Amber
-	style_login_hover.set_corner_radius_all(4)
+	var style_login_hover = style_login_normal.duplicate()
+	style_login_hover.bg_color = Color(1.0, 0.75, 0.3, 1.0) # Lighter Amber
+	style_login_hover.shadow_color = Color(0.925, 0.607, 0.141, 0.6)
+	style_login_hover.shadow_size = 18
 	
 	login_btn.add_theme_stylebox_override("normal", style_login_normal)
 	login_btn.add_theme_stylebox_override("hover", style_login_hover)
@@ -64,18 +101,19 @@ func _apply_visual_theme() -> void:
 	
 	# 3. Input Text Edit field styling
 	var style_edit = StyleBoxFlat.new()
-	style_edit.bg_color = Color(0.047, 0.051, 0.059, 1.0) # Charcoal
-	style_edit.border_color = Color(0.925, 0.607, 0.141, 0.2)
-	style_edit.border_width_bottom = 1
-	style_edit.content_margin_left = 12
-	style_edit.content_margin_top = 8
+	style_edit.bg_color = Color(0.02, 0.025, 0.03, 0.6) # Charcoal translucent
+	style_edit.border_color = Color(0.925, 0.607, 0.141, 0.3)
+	style_edit.border_width_bottom = 2
+	style_edit.set_corner_radius_all(4)
+	style_edit.content_margin_left = 16
+	style_edit.content_margin_top = 12
+	style_edit.content_margin_bottom = 12
 	
-	var style_edit_focus = StyleBoxFlat.new()
-	style_edit_focus.bg_color = Color(0.047, 0.051, 0.059, 1.0)
-	style_edit_focus.border_color = Color(0.925, 0.607, 0.141, 0.8) # Glowing amber border on focus
-	style_edit_focus.border_width_bottom = 2
-	style_edit_focus.content_margin_left = 12
-	style_edit_focus.content_margin_top = 8
+	var style_edit_focus = style_edit.duplicate()
+	style_edit_focus.bg_color = Color(0.05, 0.06, 0.08, 0.9)
+	style_edit_focus.border_color = Color(0.925, 0.607, 0.141, 1.0) # Glowing amber border on focus
+	style_edit_focus.shadow_color = Color(0.925, 0.607, 0.141, 0.2)
+	style_edit_focus.shadow_size = 8
 	
 	user_edit.add_theme_stylebox_override("normal", style_edit)
 	user_edit.add_theme_stylebox_override("focus", style_edit_focus)
