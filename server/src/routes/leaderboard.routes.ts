@@ -291,10 +291,10 @@ router.get('/my-rank', authenticateJWT, async (req: AuthRequest, res: Response) 
       companyName: me.name,
       totalCompanies: allCompanies.length,
       ranks: {
-        fleetValue: { rank: myFleetRank, value: computeFleetValue(me) },
+        fleetValue: { rank: myFleetRank, value: fleetValues[myFleetRank - 1].val },
         underworldRep: { rank: myRepRank, value: me.reputationScore },
         heatIndex: { rank: myHeatRank, value: me.policeHeat },
-        totalMileage: { rank: myMileageRank, value: me.trucks.reduce((s, t) => s + t.mileage, 0) },
+        totalMileage: { rank: myMileageRank, value: totalMiles[myMileageRank - 1].km },
       },
     });
   } catch (err) {
