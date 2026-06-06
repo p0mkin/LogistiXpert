@@ -65,6 +65,17 @@ export class CommodityMarketService {
     }
   }
 
+  private static consumptionMap: Record<CommodityType, number> = {
+    [CommodityType.DIESEL]: 0,
+    [CommodityType.ELECTRICITY]: 0,
+    [CommodityType.ADBLUE]: 0,
+    [CommodityType.CO2_ALLOWANCE]: 0,
+  };
+
+  static recordConsumption(type: CommodityType, amount: number) {
+    this.consumptionMap[type] += amount;
+  }
+
   /**
    * Starts the background pricing engine, running a random-walk fluctuation tick
    */
@@ -83,10 +94,19 @@ export class CommodityMarketService {
           const config = COMMODITY_CONFIGS[record.commodityType];
           const priceNum = record.currentPrice.toNumber();
 
+          const consumed = this.consumptionMap[record.commodityType];
+          this.consumptionMap[record.commodityType] = 0; // Reset for next tick
+
+          // If highly consumed, demand is high, price goes up. If low, it drops.
+          let demandDrift = 0;
+          if (consumed > 500) demandDrift = 0.04;
+          else if (consumed > 100) demandDrift = 0.01;
+          else if (consumed === 0) demandDrift = -0.02;
+
           // Random Walk with slight drift towards base price
           const driftDirection = priceNum > config.basePrice ? -0.01 : 0.01;
           const randomFactor = (Math.random() - 0.5) * 2.0; // -1 to 1
-          const changePercent = (randomFactor * 0.03 * record.volatilityIndex) + (driftDirection * 0.005);
+          const changePercent = (randomFactor * 0.03 * record.volatilityIndex) + driftDirection + demandDrift;
           
           let newPrice = priceNum * (1 + changePercent);
           

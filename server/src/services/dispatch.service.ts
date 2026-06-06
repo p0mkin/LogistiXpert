@@ -1,5 +1,6 @@
-import { PrismaClient, RouteStage, Prisma } from '@prisma/client';
+import { PrismaClient, RouteStage, Prisma, CommodityType } from '@prisma/client';
 import { GameWebSocketServer } from '../websocket';
+import { CommodityMarketService } from './commodity.service';
 import { BorderService } from './border.service';
 import { ClanService } from './clan.service';
 import { PrismaUnitOfWork } from '../infrastructure/persistence/PrismaUnitOfWork';
@@ -250,6 +251,11 @@ export class DispatchSimulationService {
               adblue: deductions.adblueNeeded > 0 ? deductions.adblueNeeded : undefined,
               co2: deductions.co2Needed > 0 ? deductions.co2Needed : undefined,
             });
+
+            if (deductions.dieselNeeded > 0) CommodityMarketService.recordConsumption(CommodityType.DIESEL, deductions.dieselNeeded);
+            if (deductions.electricityNeeded > 0) CommodityMarketService.recordConsumption(CommodityType.ELECTRICITY, deductions.electricityNeeded);
+            if (deductions.adblueNeeded > 0) CommodityMarketService.recordConsumption(CommodityType.ADBLUE, deductions.adblueNeeded);
+            if (deductions.co2Needed > 0) CommodityMarketService.recordConsumption(CommodityType.CO2_ALLOWANCE, deductions.co2Needed);
 
             await txUow.garageRepository.save(garageAgg);
 

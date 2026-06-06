@@ -20,6 +20,8 @@ import dealershipRoutes from './routes/dealership.routes';
 import analyticsRoutes from './routes/analytics.routes';
 import researchRoutes from './routes/research.routes';
 import staffRoutes from './routes/staff.routes';
+import underworldRoutes from './routes/underworld.routes';
+
 import { errorHandler } from './middleware/error';
 import { GameWebSocketServer } from './websocket';
 import { redis, AuctionService } from './services/auction.service';
@@ -29,6 +31,7 @@ import { CommodityMarketService } from './services/commodity.service';
 import { FinanceService } from './services/finance.service';
 import { seedDatabase } from './seed';
 import { AISyndicateService } from './services/ai.service';
+import { WeatherService } from './services/weather.service';
 
 const app = express();
 const server = http.createServer(app);
@@ -63,6 +66,7 @@ app.use('/api/dealership', dealershipRoutes);
 app.use('/api/research', researchRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/staff', staffRoutes);
+app.use('/api/underworld', underworldRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -208,7 +212,8 @@ async function main() {
 
     // 4. Start active fleet dispatch simulation ticker
     DispatchSimulationService.startTicker();
-  AISyndicateService.startTicker();
+    AISyndicateService.startTicker();
+    WeatherService.startTicker();
 
     // 4.1. Start active corporate financial ticker
     FinanceService.startTicker();

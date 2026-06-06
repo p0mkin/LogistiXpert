@@ -68,6 +68,10 @@ model Company {
   staffLeadMechanicRank        Int     @default(1)
   staffLeadMechanicLevel       Int     @default(1)
   staffLeadMechanicUnlocked    Boolean @default(false)
+
+  // Underworld Sabotage Relations
+  attackerSabotages SabotageEvent[] @relation("AttackerSabotages")
+  victimSabotages   SabotageEvent[] @relation("VictimSabotages")
   staffRouterRank              Int     @default(1)
   staffRouterLevel             Int     @default(1)
   staffRouterUnlocked          Boolean @default(false)
@@ -551,6 +555,30 @@ model CityDailyFreight {
   @@unique([city, dateStr])
   @@index([city])
   @@index([dateStr])
+}
+
+// ==========================================
+// 8. SHADOWS UPDATE: UNDERWORLD SABOTAGE
+// ==========================================
+enum SabotageType {
+  TIRE_BLOWOUT
+  ENGINE_FIRE
+  CARGO_THEFT
+  DRIVER_ASSAULT
+}
+
+model SabotageEvent {
+  id              String       @id @default(cuid())
+  attackerId      String
+  victimId        String
+  truckId         String
+  type            SabotageType
+  costToRepair    Decimal      @default(0.00) @db.Decimal(18, 2)
+  success         Boolean      @default(true)
+  createdAt       DateTime     @default(now())
+
+  attackerCompany Company      @relation("AttackerSabotages", fields: [attackerId], references: [id])
+  victimCompany   Company      @relation("VictimSabotages", fields: [victimId], references: [id])
 }
 
 

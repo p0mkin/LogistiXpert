@@ -760,6 +760,10 @@ func _load_map_data() -> void:
 # ==========================================
 var active_map_events = []
 var active_ai_trucks = []
+var active_weather_fronts = []
+var active_explosions = []
+var market_ticker_text = " |  🌐 AWAITING MARKET DATA...  | "
+var market_ticker_offset = 0.0
 var event_timer: Timer
 
 func _setup_world_events():
@@ -770,7 +774,47 @@ func _setup_world_events():
 	add_child(event_timer)
 	
 	NetworkManager.ws_message_received.connect(func(json):
-		if typeof(json) == TYPE_DICTIONARY and json.has("type") and json.type == "ai_truck_spawn":
+		if typeof(json) != TYPE_DICTIONARY or not json.has("type"): return
+		
+		if json.type == "weather_front_update":
+			var p = json.payload
+			active_weather_fronts.append({
+				"id": p.id,
+				"type": p.type,
+				"pos": _coords_to_pos(p.epicenterCoords.x, p.epicenterCoords.y),
+				"radius": p.radius * 20.0, # scale up to game coordinate units roughly
+				"timer": p.duration / 1000.0,
+				"duration": p.duration / 1000.0
+			})
+			_log_console("Massive " + p.type + " front detected over " + str(p.affectedCities.size()) + " cities!", Color(1.0, 0.4, 0.2))
+			
+		elif json.type == "market:price_update":
+			var p = json.payload
+			var ticker_str = " |  🌐 GLOBAL COMMODITY MARKET  |  "
+			for item in p.prices:
+				var symbol = "📈" if item.priceChangePercent >= 0 else "📉"
+				var color = "green" if item.priceChangePercent >= 0 else "red"
+				ticker_str += "%s: $%0.2f %s (%0.2f%%)  |  " % [str(item.commodityType), float(item.currentPrice), symbol, float(item.priceChangePercent)]
+			market_ticker_text = ticker_str
+			
+		elif json.type == "sabotage:visual_event":
+			var p = json.payload
+			if map_data.has("cities") and map_data.cities.has(p.city):
+				var cc = map_data.cities[p.city].coords
+				var visual_type = p.type
+				
+				# Spawn red explosion circles
+				var burst = {
+					"pos": _coords_to_pos(cc.x, cc.y),
+					"radius": 5.0,
+					"max_radius": 60.0 if visual_type == "ENGINE_FIRE" else 40.0,
+					"color": Color(1.0, 0.1, 0.1, 1.0),
+					"type": visual_type
+				}
+				active_explosions.append(burst)
+				_log_console("[SABOTAGE] Attack detected near " + str(p.city) + "! (" + str(visual_type) + ")", Color(1.0, 0.2, 0.2))
+
+		elif json.type == "ai_truck_spawn":
 			var payload = json.payload
 			var o_id = payload.origin
 			var d_id = payload.destination
@@ -823,6 +867,22 @@ func _process(delta: float) -> void:
 			active_ai_trucks[i].timer += delta
 			if active_ai_trucks[i].timer >= active_ai_trucks[i].duration:
 				active_ai_trucks.remove_at(i)
+	if active_weather_fronts.size() > 0:
+		for i in range(active_weather_fronts.size() - 1, -1, -1):
+			active_weather_fronts[i].timer -= delta
+			if active_weather_fronts[i].timer <= 0:
+				active_weather_fronts.remove_at(i)
+	if active_explosions.size() > 0:
+		for i in range(active_explosions.size() - 1, -1, -1):
+			active_explosions[i].radius += delta * 40.0
+			active_explosions[i].color.a -= delta * 0.8
+			if active_explosions[i].radius >= active_explosions[i].max_radius or active_explosions[i].color.a <= 0:
+				active_explosions.remove_at(i)
+	
+	market_ticker_offset -= delta * 60.0
+	if market_ticker_offset < -1200.0:
+		market_ticker_offset = get_viewport_rect().size.x
+		
 	if map_drawer:
 		map_drawer.queue_redraw()
 	if clock_lbl and is_instance_valid(clock_lbl):
@@ -1545,6 +1605,84 @@ func _draw_vector_map() -> void:
 		var tag_size = clamp(int(10.0 / zoom), 6, 20)
 		map_drawer.draw_string(f, current_pos + Vector2(12.0/zoom, 4.0/zoom), ai.name, HORIZONTAL_ALIGNMENT_LEFT, -1, tag_size, ai.color)
 
+	# --- SHADOWS UPDATE: DRAW SABOTAGE EXPLOSIONS ---
+	for exp in active_explosions:
+		var rad = exp.radius / zoom
+		var col = exp.color
+		
+		# Draw the expanding shockwave
+		map_drawer.draw_circle(exp.pos, rad, Color(col.r, col.g, col.b, col.a * 0.3))
+		# Draw ring
+		map_drawer.draw_arc(exp.pos, rad, 0, TAU, 32, Color(col.r, col.g, col.b, col.a * 0.8), 2.0 / zoom)
+		
+		if exp.type == "ENGINE_FIRE":
+			# Draw some flame particles
+			for d in range(6):
+				var angle = randf() * TAU
+				var dist = randf() * rad
+				var p_pos = exp.pos + Vector2(cos(angle), sin(angle)) * dist
+				map_drawer.draw_circle(p_pos, (3.0 + randf() * 4.0) / zoom, Color(1.0, 0.4 + randf()*0.4, 0.0, col.a))
+		elif exp.type == "TIRE_BLOWOUT":
+			# Draw scattered debris
+			for d in range(4):
+				var angle = randf() * TAU
+				var dist = rad * 0.8
+				var p_pos = exp.pos + Vector2(cos(angle), sin(angle)) * dist
+				map_drawer.draw_line(p_pos, p_pos + Vector2(2.0/zoom, 2.0/zoom), Color(0.2, 0.2, 0.2, col.a), 2.0/zoom)
+	
+	# --- SHADOWS UPDATE: DRAW MASSIVE WEATHER FRONTS ---
+	for front in active_weather_fronts:
+		var rad = front.radius / zoom
+		var time_ms = Time.get_ticks_msec()
+		var p_ratio = front.timer / front.duration
+		var alpha_fade = min(p_ratio * 2.0, 1.0) # Fade out near end
+		
+		if front.type == "SEVERE_STORM":
+			var base_col = Color(0.05, 0.15, 0.35, 0.25 * alpha_fade)
+			map_drawer.draw_circle(front.pos, rad, base_col)
+			# Lightning flashes
+			if randf() > 0.95 and int(time_ms / 100) % 2 == 0:
+				map_drawer.draw_circle(front.pos, rad, Color(1.0, 1.0, 1.0, 0.4 * alpha_fade))
+			# Rain streaks
+			var num_drops = int(rad * 0.5)
+			for d in range(num_drops):
+				var offset_x = (fmod(hash(d) * 1.3 + time_ms * 0.05, rad * 2)) - rad
+				var offset_y = (fmod(hash(d) * 2.7 + time_ms * 0.2, rad * 2)) - rad
+				if offset_x * offset_x + offset_y * offset_y < rad * rad:
+					map_drawer.draw_line(front.pos + Vector2(offset_x, offset_y), front.pos + Vector2(offset_x - 2.0/zoom, offset_y + 8.0/zoom), Color(0.5, 0.7, 1.0, 0.5 * alpha_fade), 1.0/zoom)
+					
+		elif front.type == "BLIZZARD":
+			var base_col = Color(0.7, 0.85, 0.95, 0.35 * alpha_fade)
+			map_drawer.draw_circle(front.pos, rad, base_col)
+			# Snow drifting
+			var num_flakes = int(rad * 0.6)
+			for d in range(num_flakes):
+				var drift = sin(time_ms * 0.002 + d) * 15.0 / zoom
+				var offset_x = (fmod(hash(d) * 3.1 + time_ms * 0.08 + drift, rad * 2)) - rad
+				var offset_y = (fmod(hash(d) * 1.9 + time_ms * 0.04, rad * 2)) - rad
+				if offset_x * offset_x + offset_y * offset_y < rad * rad:
+					map_drawer.draw_circle(front.pos + Vector2(offset_x, offset_y), 2.0/zoom, Color(1.0, 1.0, 1.0, 0.8 * alpha_fade))
+					
+		elif front.type == "THICK_FOG":
+			var pulse = sin(time_ms * 0.001) * 0.1
+			var base_col = Color(0.3, 0.3, 0.35, (0.45 + pulse) * alpha_fade)
+			map_drawer.draw_circle(front.pos, rad, base_col)
+			map_drawer.draw_arc(front.pos, rad * 0.9, 0, TAU, 32, Color(0.4, 0.4, 0.45, 0.2 * alpha_fade), 8.0/zoom)
+
+	# --- SHADOWS UPDATE: DRAW NEON GLOBAL MARKET TICKER ---
+	var ticker_y = visible_max.y - (10.0 / zoom)
+	var ticker_x = visible_left + (market_ticker_offset / zoom)
+	
+	# Draw semi-transparent black bar at the bottom
+	map_drawer.draw_rect(Rect2(visible_min.x, visible_max.y - (30.0 / zoom), viewport_size.x / zoom, 30.0 / zoom), Color(0.0, 0.0, 0.0, 0.85))
+	map_drawer.draw_line(Vector2(visible_min.x, visible_max.y - (30.0 / zoom)), Vector2(visible_max.x, visible_max.y - (30.0 / zoom)), Color(0.18, 0.8, 0.44, 0.6), 2.0 / zoom)
+	
+	var ticker_font = ThemeDB.get_fallback_font()
+	if not ticker_font:
+		ticker_font = get_theme_font("font")
+	var ticker_font_size = clamp(int(16.0 / zoom), 10, 48)
+	
+	map_drawer.draw_string(ticker_font, Vector2(ticker_x, ticker_y), market_ticker_text, HORIZONTAL_ALIGNMENT_LEFT, -1, ticker_font_size, Color(0.2, 0.9, 0.7, 0.9))
 
 # ==========================================
 # INTERACTIVE DRAGS AND SCROLLS
