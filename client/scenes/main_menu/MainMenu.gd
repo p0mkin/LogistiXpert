@@ -10,6 +10,7 @@ var remember_check: CheckBox
 
 func _ready() -> void:
 	# Build sleek custom styling entirely in code to avoid heavy binary assets
+	_load_dynamic_bg()
 	_apply_visual_theme()
 	_setup_graphics_toggle_ui()
 	_setup_remember_me_ui()
@@ -22,6 +23,13 @@ func _ready() -> void:
 	
 	# Listen to network authorization statuses
 	NetworkManager.auth_completed.connect(_on_auth_completed)
+
+func _load_dynamic_bg() -> void:
+	var img = Image.new()
+	var err = img.load("res://assets/bg/login_bg.png")
+	if err == OK:
+		var tex = ImageTexture.create_from_image(img)
+		$BG.texture = tex
 
 func _apply_visual_theme() -> void:
 	# 0. Wrap LeftPanel in a Glassmorphism Container
