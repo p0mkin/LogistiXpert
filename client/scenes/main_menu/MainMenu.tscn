@@ -62,7 +62,7 @@ theme_override_constants/separation = 4
 layout_mode = 2
 theme_override_colors/font_color = Color(0.92549, 0.607843, 0.141176, 1)
 theme_override_font_sizes/font_size = 14
-text = "PROJECT NIGHTHAUL v1.0.0"
+text = "LogistiXpert v1.0.0"
 letter_spacing = 2.0
 
 [node name="GameTitle" type="Label" parent="Margin/HBox/LeftPanel/TitleBox"]
@@ -104,7 +104,6 @@ layout_mode = 2
 theme_override_colors/font_color = Color(1, 1, 1, 1)
 theme_override_font_sizes/font_size = 14
 placeholder_text = "Enter Username..."
-flat = true
 
 [node name="PassBox" type="VBoxContainer" parent="Margin/HBox/LeftPanel/FormContainer"]
 layout_mode = 2
@@ -124,7 +123,6 @@ theme_override_colors/font_color = Color(1, 1, 1, 1)
 theme_override_font_sizes/font_size = 14
 secret = true
 placeholder_text = "Enter Password..."
-flat = true
 
 [node name="ButtonBox" type="HBoxContainer" parent="Margin/HBox/LeftPanel"]
 layout_mode = 2
@@ -165,10 +163,9 @@ size_flags_horizontal = 3
 theme_override_constants/separation = 24
 alignment = 1
 
-[node name="TerminalPanel" type="ColorRect" parent="Margin/HBox/RightPanel"]
+[node name="TerminalPanel" type="PanelContainer" parent="Margin/HBox/RightPanel"]
 layout_mode = 2
 size_flags_vertical = 3
-color = Color(0.0470588, 0.0509804, 0.0588235, 1)
 
 [node name="Margin" type="MarginContainer" parent="Margin/HBox/RightPanel/TerminalPanel"]
 layout_mode = 1
