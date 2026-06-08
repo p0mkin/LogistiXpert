@@ -42,7 +42,7 @@ export class AnalyticsService {
     return 80000;
   }
 
-  static async getRemainingFreightCapacity(city: string, companyId: string): Promise<number> {
+  static async getRemainingFreightCapacities(cities: string[], companyId: string): Promise<Record<string, number>> {
     const dateStr = this.getDateStr();
 
     // 1. Fetch company reputation score
@@ -51,41 +51,54 @@ export class AnalyticsService {
       select: { reputationScore: true },
     });
 
-    // 2. Fetch local terminal (garage) to check terminalLevel
-    const garage = await prisma.garage.findFirst({
-      where: {
-        companyId,
-        city: {
-          equals: city,
-          mode: 'insensitive',
-        },
-      },
-      select: { terminalLevel: true },
-    });
-
-    const baseCapacity = this.getBaseCapacity(city);
-
-    // Terminal level level scales base capacity (+25% per level: level 1 is 100%, level 2 is 125%, level 3 is 150%, level 4 is 175%)
-    const terminalLevel = garage?.terminalLevel || 1;
-    const terminalMultiplier = 1 + (terminalLevel - 1) * 0.25;
-
-    // Reputation scales base capacity (+0.1% per reputationScore point up to max multiplier of 2.0x, floor at 0.1x to prevent negative capacity)
     const repScore = company?.reputationScore || 0;
     const repBonus = Math.max(-0.9, Math.min(1.0, repScore * 0.001));
     // Fix floating point precision issues by rounding to two decimal places
     const reputationMultiplier = Math.round((1 + repBonus) * 100) / 100;
 
-    const totalCapacity = Math.floor(baseCapacity * terminalMultiplier * reputationMultiplier);
-
-    // 3. Query daily freight usage
-    const cityDaily = await prisma.cityDailyFreight.findUnique({
+    // 2. Fetch local terminals (garages) to check terminalLevel
+    const garages = await prisma.garage.findMany({
       where: {
-        city_dateStr: { city, dateStr },
+        companyId,
+        city: { in: cities, mode: 'insensitive' },
+      },
+      select: { city: true, terminalLevel: true },
+    });
+
+    // Create a map for case-insensitive city lookup
+    const garageMap = new Map(garages.map(g => [g.city.toLowerCase(), g.terminalLevel]));
+
+    // 3. Query daily freight usage for all requested cities
+    const cityDailies = await prisma.cityDailyFreight.findMany({
+      where: {
+        city: { in: cities },
+        dateStr,
       },
     });
 
-    const shippedKg = cityDaily?.shippedKg || 0;
-    return Math.max(0, totalCapacity - shippedKg);
+    const dailyMap = new Map(cityDailies.map(cd => [cd.city, cd.shippedKg]));
+
+    const result: Record<string, number> = {};
+
+    for (const city of cities) {
+      const baseCapacity = this.getBaseCapacity(city);
+
+      // Terminal level scales base capacity (+25% per level: level 1 is 100%, level 2 is 125%, level 3 is 150%, level 4 is 175%)
+      const terminalLevel = garageMap.get(city.toLowerCase()) || 1;
+      const terminalMultiplier = 1 + (terminalLevel - 1) * 0.25;
+
+      const totalCapacity = Math.floor(baseCapacity * terminalMultiplier * reputationMultiplier);
+
+      const shippedKg = dailyMap.get(city) || 0;
+      result[city] = Math.max(0, totalCapacity - shippedKg);
+    }
+
+    return result;
+  }
+
+  static async getRemainingFreightCapacity(city: string, companyId: string): Promise<number> {
+    const capacities = await this.getRemainingFreightCapacities([city], companyId);
+    return capacities[city] || 0;
   }
 
   static async recordFreightShipped(
