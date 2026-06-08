@@ -185,10 +185,33 @@ export class FinanceService {
     const client = txClient || prisma;
     const company = await client.company.findUnique({
       where: { id: companyId },
-      include: {
-        trucks: true,
-        garages: true,
-        fronts: true,
+      select: {
+        legalBalance: true,
+        blackMarketBalance: true,
+        activeDebtPrincipal: true,
+        reputationScore: true,
+        resTerminalLogistics: true,
+        resAerodynamics: true,
+        resAdvancedPacking: true,
+        resECURemapping: true,
+        resCoopCapacity: true,
+        trucks: {
+          select: {
+            manufacturer: true,
+            tier: true,
+            engineHealth: true,
+            cosmeticHealth: true,
+          },
+        },
+        garages: {
+          select: {
+            upgradeLevel: true,
+            terminalLevel: true,
+          },
+        },
+        _count: {
+          select: { fronts: true },
+        },
       },
     });
 
@@ -205,7 +228,9 @@ export class FinanceService {
     }
 
     // 3. Front Business cash laundering value
-    const frontsValue = company.fronts.length * 80000.00;
+    // Handle both _count (Prisma select) or fronts (raw mock arrays) for test compatibility
+    const frontsCount = company._count ? company._count.fronts : (company.fronts?.length || 0);
+    const frontsValue = frontsCount * 80000.00;
 
     // 4. Depreciated Trucks Asset value
     let trucksValue = 0;
