@@ -1114,7 +1114,9 @@ describe('🚨 TRUCK MANAGER 2026: INTEGRATION TEST SUITE', () => {
       // Stub AnalyticsService methods to avoid DB hits
       prisma.company.findUnique.mockResolvedValue({ id: 'comp_abc', reputationScore: 100 });
       prisma.garage.findFirst.mockResolvedValue({ id: 'gar_1', city: 'Kaunas', terminalLevel: 1 });
+      prisma.garage.findMany.mockResolvedValue([{ city: 'Kaunas', terminalLevel: 1 }]);
       prisma.cityDailyFreight.findUnique.mockResolvedValue({ shippedKg: 0 });
+      prisma.cityDailyFreight.findMany.mockResolvedValue([]);
 
       const res = await request(app)
         .post('/api/dispatch/launch')
@@ -1146,8 +1148,10 @@ describe('🚨 TRUCK MANAGER 2026: INTEGRATION TEST SUITE', () => {
 
       prisma.company.findUnique.mockResolvedValue({ id: 'comp_abc', reputationScore: 0 });
       prisma.garage.findFirst.mockResolvedValue({ id: 'gar_1', city: 'Siauliai', terminalLevel: 1 });
+      prisma.garage.findMany.mockResolvedValue([{ city: 'Siauliai', terminalLevel: 1 }]);
       // Shipped 290,000 kg out of 300,000 kg regional city base capacity, leaving only 10,000 kg capacity (less than truck's 24,000 kg load)
       prisma.cityDailyFreight.findUnique.mockResolvedValue({ shippedKg: 290000 });
+      prisma.cityDailyFreight.findMany.mockResolvedValue([{ city: 'Siauliai', shippedKg: 290000 }]);
 
       const res = await request(app)
         .post('/api/dispatch/launch')
@@ -1166,8 +1170,10 @@ describe('🚨 TRUCK MANAGER 2026: INTEGRATION TEST SUITE', () => {
         { dateStr: '2026-06-01', garageId: 'gar_1', city: 'Kaunas', revenueLegal: Decimal(15000) },
       ]);
       prisma.cityDailyFreight.findUnique.mockResolvedValue({ shippedKg: 50000 });
+      prisma.cityDailyFreight.findMany.mockResolvedValue([{ city: 'Kaunas', shippedKg: 50000 }]);
       prisma.company.findUnique.mockResolvedValue({ id: 'comp_abc', reputationScore: 500 });
       prisma.garage.findFirst.mockResolvedValue({ id: 'gar_1', city: 'Kaunas', terminalLevel: 2 });
+      prisma.garage.findMany.mockResolvedValue([{ city: 'Kaunas', terminalLevel: 2 }]);
 
       // 1. Fetch general performance reports
       const resPerf = await request(app)

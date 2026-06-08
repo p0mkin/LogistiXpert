@@ -59,22 +59,25 @@ router.get('/city-freight', async (req: AuthRequest, res: Response) => {
     const targets = city ? [city as string] : citiesList;
     const dateStr = AnalyticsService.getDateStr();
 
-    const result = [];
-    for (const targetCity of targets) {
-      const remaining = await AnalyticsService.getRemainingFreightCapacity(targetCity, companyId);
-      const base = AnalyticsService.getBaseCapacity(targetCity);
-      
-      const cityDaily = await prisma.cityDailyFreight.findUnique({
-        where: { city_dateStr: { city: targetCity, dateStr } },
-      });
+    // Fetch capacities in bulk
+    const capacitiesMap = await AnalyticsService.getRemainingFreightCapacities(targets, companyId);
 
-      result.push({
-        city: targetCity,
-        baseCapacity: base,
-        shippedKg: cityDaily?.shippedKg || 0,
-        remainingKg: remaining,
-      });
-    }
+    // Fetch all city daily records for the targets in a single query
+    const cityDailies = await prisma.cityDailyFreight.findMany({
+      where: {
+        city: { in: targets },
+        dateStr,
+      },
+    });
+
+    const shippedMap = new Map(cityDailies.map(cd => [cd.city, cd.shippedKg]));
+
+    const result = targets.map(targetCity => ({
+      city: targetCity,
+      baseCapacity: AnalyticsService.getBaseCapacity(targetCity),
+      shippedKg: shippedMap.get(targetCity) || 0,
+      remainingKg: capacitiesMap[targetCity] || 0,
+    }));
 
     if (city && result.length === 1) {
       return res.json(result[0]);
