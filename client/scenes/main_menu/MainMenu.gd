@@ -167,7 +167,14 @@ func _on_auth_completed(success: bool, message: String) -> void:
 		else:
 			_set_status(message, Color(0.180, 0.803, 0.443))
 	else:
-		_set_status(message, Color(0.901, 0.298, 0.235))
+		if message == "Connection timed out.":
+			_set_status("Server Offline. Initializing LOCAL FALLBACK MODE...", Color(0.925, 0.607, 0.141))
+			GameState.username = user_edit.text.strip_edges()
+			if GameState.username.is_empty(): GameState.username = "Local_Operator"
+			await get_tree().create_timer(1.0).timeout
+			SceneTransition.change_scene_to_file("res://scenes/game_map/GameMap.tscn")
+		else:
+			_set_status(message, Color(0.901, 0.298, 0.235))
 
 func _set_status(text: String, color: Color) -> void:
 	status_label.text = text

@@ -166,6 +166,7 @@ func _on_reconnect_timeout() -> void:
 # ==========================================
 func request_login(username: String, passw: String) -> void:
 	var http = HTTPRequest.new()
+	http.timeout = 5.0
 	add_child(http)
 	http.request_completed.connect(func(result, response_code, headers, body):
 		if response_code == 200:

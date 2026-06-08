@@ -1390,8 +1390,23 @@ func _draw_vector_map() -> void:
 					elif pulse_conn.get("is_border_crossing", false):
 						pulse_color = Color(1.0, 0.6, 0.1, 0.9)
 						
-					map_drawer.draw_circle(pulse_pos, 4.0 / zoom, pulse_color)
-					map_drawer.draw_arc(pulse_pos, (6.0 + sin(time_passed * 8.0) * 1.5) / zoom, 0.0, TAU, 8, Color(pulse_color.r, pulse_color.g, pulse_color.b, 0.35), 1.5 / zoom)
+					var dir = (pulse_end - pulse_start).normalized()
+					var normal = Vector2(-dir.y, dir.x)
+					var size = 6.0 / zoom
+					var pt_forward = pulse_pos + dir * size
+					var pt_back_left = pulse_pos - dir * (size * 0.8) + normal * (size * 0.7)
+					var pt_back_center = pulse_pos - dir * (size * 0.3)
+					var pt_back_right = pulse_pos - dir * (size * 0.8) - normal * (size * 0.7)
+					
+					# Draw Truck Chevron
+					map_drawer.draw_colored_polygon([pt_forward, pt_back_left, pt_back_center, pt_back_right], pulse_color)
+					
+					# Draw engine exhaust trail
+					var trail_end = pt_back_center - dir * (8.0 / zoom)
+					map_drawer.draw_line(pt_back_center, trail_end, Color(pulse_color.r, pulse_color.g, pulse_color.b, 0.5), 1.5 / zoom)
+					
+					# Pulsing radar ring
+					map_drawer.draw_arc(pulse_pos, (6.0 + sin(time_passed * 12.0) * 2.0) / zoom, 0.0, TAU, 8, Color(pulse_color.r, pulse_color.g, pulse_color.b, 0.35), 1.5 / zoom)
  
 	# 6. DRAW ROTATING RADAR SWEEP
 	var sweep_center = Vector2.ZERO
@@ -1598,8 +1613,8 @@ func _draw_vector_map() -> void:
 		if not f:
 			f = get_theme_font("font")
 		var pulse_scale = 1.0 + sin(Time.get_ticks_msec() * 0.008) * 0.15
-		var font_size = clamp(int((18.0 * pulse_scale) / zoom), 8, 48)
-		map_drawer.draw_string(f, current_pos + Vector2(-font_size/2.0, font_size/2.5), "🚛", HORIZONTAL_ALIGNMENT_CENTER, -1, font_size)
+		var truck_font_size = clamp(int((18.0 * pulse_scale) / zoom), 8, 48)
+		map_drawer.draw_string(f, current_pos + Vector2(-truck_font_size/2.0, truck_font_size/2.5), "🚛", HORIZONTAL_ALIGNMENT_CENTER, -1, truck_font_size)
 		
 		# Draw syndicate name tag
 		var tag_size = clamp(int(10.0 / zoom), 6, 20)

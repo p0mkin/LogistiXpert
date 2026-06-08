@@ -43,6 +43,7 @@ var autopilot_policy_box: OptionButton = null
 var clock_lbl: Label = null
 
 func _ready() -> void:
+	JuiceEngine.tween_in(self)
 	_load_cities_data()
 	_apply_theme()
 	player_lbl.text = GameState.username.to_upper()
@@ -372,12 +373,14 @@ func _on_launch_response(result: int, code: int, headers: PackedStringArray, bod
 	http.queue_free()
 	var data = JSON.parse_string(body.get_string_from_utf8())
 	if code == 201:
+		JuiceEngine.show_splash_text("ROUTE LOCKED", Color(0.925, 0.607, 0.141))
 		_log("✓ Route launched! Truck is on the road.", Color(0.18, 0.803, 0.443))
 		dispatch_panel.hide()
 		selected_contract = {}
 		_fetch_active_routes()
 		_fetch_trucks()
 	else:
+		JuiceEngine.show_splash_text("LOCAL ROUTE LOCKED", Color(0.18, 0.803, 0.443))
 		# Server offline fallback launch
 		_log("⚠ Server Offline. Initializing LOCAL PERSISTENT AUTOPILOT...", Color(0.925, 0.607, 0.141))
 		dispatch_panel.hide()
@@ -751,8 +754,10 @@ func _add_stat_bar(parent: Control, label_text: String, val: int, max_val: int, 
 	row.add_child(lbl)
 	var bar = _make_bar_bg(fill_color, val, max_val)
 	bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	bar.name = "Bar"
 	row.add_child(bar)
 	var val_lbl = Label.new()
+	val_lbl.name = "ValLbl"
 	val_lbl.text = "%d%%" % val
 	val_lbl.custom_minimum_size.x = 30
 	val_lbl.add_theme_color_override("font_color", fill_color)
@@ -779,8 +784,10 @@ func _make_bar_bg(fill_color: Color, val: int, max_val: int) -> Control:
 # SELECTION & DISPATCH PANEL
 # ==========================================
 func _select_contract(contract: Dictionary) -> void:
+	JuiceEngine.play_sound("click")
 	selected_contract = contract
 	dispatch_panel.show()
+	JuiceEngine.tween_slide_in(dispatch_panel, Vector2(50, 0))
 	_update_surcharge_status()
 
 func _on_truck_selected(_idx: int) -> void:
@@ -891,6 +898,8 @@ func _show_contra_tab() -> void:
 	_render_contracts()
 
 func _on_launch_dispatch() -> void:
+	JuiceEngine.play_sound("heavy")
+	JuiceEngine.pop_attention(dispatch_panel)
 	_launch_dispatch()
 
 # ==========================================
@@ -904,18 +913,24 @@ func _on_route_progress(payload: Dictionary) -> void:
 	# Find the existing route card and rebuild it in-place with fresh telemetry
 	for card in active_routes_list.get_children():
 		if card.name == "route_" + truck_id:
-			var idx = card.get_index()
-			card.queue_free()
-			# Merge cached API data with live telemetry payload
-			var merged_route = {}
+			var vbox = card.get_child(0)
+			if vbox:
+				for row in vbox.get_children():
+					if row.get_child_count() > 0 and row.get_child(0) is Label and row.get_child(0).text == "ROUTE":
+						var bar = row.get_node_or_null("Bar")
+						var val_lbl = row.get_node_or_null("ValLbl")
+						if bar and val_lbl:
+							val_lbl.text = "%d%%" % int(payload.get("progressPct", 0.0))
+							var fill = bar.get_child(1) # The ColorRect fill
+							var pct = clampf(float(payload.get("progressPct", 0.0)) / 100.0, 0.0, 1.0)
+							var tween = create_tween()
+							tween.tween_property(fill, "anchor_right", pct, 0.5).set_ease(Tween.EASE_OUT)
+			
+			# Also merge cached API data into local active_routes so it persists
 			for route in active_routes:
 				if route.get("truckId", "") == truck_id:
-					merged_route = route.duplicate()
+					route.merge(payload, true)
 					break
-			merged_route.merge(payload, true)
-			var new_card = _build_route_card(merged_route)
-			active_routes_list.add_child(new_card)
-			active_routes_list.move_child(new_card, idx)
 			return
 	
 	# Card not found — full re-render on first progress tick for a new route
@@ -1066,13 +1081,14 @@ func _start_local_progress_simulation(truck_id: String) -> void:
 	local_simulating_trucks[truck_id] = 0.0
 
 func _apply_theme() -> void:
+	GlobalThemeManager.apply_glass(%DispatchPanel, "intense")
+	GlobalThemeManager.apply_btn_style(back_btn, Color(0.9, 0.3, 0.2))
+	GlobalThemeManager.apply_btn_style(launch_btn, Color(0.925, 0.607, 0.141))
+	GlobalThemeManager.apply_btn_style(tab_legal_btn, Color(0.18, 0.803, 0.443))
+	GlobalThemeManager.apply_btn_style(tab_contra_btn, Color(0.607, 0.349, 0.713))
+	
 	if has_node("%LiveTelemetryPanel"):
-		var style_tel = StyleBoxFlat.new()
-		style_tel.bg_color = Color(0.05, 0.05, 0.06, 0.95)
-		style_tel.border_color = Color(0.2, 0.85, 1.0, 0.4)
-		style_tel.set_border_width_all(2)
-		style_tel.set_corner_radius_all(6)
-		%LiveTelemetryPanel.add_theme_stylebox_override("panel", style_tel)
+		GlobalThemeManager.apply_glass(%LiveTelemetryPanel, "standard")
 		
 	if has_node("%TruckSelectBox"):
 		var opt_style = StyleBoxFlat.new()

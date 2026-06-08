@@ -48,6 +48,7 @@ var clock_lbl: Label = null
 @onready var hire_http = $HireHTTPRequest
 
 func _ready() -> void:
+	JuiceEngine.tween_in(scene_root)
 	active_dealer = DEALER_PERSONAS[randi() % DEALER_PERSONAS.size()]
 	_build_ui()
 	if hire_http:
@@ -81,16 +82,52 @@ func _build_ui() -> void:
 	logo_label.position = Vector2(24, 26)
 	header.add_child(logo_label)
 
-	# Heat indicator in header
+	# Heat indicator in header (Visual Meter)
+	var heat_container = HBoxContainer.new()
+	heat_container.position = Vector2(750, 26)
+	heat_container.size = Vector2(250, 24)
+	heat_container.add_theme_constant_override("separation", 10)
+	
 	var heat_label = Label.new()
-	heat_label.text = "☢ HEAT: %d" % GameState.police_heat
+	heat_label.text = "☢ HEAT:"
 	heat_label.add_theme_font_size_override("font_size", 18)
 	heat_label.add_theme_color_override("font_color", _heat_color(GameState.police_heat))
-	heat_label.position = Vector2(850, 26)
-	heat_label.size = Vector2(150, 24)
-	heat_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	heat_label.name = "HeatLabel"
-	header.add_child(heat_label)
+	heat_container.add_child(heat_label)
+	
+	var heat_bar_bg = ColorRect.new()
+	heat_bar_bg.color = Color(0.1, 0.05, 0.1, 0.8)
+	heat_bar_bg.custom_minimum_size = Vector2(150, 16)
+	heat_bar_bg.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	
+	var heat_bar_fill = ColorRect.new()
+	heat_bar_fill.color = _heat_color(GameState.police_heat)
+	heat_bar_fill.set_anchors_preset(Control.PRESET_LEFT_WIDE)
+	heat_bar_fill.anchor_right = float(GameState.police_heat) / 100.0
+	heat_bar_fill.name = "HeatFill"
+	heat_bar_bg.add_child(heat_bar_fill)
+	
+	var heat_val_lbl = Label.new()
+	heat_val_lbl.text = "%d%%" % GameState.police_heat
+	heat_val_lbl.add_theme_font_size_override("font_size", 12)
+	heat_val_lbl.add_theme_color_override("font_color", Color.WHITE)
+	heat_val_lbl.set_anchors_preset(Control.PRESET_CENTER)
+	heat_val_lbl.name = "HeatValLbl"
+	heat_bar_bg.add_child(heat_val_lbl)
+	
+	heat_container.add_child(heat_bar_bg)
+	header.add_child(heat_container)
+
+	if GameState.police_heat >= 70:
+		var alert_lbl = Label.new()
+		alert_lbl.text = "🚨 WARNING: EXTREME HEAT. RAID IMMINENT."
+		alert_lbl.add_theme_font_size_override("font_size", 14)
+		alert_lbl.add_theme_color_override("font_color", Color(1.0, 0.2, 0.2))
+		alert_lbl.position = Vector2(750, 50)
+		header.add_child(alert_lbl)
+		var t = create_tween().set_loops()
+		t.tween_property(alert_lbl, "modulate:a", 0.3, 0.5)
+		t.tween_property(alert_lbl, "modulate:a", 1.0, 0.5)
 
 	# Simulated clock label in header
 	clock_lbl = Label.new()
@@ -826,65 +863,7 @@ func _format_money(amount: float) -> String:
 	return str(int(amount))
 
 func _style_panel(panel: PanelContainer, accent_col: Color) -> void:
-	if not panel: return
-	var s = StyleBoxFlat.new()
-	s.bg_color = Color(0.04, 0.04, 0.06, 0.85) # Glassmorphic 85% opacity
-	s.border_color = accent_col
-	s.border_width_left = 3 # Accent colored boundary edge
-	s.border_width_bottom = 1
-	s.border_width_right = 1
-	s.border_width_top = 1
-	s.set_corner_radius_all(6)
-	s.content_margin_left = 16
-	s.content_margin_right = 16
-	s.content_margin_top = 12
-	s.content_margin_bottom = 12
-	panel.add_theme_stylebox_override("panel", s)
+	GlobalThemeManager.apply_glass(panel, "underworld")
 
 func _style_btn(btn: Button, accent_col: Color, is_selected: bool = false) -> void:
-	if not btn: return
-	var sb_normal = StyleBoxFlat.new()
-	var sb_hover = StyleBoxFlat.new()
-	var sb_pressed = StyleBoxFlat.new()
-	var sb_disabled = StyleBoxFlat.new()
-	
-	if is_selected:
-		sb_normal.bg_color = Color(accent_col.r * 0.15, accent_col.g * 0.15, accent_col.b * 0.15, 0.8)
-		sb_normal.border_color = accent_col
-		sb_normal.border_width_left = 2; sb_normal.border_width_bottom = 2
-		sb_normal.border_width_right = 2; sb_normal.border_width_top = 2
-		
-		sb_hover.bg_color = Color(accent_col.r * 0.25, accent_col.g * 0.25, accent_col.b * 0.25, 0.9)
-		sb_hover.border_color = accent_col
-		sb_hover.border_width_left = 2; sb_hover.border_width_bottom = 2
-		sb_hover.border_width_right = 2; sb_hover.border_width_top = 2
-	else:
-		sb_normal.bg_color = Color(accent_col.r * 0.08, accent_col.g * 0.08, accent_col.b * 0.08, 0.6)
-		sb_normal.border_color = Color(accent_col.r, accent_col.g, accent_col.b, 0.3)
-		sb_normal.border_width_left = 1; sb_normal.border_width_bottom = 1
-		sb_normal.border_width_right = 1; sb_normal.border_width_top = 1
-		
-		sb_hover.bg_color = Color(accent_col.r * 0.14, accent_col.g * 0.14, accent_col.b * 0.14, 0.8)
-		sb_hover.border_color = Color(accent_col.r, accent_col.g, accent_col.b, 0.6)
-		sb_hover.border_width_left = 1; sb_hover.border_width_bottom = 1
-		sb_hover.border_width_right = 1; sb_hover.border_width_top = 1
-		
-	for sb in [sb_normal, sb_hover, sb_pressed]:
-		sb.set_corner_radius_all(4)
-		
-	sb_pressed.bg_color = Color(accent_col.r * 0.3, accent_col.g * 0.3, accent_col.b * 0.3, 1.0)
-	sb_pressed.border_color = accent_col
-	sb_pressed.set_border_width_all(2)
-	sb_pressed.set_corner_radius_all(4)
-	
-	sb_disabled.bg_color = Color(0.04, 0.04, 0.05, 0.3)
-	sb_disabled.border_color = Color(0.1, 0.1, 0.12, 0.2)
-	sb_disabled.set_border_width_all(1)
-	sb_disabled.set_corner_radius_all(4)
-
-	
-	btn.add_theme_stylebox_override("normal", sb_normal)
-	btn.add_theme_stylebox_override("hover", sb_hover)
-	btn.add_theme_stylebox_override("pressed", sb_pressed)
-	btn.add_theme_stylebox_override("disabled", sb_disabled)
-	btn.add_theme_color_override("font_color", accent_col)
+	GlobalThemeManager.apply_btn_style(btn, accent_col)

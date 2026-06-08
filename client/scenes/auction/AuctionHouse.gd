@@ -32,6 +32,7 @@ var countdown_timer: float = 0.0
 var filter_mode: String = "all"  # "all" or "mine"
 
 func _ready() -> void:
+	JuiceEngine.tween_in(self)
 	_apply_theme()
 	player_lbl.text = GameState.username.to_upper()
 	_refresh_balances()
@@ -494,44 +495,7 @@ func _apply_theme() -> void:
 	_style_panel(bid_panel, Color(0.05, 0.05, 0.08, 0.9), Color(0.95, 0.75, 0.15, 0.35))
 
 func _style_btn(b: Button, accent_col: Color) -> void:
-	var sb_normal = StyleBoxFlat.new()
-	var sb_hover = StyleBoxFlat.new()
-	var sb_pressed = StyleBoxFlat.new()
-	var sb_disabled = StyleBoxFlat.new()
-	
-	sb_normal.bg_color = Color(accent_col.r * 0.06, accent_col.g * 0.06, accent_col.b * 0.06, 0.6)
-	sb_normal.border_color = Color(accent_col.r, accent_col.g, accent_col.b, 0.3)
-	sb_normal.set_border_width_all(1)
-	sb_normal.set_corner_radius_all(4)
-	
-	sb_hover.bg_color = Color(accent_col.r * 0.12, accent_col.g * 0.12, accent_col.b * 0.12, 0.8)
-	sb_hover.border_color = Color(accent_col.r, accent_col.g, accent_col.b, 0.6)
-	sb_hover.set_border_width_all(1)
-	sb_hover.set_corner_radius_all(4)
-	
-	sb_pressed.bg_color = Color(accent_col.r * 0.2, accent_col.g * 0.2, accent_col.b * 0.2, 0.9)
-	sb_pressed.border_color = accent_col
-	sb_pressed.set_border_width_all(2)
-	sb_pressed.set_corner_radius_all(4)
-	
-	sb_disabled.bg_color = Color(0.04, 0.04, 0.05, 0.3)
-	sb_disabled.border_color = Color(0.1, 0.1, 0.12, 0.2)
-	sb_disabled.set_border_width_all(1)
-	sb_disabled.set_corner_radius_all(4)
-	
-	b.add_theme_stylebox_override("normal", sb_normal)
-	b.add_theme_stylebox_override("hover", sb_hover)
-	b.add_theme_stylebox_override("pressed", sb_pressed)
-	b.add_theme_stylebox_override("disabled", sb_disabled)
-	b.add_theme_color_override("font_color", Color(accent_col.r * 0.9 + 0.1, accent_col.g * 0.9 + 0.1, accent_col.b * 0.9 + 0.1, 1.0))
+	GlobalThemeManager.apply_btn_style(b, accent_col)
 
 func _style_panel(p: PanelContainer, bg_col: Color, border_col: Color) -> void:
-	var s = StyleBoxFlat.new()
-	var alpha_col = bg_col
-	alpha_col.a = 0.85 # glassmorphic translucent
-	s.bg_color = alpha_col
-	s.border_color = border_col
-	s.set_border_width_all(1)
-	s.set_corner_radius_all(6)
-	p.add_theme_stylebox_override("panel", s)
-
+	GlobalThemeManager.apply_glass(p, "standard")

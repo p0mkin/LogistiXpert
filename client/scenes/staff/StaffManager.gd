@@ -63,6 +63,7 @@ var is_loading: bool = true
 @onready var promote_http = $PromoteHTTPRequest
 
 func _ready() -> void:
+	JuiceEngine.tween_in(scene_root)
 	# Connect HTTP signals
 	get_http.request_completed.connect(_on_get_response)
 	unlock_http.request_completed.connect(_on_unlock_response)
@@ -488,75 +489,21 @@ func _panel(pos: Vector2, sz: Vector2, col: Color, b_col: Color = Color(0.12, 0.
 	var p = PanelContainer.new()
 	p.position = pos
 	p.size = sz
-	var s = StyleBoxFlat.new()
-	var alpha_col = col
-	alpha_col.a = 0.85 # Translucent glassmorphism
-	s.bg_color = alpha_col
-	s.border_color = b_col
-	s.border_width_bottom = 1; s.border_width_top = 1
-	s.border_width_left = 1; s.border_width_right = 1
-	s.set_corner_radius_all(6)
-	p.add_theme_stylebox_override("panel", s)
+	GlobalThemeManager.apply_glass(p, "standard")
 	return p
 
 func _btn(txt: String, pos: Vector2, sz: Vector2, text_col: Color = Color(0.75, 0.65, 0.9)) -> Button:
 	var b = Button.new()
 	b.text = txt; b.position = pos; b.size = sz
-	b.add_theme_font_size_override("font_size", 11)
-	b.add_theme_color_override("font_color", text_col)
-	
-	var sb_normal = StyleBoxFlat.new()
-	sb_normal.bg_color = Color(0.08, 0.08, 0.12, 0.5)
-	sb_normal.border_color = text_col * 0.4
-	sb_normal.set_border_width_all(1)
-	sb_normal.set_corner_radius_all(4)
-	
-	var sb_hover = StyleBoxFlat.new()
-	sb_hover.bg_color = Color(0.12, 0.12, 0.18, 0.75)
-	sb_hover.border_color = text_col
-	sb_hover.set_border_width_all(1)
-	sb_hover.set_corner_radius_all(4)
-	
-	b.add_theme_stylebox_override("normal", sb_normal)
-	b.add_theme_stylebox_override("hover", sb_hover)
+	GlobalThemeManager.apply_btn_style(b, text_col)
 	return b
 
 func _style_neon_btn(btn: Button, enabled: bool, color: Color) -> void:
-	var sb_normal = StyleBoxFlat.new()
-	var sb_hover = StyleBoxFlat.new()
-	var sb_pressed = StyleBoxFlat.new()
-	var sb_disabled = StyleBoxFlat.new()
-	
-	sb_normal.set_corner_radius_all(4)
-	sb_hover.set_corner_radius_all(4)
-	sb_pressed.set_corner_radius_all(4)
-	sb_disabled.set_corner_radius_all(4)
-	
 	if enabled:
-		sb_normal.bg_color = Color(color.r * 0.15, color.g * 0.15, color.b * 0.15, 0.7)
-		sb_normal.border_color = color * 0.8
-		sb_normal.set_border_width_all(2)
-		
-		sb_hover.bg_color = Color(color.r * 0.25, color.g * 0.25, color.b * 0.25, 0.9)
-		sb_hover.border_color = color
-		sb_hover.set_border_width_all(2)
-		
-		sb_pressed.bg_color = Color(color.r * 0.4, color.g * 0.4, color.b * 0.4, 1.0)
-		sb_pressed.border_color = color
-		sb_pressed.set_border_width_all(2)
-		
-		btn.add_theme_stylebox_override("normal", sb_normal)
-		btn.add_theme_stylebox_override("hover", sb_hover)
-		btn.add_theme_stylebox_override("pressed", sb_pressed)
-		btn.add_theme_color_override("font_color", color)
-		btn.add_theme_color_override("font_hover_color", Color.WHITE)
+		GlobalThemeManager.apply_btn_style(btn, color)
 	else:
-		sb_disabled.bg_color = Color(0.1, 0.1, 0.12, 0.4)
-		sb_disabled.border_color = Color(0.25, 0.25, 0.3, 0.3)
-		sb_disabled.set_border_width_all(1)
-		
-		btn.add_theme_stylebox_override("disabled", sb_disabled)
-		btn.add_theme_color_override("font_disabled_color", Color(0.45, 0.45, 0.5, 0.7))
+		GlobalThemeManager.apply_btn_style(btn, Color(0.3, 0.3, 0.3))
+		btn.disabled = true
 
 func _fmt(n: int) -> String:
 	if n >= 1000000: return "%.1fM" % (float(n) / 1000000.0)
