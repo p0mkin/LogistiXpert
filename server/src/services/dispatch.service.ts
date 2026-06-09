@@ -1,5 +1,4 @@
 import { PrismaClient, RouteStage, Prisma } from '@prisma/client';
-import { GameWebSocketServer } from '../websocket';
 import { BorderService } from './border.service';
 import { ClanService } from './clan.service';
 import { PrismaUnitOfWork } from '../infrastructure/persistence/PrismaUnitOfWork';
