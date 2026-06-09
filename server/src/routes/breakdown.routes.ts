@@ -361,7 +361,14 @@ router.get('/fleet-status', authenticateJWT, async (req: AuthRequest, res: Respo
   try {
     const trucks = await prisma.truck.findMany({
       where: { companyId: req.user!.companyId },
-      include: {
+      select: {
+        id: true,
+        model: true,
+        vin: true,
+        engineHealth: true,
+        tireWear: true,
+        isImpounded: true,
+        impoundReleaseAt: true,
         activeRoute: { select: { currentCity: true, progressPct: true, eta: true } },
       },
     });
