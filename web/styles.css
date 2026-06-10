@@ -88,6 +88,11 @@
   user-select: none;
 }
 
+*:focus-visible {
+  outline: 2px solid var(--neon-blue);
+  outline-offset: 2px;
+}
+
 body {
   background-color: var(--color-bg-deep);
   color: var(--color-text-main);
