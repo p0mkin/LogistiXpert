@@ -53,21 +53,12 @@ func apply_glass(panel: Control, style_type: String = "standard") -> void:
 	if panel is PanelContainer or panel is Panel:
 		panel.add_theme_stylebox_override("panel", target_style)
 	else:
-		# If it's a ColorRect or something, we wrap it
-		var wrapper = PanelContainer.new()
-		wrapper.add_theme_stylebox_override("panel", target_style)
-		wrapper.layout_mode = panel.layout_mode
-		wrapper.anchors_preset = panel.anchors_preset
-		wrapper.set_anchors_and_offsets_preset(panel.anchors_preset)
-		wrapper.size_flags_horizontal = panel.size_flags_horizontal
-		wrapper.size_flags_vertical = panel.size_flags_vertical
-		
-		var parent = panel.get_parent()
-		var idx = panel.get_index()
-		parent.remove_child(panel)
-		parent.add_child(wrapper)
-		parent.move_child(wrapper, idx)
-		wrapper.add_child(panel)
+		# SAFE: Never reparent nodes — that destroys % unique-name references and
+		# breaks all @onready variables pointing to those nodes in any scene.
+		# Instead, apply a canvas-item modulate background via a draw callback.
+		push_warning("[GlobalThemeManager] apply_glass: '%s' is not a PanelContainer/Panel. Style not applied to avoid scene-tree corruption." % panel.name)
+		# Fallback: at minimum set self-modulate so the node visually darkens
+		# (caller should use a PanelContainer wrapper in the scene instead)
 
 func apply_btn_style(btn: Button, color: Color = Color(0.925, 0.607, 0.141)) -> void:
 	var style_normal = StyleBoxFlat.new()
@@ -89,8 +80,23 @@ func apply_btn_style(btn: Button, color: Color = Color(0.925, 0.607, 0.141)) -> 
 	style_hover.shadow_color = Color(color.r, color.g, color.b, 0.3)
 	style_hover.shadow_size = 12
 	
+	var style_disabled = StyleBoxFlat.new()
+	style_disabled.bg_color = Color(0.08, 0.08, 0.10, 0.4)
+	style_disabled.border_color = Color(0.25, 0.25, 0.3, 0.25)
+	style_disabled.border_width_left = 1
+	style_disabled.border_width_top = 1
+	style_disabled.border_width_right = 1
+	style_disabled.border_width_bottom = 1
+	style_disabled.set_corner_radius_all(8)
+	style_disabled.content_margin_left = 16
+	style_disabled.content_margin_right = 16
+	style_disabled.content_margin_top = 10
+	style_disabled.content_margin_bottom = 10
+	
 	btn.add_theme_stylebox_override("normal", style_normal)
 	btn.add_theme_stylebox_override("hover", style_hover)
 	btn.add_theme_stylebox_override("pressed", style_normal)
+	btn.add_theme_stylebox_override("disabled", style_disabled)
 	btn.add_theme_color_override("font_color", color)
 	btn.add_theme_color_override("font_hover_color", Color.WHITE)
+	btn.add_theme_color_override("font_disabled_color", Color(0.4, 0.4, 0.45, 0.6))

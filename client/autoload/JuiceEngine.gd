@@ -11,11 +11,25 @@ func _ready() -> void:
 	audio_player = AudioStreamPlayer.new()
 	add_child(audio_player)
 	
+# Safe fade-in for scene roots and full-screen controls.
+# Does NOT modify scale — scaling a root Control in Godot 4 breaks mouse input rects.
 func tween_in(node: Control, delay: float = 0.0) -> void:
 	if not node: return
 	
 	node.modulate.a = 0.0
-	node.scale = Vector2(0.9, 0.9)
+	
+	var tween = create_tween()
+	tween.tween_property(node, "modulate:a", 1.0, 0.35).set_delay(delay).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+
+# Scale-pop fade-in — safe ONLY for non-root child nodes (panels, cards, overlays).
+# Do NOT call this on scene root Controls — use tween_in() instead.
+func tween_in_child(node: Control, delay: float = 0.0) -> void:
+	if not node: return
+	
+	node.modulate.a = 0.0
+	node.scale = Vector2(0.92, 0.92)
+	if node.pivot_offset == Vector2.ZERO:
+		node.pivot_offset = node.size * 0.5
 	
 	var tween = create_tween().set_parallel(true)
 	tween.tween_property(node, "modulate:a", 1.0, 0.3).set_delay(delay).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
