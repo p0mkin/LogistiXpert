@@ -1,9 +1,36 @@
 import { Router, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticateJWT, AuthRequest } from '../middleware/auth';
+import fs from 'fs';
+import path from 'path';
 
 const router = Router();
 const prisma = new PrismaClient();
+
+const nicknamesFilePath = path.join(__dirname, '../../data/truck_nicknames.json');
+
+function getTruckNicknames() {
+  try {
+    if (fs.existsSync(nicknamesFilePath)) {
+      return JSON.parse(fs.readFileSync(nicknamesFilePath, 'utf8'));
+    }
+  } catch (e) {
+    console.error('Failed to read truck nicknames:', e);
+  }
+  return {};
+}
+
+function saveTruckNicknames(nicknames: any) {
+  try {
+    const dir = path.dirname(nicknamesFilePath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(nicknamesFilePath, JSON.stringify(nicknames, null, 2), 'utf8');
+  } catch (e) {
+    console.error('Failed to save truck nicknames:', e);
+  }
+}
 
 // Apply auth protection globally to all garage routes
 router.use(authenticateJWT);
@@ -25,7 +52,16 @@ router.get('/', async (req: AuthRequest, res: Response) => {
       },
     });
 
-    res.json(garages);
+    const nicknames = getTruckNicknames();
+    const garagesWithNicknames = garages.map((g) => ({
+      ...g,
+      trucks: g.trucks.map((t) => ({
+        ...t,
+        nickname: nicknames[t.id] || '',
+      })),
+    }));
+
+    res.json(garagesWithNicknames);
   } catch (error) {
     res.status(500).json({ error: 'SERVER_ERROR', message: 'Failed to retrieve garages and vehicles.' });
   }
@@ -345,9 +381,6 @@ router.post('/purchase-terminal', async (req: AuthRequest, res: Response) => {
   }
 });
 
-export default router;
-
-
 
 // POST /api/garage/upgrade
 // Buys an underworld Chop Shop upgrade for a specific truck
@@ -425,3 +458,34 @@ router.post('/upgrade', async (req: AuthRequest, res: Response) => {
     res.status(500).json({ error: 'SERVER_ERROR', message: 'Failed to apply upgrade.' });
   }
 });
+
+// PATCH /api/garage/trucks/:truckId/rename
+router.patch('/trucks/:truckId/rename', async (req: AuthRequest, res: Response) => {
+  const companyId = req.user!.companyId;
+  const { truckId } = req.params;
+  const { nickname } = req.body;
+
+  try {
+    const truck = await prisma.truck.findUnique({ where: { id: truckId } });
+    if (!truck || truck.companyId !== companyId) {
+      return res.status(404).json({ error: 'TRUCK_NOT_FOUND', message: 'Vehicle does not exist in your fleet.' });
+    }
+
+    const nicknames = getTruckNicknames();
+    nicknames[truckId] = nickname || '';
+    saveTruckNicknames(nicknames);
+
+    res.json({
+      success: true,
+      message: 'Truck renamed successfully!',
+      truck: {
+        ...truck,
+        nickname: nicknames[truckId]
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'SERVER_ERROR', message: 'Failed to rename truck.' });
+  }
+});
+
+export default router;

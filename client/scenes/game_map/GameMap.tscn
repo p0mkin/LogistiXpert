@@ -378,6 +378,14 @@ text = "💀  UNDERWORLD MARKET"
 theme_override_colors/font_color = Color(0.75, 0.1, 1.0, 1)
 theme_override_font_sizes/font_size = 12
 
+[node name="ClanHQBtn" type="Button" parent="HUD/SidePanel/Margin/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+text = "🏴‍☠️  SYNDICATE HQ"
+theme_override_colors/font_color = Color(1.0, 0.3, 0.3, 1)
+theme_override_font_sizes/font_size = 12
+
 [node name="SupportBtn" type="Button" parent="HUD/SidePanel/Margin/VBox"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 42)
@@ -455,6 +463,14 @@ custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
 text = "🔧  PARTS & RIGGING SHOP"
 theme_override_colors/font_color = Color(0.18, 0.8, 0.44, 1)
+theme_override_font_sizes/font_size = 11
+
+[node name="ChopShopBtn" type="Button" parent="HUD/GarageDropdown/Margin/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+text = "✂  BLACK MARKET CHOP SHOP"
+theme_override_colors/font_color = Color(1.0, 0.3, 0.3, 1)
 theme_override_font_sizes/font_size = 11
 
 [node name="SupportDropdown" type="PanelContainer" parent="HUD"]

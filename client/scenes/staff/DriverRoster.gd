@@ -79,6 +79,14 @@ func _hire_driver() -> void:
     )
     http.request(NetworkManager.HTTP_URL + "/driver/hire", ["Content-Type: application/json", "Authorization: Bearer " + GameState.auth_token], HTTPClient.METHOD_POST, "{}")
 
+const TRAIT_TOOLTIPS = {
+	"BALANCED": "BALANCED: Standard driver. No special buffs or penalties.",
+	"LEAD_FOOT": "LEAD_FOOT: +20% travel speed but +15% fuel consumption and +25% barricade run success.",
+	"SLEEP_DEPRIVED": "SLEEP_DEPRIVED: Sleep fatigue grows +25% slower but has a 10% chance of triggering microsleep crash events at high fatigue.",
+	"LOYAL": "LOYAL: Will never snitch to the police when impounded/busted. Can administer stimulants without loyalty loss.",
+	"CHARISMATIC": "CHARISMATIC: +1.5% success chance per charisma point during border crossing bribes (up to +30%)."
+}
+
 func _render_drivers(drivers: Array) -> void:
     for c in drivers_container.get_children():
         c.queue_free()
@@ -98,4 +106,8 @@ func _render_drivers(drivers: Array) -> void:
             d.name, d.trait, d.charisma, d.loyalty, d.fatigue
         ]
         info.add_theme_font_size_override("font_size", 14)
+        info.mouse_filter = Control.MOUSE_FILTER_PASS
+        var trait_name = str(d.trait).to_upper()
+        if trait_name in TRAIT_TOOLTIPS:
+            info.tooltip_text = TRAIT_TOOLTIPS[trait_name]
         hb.add_child(info)

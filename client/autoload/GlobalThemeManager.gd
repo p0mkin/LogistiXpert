@@ -100,3 +100,48 @@ func apply_btn_style(btn: Button, color: Color = Color(0.925, 0.607, 0.141)) -> 
 	btn.add_theme_color_override("font_color", color)
 	btn.add_theme_color_override("font_hover_color", Color.WHITE)
 	btn.add_theme_color_override("font_disabled_color", Color(0.4, 0.4, 0.45, 0.6))
+
+func apply_card_style(panel: Control, accent_color: Color = Color(0.925, 0.607, 0.141)) -> void:
+	var style = StyleBoxFlat.new()
+	style.bg_color = Color(0.04, 0.05, 0.06, 0.9)
+	style.border_color = accent_color
+	style.border_width_left = 1
+	style.border_width_top = 1
+	style.border_width_right = 1
+	style.border_width_bottom = 1
+	style.set_corner_radius_all(10)
+	style.shadow_color = Color(0, 0, 0, 0.5)
+	style.shadow_size = 10
+	if panel is PanelContainer or panel is Panel:
+		panel.add_theme_stylebox_override("panel", style)
+
+func apply_tab_style(button: Button, is_active: bool, color: Color = Color(0.925, 0.607, 0.141)) -> void:
+	var style = StyleBoxFlat.new()
+	if is_active:
+		style.bg_color = Color(color.r, color.g, color.b, 0.3)
+		style.border_color = color
+	else:
+		style.bg_color = Color(0.05, 0.05, 0.05, 0.5)
+		style.border_color = Color(0.2, 0.2, 0.2, 0.5)
+	style.border_width_left = 1
+	style.border_width_top = 1
+	style.border_width_right = 1
+	style.border_width_bottom = 1
+	style.set_corner_radius_all(4)
+	
+	button.add_theme_stylebox_override("normal", style)
+	button.add_theme_stylebox_override("hover", style)
+	button.add_theme_stylebox_override("pressed", style)
+	button.add_theme_color_override("font_color", color if is_active else Color(0.6, 0.6, 0.6))
+
+func apply_input_style(line_edit: LineEdit) -> void:
+	var style = StyleBoxFlat.new()
+	style.bg_color = Color(0.02, 0.02, 0.03, 0.95)
+	style.border_color = Color(0.925, 0.607, 0.141, 0.4)
+	style.border_width_left = 1
+	style.border_width_top = 1
+	style.border_width_right = 1
+	style.border_width_bottom = 1
+	style.set_corner_radius_all(6)
+	line_edit.add_theme_stylebox_override("normal", style)
+	line_edit.add_theme_color_override("font_color", Color.WHITE)

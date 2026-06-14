@@ -14,6 +14,60 @@ var police_heat: int:
 # Company Profile
 var company_id: String = "debug_company"
 var company_name: String = "Underworld Logistics Ltd"
+var clan_id: String = ""
+
+# Research & Development Tech Tree
+var research_levels: Dictionary = {}
+signal research_updated(tech_id)
+
+# Notification & Event Feed System
+var event_log: Array = []
+signal event_logged(entry: Dictionary)
+
+func log_event(title: String, message: String, color: Color = Color.WHITE, icon: String = "") -> void:
+	var entry = {
+		"timestamp": get_simulated_time_string(),
+		"title": title,
+		"message": message,
+		"color": color,
+		"icon": icon
+	}
+	event_log.push_back(entry)
+	if event_log.size() > 100:
+		event_log.remove_at(0)
+	event_logged.emit(entry)
+	save_event_log()
+
+func save_event_log() -> void:
+	var serializable_log = []
+	for entry in event_log:
+		var serializable_entry = entry.duplicate()
+		if entry.get("color") is Color:
+			serializable_entry["color"] = entry["color"].to_html()
+		serializable_log.append(serializable_entry)
+	
+	var file = FileAccess.open("user://event_log.json", FileAccess.WRITE)
+	if file:
+		var json_str = JSON.stringify(serializable_log)
+		file.store_string(json_str)
+		file.close()
+
+func load_event_log() -> void:
+	if not FileAccess.file_exists("user://event_log.json"):
+		return
+	var file = FileAccess.open("user://event_log.json", FileAccess.READ)
+	if file:
+		var json_str = file.get_as_text()
+		file.close()
+		var parsed = JSON.parse_string(json_str)
+		if parsed is Array:
+			event_log = []
+			for entry in parsed:
+				if entry is Dictionary:
+					var entry_copy = entry.duplicate()
+					if entry_copy.has("color") and entry_copy["color"] is String:
+						entry_copy["color"] = Color(entry_copy["color"])
+					event_log.append(entry_copy)
 
 # Fleet & Asset Telemetry
 var garages: Array = []
@@ -134,7 +188,7 @@ signal season_changed(new_season)
 var current_season: String = "SUMMER"
 
 func _ready() -> void:
-	pass
+	load_event_log()
 
 func sync_user_data(data: Dictionary) -> void:
 	if data.has("id"): player_id = data.id
@@ -145,6 +199,8 @@ func sync_user_data(data: Dictionary) -> void:
 	if data.has("heat"): police_heat = int(data.heat)
 	if data.has("companyId"): company_id = data.companyId
 	if data.has("companyName"): company_name = data.companyName
+	if data.has("clanId"): clan_id = data.clanId
+	else: clan_id = ""
 	
 	balance_updated.emit(legal_balance, black_market_balance)
 	reputation_updated.emit(reputation_score, police_heat)

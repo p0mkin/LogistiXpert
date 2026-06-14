@@ -21,6 +21,7 @@ import analyticsRoutes from './routes/analytics.routes';
 import researchRoutes from './routes/research.routes';
 import staffRoutes from './routes/staff.routes';
 import underworldRoutes from './routes/underworld.routes';
+import clanRoutes from './routes/clan.routes';
 
 import { errorHandler } from './middleware/error';
 import { GameWebSocketServer } from './websocket';
@@ -68,6 +69,7 @@ app.use('/api/research', researchRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/staff', staffRoutes);
 app.use('/api/underworld', underworldRoutes);
+app.use('/api/clan', clanRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {

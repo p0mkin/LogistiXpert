@@ -85,22 +85,23 @@ theme_override_colors/font_color = Color(0.607, 0.349, 0.713, 1)
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="FleetTabLabel" type="Label" parent="MainLayout/LeftPanel/TabsContainer"]
+[node name="FleetTabBtn" type="Button" parent="MainLayout/LeftPanel/TabsContainer"]
+unique_name_in_owner = true
 layout_mode = 2
 text = "◈ TRUCK FLEET"
 theme_override_font_sizes/font_size = 12
-theme_override_colors/font_color = Color(0.18, 0.803, 0.443, 1)
 
-[node name="Sep" type="Label" parent="MainLayout/LeftPanel/TabsContainer"]
-layout_mode = 2
-text = "|"
-theme_override_colors/font_color = Color(0.709, 0.768, 0.843, 0.3)
-
-[node name="DriverTabLabel" type="Label" parent="MainLayout/LeftPanel/TabsContainer"]
+[node name="DriverTabBtn" type="Button" parent="MainLayout/LeftPanel/TabsContainer"]
+unique_name_in_owner = true
 layout_mode = 2
 text = "◈ DRIVER ROSTER"
 theme_override_font_sizes/font_size = 12
-theme_override_colors/font_color = Color(0.607, 0.349, 0.713, 1)
+
+[node name="ChopShopTabBtn" type="Button" parent="MainLayout/LeftPanel/TabsContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "✂ CHOP SHOP"
+theme_override_font_sizes/font_size = 12
 
 [node name="HireBtn" type="Button" parent="MainLayout/LeftPanel/TabsContainer"]
 unique_name_in_owner = true

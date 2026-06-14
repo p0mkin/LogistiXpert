@@ -485,4 +485,133 @@ router.post('/release-impound/:truckId', authenticateJWT, async (req: AuthReques
   }
 });
 
+// ================================================================
+// POST /api/breakdown/smugglers-tow
+// Black market recovery service: towed safely using dirty cash ($3500)
+// Contraband is NOT jettisoned, instead it is safely stashed back into the starting garage's stash room
+// ================================================================
+router.post('/smugglers-tow', authenticateJWT, async (req: AuthRequest, res: Response) => {
+  const companyId = req.user!.companyId;
+  const { truckId } = req.body;
+
+  if (!truckId) {
+    return res.status(400).json({ error: 'MISSING_TRUCK_ID' });
+  }
+
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      const truck = await tx.truck.findUnique({
+        where: { id: truckId },
+        include: { company: true, garage: true, activeRoute: { include: { contrabandJob: true } } },
+      });
+
+      if (!truck || truck.companyId !== companyId) {
+        throw new Error('TRUCK_NOT_FOUND');
+      }
+
+      if (truck.isImpounded) {
+        throw new Error('TRUCK_IMPOUNDED');
+      }
+
+      const towCost = 3500; // $3500 dirty cash
+
+      if (truck.company.blackMarketBalance.toNumber() < towCost) {
+        throw new Error('INSUFFICIENT_BLACK_MARKET_CASH');
+      }
+
+      // 1. Deduct dirty cash
+      await tx.company.update({
+        where: { id: companyId },
+        data: {
+          blackMarketBalance: { decrement: towCost },
+        },
+      });
+
+      // 2. Clear route and recover contraband to garage stash if it exists
+      let contrabandRecovered = false;
+      let cargoClass: string | null = null;
+      let recoveredUnits = 10; // default recovered units
+
+      if (truck.activeRoute) {
+        if (truck.activeRoute.contrabandJob) {
+          contrabandRecovered = true;
+          cargoClass = truck.activeRoute.contrabandJob.cargoClass;
+          
+          // Update garage contraband storage
+          const updateData: any = {};
+          if (cargoClass === 'CLASS_A') {
+            updateData.contrabandStorageA = { increment: recoveredUnits };
+          } else if (cargoClass === 'CLASS_B') {
+            updateData.contrabandStorageB = { increment: recoveredUnits };
+          } else if (cargoClass === 'CLASS_C') {
+            updateData.contrabandStorageC = { increment: recoveredUnits };
+          }
+
+          // Check maxContrabandStash
+          const currentStashTotal = truck.garage.contrabandStorageA + truck.garage.contrabandStorageB + truck.garage.contrabandStorageC;
+          if (currentStashTotal + recoveredUnits <= truck.garage.maxContrabandStash) {
+            await tx.garage.update({
+              where: { id: truck.garageId },
+              data: updateData,
+            });
+          } else {
+            // Cap it at max storage
+            const spaceLeft = Math.max(0, truck.garage.maxContrabandStash - currentStashTotal);
+            if (spaceLeft > 0) {
+              const capUpdateData: any = {};
+              if (cargoClass === 'CLASS_A') capUpdateData.contrabandStorageA = { increment: spaceLeft };
+              else if (cargoClass === 'CLASS_B') capUpdateData.contrabandStorageB = { increment: spaceLeft };
+              else if (cargoClass === 'CLASS_C') capUpdateData.contrabandStorageC = { increment: spaceLeft };
+              
+              await tx.garage.update({
+                where: { id: truck.garageId },
+                data: capUpdateData,
+              });
+            }
+          }
+        }
+
+        await tx.activeRoute.delete({ where: { id: truck.activeRoute.id } });
+      }
+
+      // 3. Fully repair engine & tires
+      await tx.truck.update({
+        where: { id: truckId },
+        data: {
+          engineHealth: 100,
+          tireWear: 100,
+        },
+      });
+
+      // Write History
+      await tx.truckHistory.create({
+        data: {
+          truckId,
+          eventType: 'SMUGGLERS_TOW',
+          description: `Smuggler's Tow recovery from ${truck.activeRoute?.currentCity ?? 'roadside'}. Contraband safely returned to terminal stash. Repaired to 100%. Cost: $${towCost} BM.`,
+        },
+      });
+
+      return {
+        recovered: true,
+        towCost,
+        contrabandRecovered,
+        cargoClass,
+        message: 'Smuggler\'s Tow completed. Vehicle recovered safely and contraband returned to garage storage.',
+      };
+    });
+
+    return res.json(result);
+  } catch (err: any) {
+    if (err.message === 'INSUFFICIENT_BLACK_MARKET_CASH') {
+      return res.status(400).json({ error: 'INSUFFICIENT_BLACK_MARKET_CASH', message: 'You need $3,500 Black Market Cash for Smuggler\'s Tow.' });
+    }
+    if (['TRUCK_NOT_FOUND', 'TRUCK_IMPOUNDED'].includes(err.message)) {
+      return res.status(400).json({ error: err.message });
+    }
+    console.error('[Breakdown] Smuggler tow error:', err);
+    return res.status(500).json({ error: 'SERVER_ERROR' });
+  }
+});
+
 export default router;

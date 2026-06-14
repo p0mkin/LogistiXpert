@@ -801,6 +801,63 @@ describe('🚨 TRUCK MANAGER 2026: INTEGRATION TEST SUITE', () => {
       expect(res.body.error).toBe('STORAGE_CAPACITY_EXCEEDED');
     });
 
+    it('Should successfully sell commodity and credit legal cash when constraints are met', async () => {
+      prisma.commodityMarket.findUnique.mockResolvedValue({
+        id: 'c_diesel',
+        commodityType: 'DIESEL',
+        currentPrice: Decimal(1.50),
+      });
+      prisma.garage.findUnique.mockResolvedValue({
+        id: 'gar_1',
+        companyId: 'comp_abc',
+        city: 'Kaunas',
+        dieselStorage: 200.0,
+      });
+
+      // Updates
+      prisma.company.update.mockResolvedValue({
+        id: 'comp_abc',
+        legalBalance: Decimal(10142.50), // 10000 + (1.50 * 0.95 * 100)
+        blackMarketBalance: Decimal(0.00),
+      });
+      prisma.garage.update.mockResolvedValue({
+        id: 'gar_1',
+        dieselStorage: 100.0,
+      });
+
+      const res = await request(app)
+        .post('/api/commodity/sell')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ garageId: 'gar_1', commodityType: 'DIESEL', amount: 100 });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.message).toContain('Commodity sold successfully!');
+      expect(res.body.totalEarned).toBe(142.50);
+      expect(res.body.unitPrice).toBe(1.425);
+    });
+
+    it('Should reject commodity sale if storage units are insufficient', async () => {
+      prisma.commodityMarket.findUnique.mockResolvedValue({
+        id: 'c_diesel',
+        commodityType: 'DIESEL',
+        currentPrice: Decimal(1.50),
+      });
+      prisma.garage.findUnique.mockResolvedValue({
+        id: 'gar_1',
+        companyId: 'comp_abc',
+        city: 'Kaunas',
+        dieselStorage: 50.0,
+      });
+
+      const res = await request(app)
+        .post('/api/commodity/sell')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ garageId: 'gar_1', commodityType: 'DIESEL', amount: 100 });
+
+      expect(res.statusCode).toBe(400);
+      expect(res.body.error).toBe('INSUFFICIENT_STORAGE_UNITS');
+    });
+
     it('Should successfully upgrade commodity storage capacity and deduct clean cash', async () => {
       prisma.garage.findUnique.mockResolvedValue({
         id: 'gar_1',
@@ -1089,6 +1146,39 @@ describe('🚨 TRUCK MANAGER 2026: INTEGRATION TEST SUITE', () => {
         where: { id: 'comp_abc' },
         data: { legalBalance: { decrement: 100000 } },
       }));
+    });
+
+    it('Should successfully rename a truck', async () => {
+      prisma.truck.findUnique.mockResolvedValue({
+        id: 'truck_rename_1',
+        companyId: 'comp_abc',
+        model: 'Moose FH16',
+      });
+
+      const res = await request(app)
+        .patch('/api/garage/trucks/truck_rename_1/rename')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ nickname: 'Iron Giant' });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.truck.nickname).toBe('Iron Giant');
+    });
+
+    it('Should fail to rename truck if not owned by company', async () => {
+      prisma.truck.findUnique.mockResolvedValue({
+        id: 'truck_rename_1',
+        companyId: 'comp_other',
+        model: 'Moose FH16',
+      });
+
+      const res = await request(app)
+        .patch('/api/garage/trucks/truck_rename_1/rename')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ nickname: 'Iron Giant' });
+
+      expect(res.statusCode).toBe(404);
+      expect(res.body.error).toBe('TRUCK_NOT_FOUND');
     });
 
     it('Should block dispatch with TERMINAL_LEVEL_TOO_LOW if level is insufficient for contract distance', async () => {

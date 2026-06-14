@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { AnalyticsService } from './analytics.service';
+import { CITIES_DATASET } from '../domain/cities';
 
 const prisma = new PrismaClient();
 
@@ -26,6 +27,18 @@ export interface CheckpointDefinition {
 }
 
 export class BorderService {
+  static getSchengenMultiplier(origin: string, destination: string): number {
+    const originCity = CITIES_DATASET[origin.toLowerCase()];
+    const destCity = CITIES_DATASET[destination.toLowerCase()];
+    if (!originCity || !destCity) return 1.0;
+    
+    // If it's a Schengen border crossing, apply a 1.5x heat multiplier.
+    if (originCity.isSchengen !== destCity.isSchengen) {
+      return 1.5;
+    }
+    return 1.0;
+  }
+
   /**
    * Automatically re-binds a truck to owned garages upon delivery arrivals
    */
@@ -166,6 +179,9 @@ export class BorderService {
       }
 
       const fineAmount = baseFine * (1 + checkpoint.alertLevel * 0.1);
+
+      const schengenMult = BorderService.getSchengenMultiplier(job.origin, job.destination);
+      baseHeat = Math.round(baseHeat * schengenMult);
 
       return {
         cleared: false,
@@ -612,6 +628,9 @@ export class BorderService {
           impoundDays += 8;
         }
 
+        const schengenMult = BorderService.getSchengenMultiplier(job.origin, job.destination);
+        baseHeat = Math.round(baseHeat * schengenMult);
+
         const penalties = {
           bustedContraband: true,
           fineAmount: baseFine,
@@ -731,12 +750,16 @@ export class BorderService {
         const routerBoost = getRouterProfitBoost(company);
         const payout = Math.round(basePayout * (1.0 + (routerBoost / 100.0)));
 
+        let heatIncrease = 30;
+        const schengenMult = BorderService.getSchengenMultiplier(job.origin, job.destination);
+        heatIncrease = Math.round(heatIncrease * schengenMult);
+
         await transactionalClient.company.update({
           where: { id: company.id },
           data: {
             blackMarketBalance: { increment: payout },
             reputationScore: { increment: Math.floor(job.riskMultiplier * 15) },
-            policeHeat: { increment: 30 }, // massive chase alert
+            policeHeat: { increment: heatIncrease }, // massive chase alert
           },
         });
 
@@ -818,11 +841,15 @@ export class BorderService {
           },
         });
 
+        let heatIncrease = 40;
+        const schengenMult = BorderService.getSchengenMultiplier(job.origin, job.destination);
+        heatIncrease = Math.round(heatIncrease * schengenMult);
+
         const penalties = {
           bustedContraband: true,
           fineAmount: 40000, // heavy fine for breaching gate
           reputationLoss: 80,
-          policeHeatIncrease: 40,
+          policeHeatIncrease: heatIncrease,
           impoundDays,
         };
 

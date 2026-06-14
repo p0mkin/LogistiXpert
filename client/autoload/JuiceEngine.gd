@@ -5,11 +5,16 @@ extends Node
 # Handles UI animations, satisfying sounds, and tweening
 # ====================================================
 
-var audio_player: AudioStreamPlayer
+var audio_players: Array = []
+var next_player_idx: int = 0
+const MAX_AUDIO_PLAYERS = 8
 
 func _ready() -> void:
-	audio_player = AudioStreamPlayer.new()
-	add_child(audio_player)
+	for i in range(MAX_AUDIO_PLAYERS):
+		var asp = AudioStreamPlayer.new()
+		asp.bus = "Master"
+		add_child(asp)
+		audio_players.append(asp)
 	
 # Safe fade-in for scene roots and full-screen controls.
 # Does NOT modify scale — scaling a root Control in Godot 4 breaks mouse input rects.
@@ -53,19 +58,100 @@ func pop_attention(node: Control) -> void:
 	tween.tween_property(node, "scale", Vector2.ONE, 0.2).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_ELASTIC)
 
 func play_sound(type: String) -> void:
-	# In a full game, we load actual .ogg files. For now, we will use procedural audio if we can,
-	# or just connect to the existing UIEffects if it exists.
-	if get_node_or_null("/root/UIEffects"):
-		var ui = get_node("/root/UIEffects")
-		match type:
-			"click":
-				if ui.has_method("play_click"): ui.play_click()
-			"success":
-				if ui.has_method("play_success"): ui.play_success()
-			"error":
-				if ui.has_method("play_error"): ui.play_error()
-			"heavy":
-				if ui.has_method("play_click"): ui.play_click() # Fallback
+	match type:
+		"click":
+			_play_synth_sound(600.0, 0.08, -5.0)
+		"success":
+			_play_synth_sound(440.0, 0.06, -5.0)
+			await get_tree().create_timer(0.06).timeout
+			_play_synth_sound(880.0, 0.14, -5.0)
+		"error":
+			_play_custom_synth_sweep(180.0, 60.0, 0.25, -2.0, "SAW")
+		"heavy":
+			_play_custom_synth_sweep(120.0, 40.0, 0.4, 0.0, "SAW")
+		"chaching":
+			_play_synth_sound(880.0, 0.05, -3.0)
+			await get_tree().create_timer(0.04).timeout
+			_play_synth_sound(1046.5, 0.05, -3.0)
+			await get_tree().create_timer(0.04).timeout
+			_play_synth_sound(1318.5, 0.15, -3.0)
+		"alarm":
+			_play_custom_synth_sweep(880.0, 440.0, 0.3, -2.0, "SAW")
+			await get_tree().create_timer(0.15).timeout
+			_play_custom_synth_sweep(880.0, 440.0, 0.3, -2.0, "SAW")
+
+func _play_synth_sound(hz: float, duration: float, volume_db: float = 0.0) -> void:
+	if audio_players.is_empty(): return
+	var player: AudioStreamPlayer = audio_players[next_player_idx]
+	next_player_idx = (next_player_idx + 1) % MAX_AUDIO_PLAYERS
+	
+	var stream = AudioStreamGenerator.new()
+	stream.mix_rate = 44100
+	stream.buffer_length = duration
+	
+	player.stream = stream
+	player.volume_db = volume_db
+	player.play()
+	
+	var playback: AudioStreamGeneratorPlayback = player.get_stream_playback()
+	if playback:
+		_fill_audio_buffer(playback, hz, duration)
+
+func _fill_audio_buffer(playback: AudioStreamGeneratorPlayback, hz: float, duration: float) -> void:
+	var mix_rate = 44100.0
+	var total_frames = int(mix_rate * duration)
+	var phase = 0.0
+	var phase_inc = hz / mix_rate
+	
+	var frames_written = 0
+	while frames_written < total_frames and playback.can_push_buffer(1):
+		var env = 1.0 - (float(frames_written) / float(total_frames))
+		var sample = sin(phase * TAU) * env * 0.2
+		playback.push_frame(Vector2(sample, sample))
+		phase = fmod(phase + phase_inc, 1.0)
+		frames_written += 1
+
+func _play_custom_synth_sweep(start_hz: float, end_hz: float, duration: float, volume_db: float = 0.0, type: String = "SINE") -> void:
+	if audio_players.is_empty(): return
+	var player: AudioStreamPlayer = audio_players[next_player_idx]
+	next_player_idx = (next_player_idx + 1) % MAX_AUDIO_PLAYERS
+	
+	var stream = AudioStreamGenerator.new()
+	stream.mix_rate = 44100
+	stream.buffer_length = duration
+	
+	player.stream = stream
+	player.volume_db = volume_db
+	player.play()
+	
+	var playback: AudioStreamGeneratorPlayback = player.get_stream_playback()
+	if playback:
+		_fill_custom_audio_buffer(playback, start_hz, end_hz, duration, type)
+
+func _fill_custom_audio_buffer(playback: AudioStreamGeneratorPlayback, start_hz: float, end_hz: float, duration: float, type: String) -> void:
+	var mix_rate = 44100.0
+	var total_frames = int(mix_rate * duration)
+	var phase = 0.0
+	
+	var frames_written = 0
+	while frames_written < total_frames and playback.can_push_buffer(1):
+		var t = float(frames_written) / float(total_frames)
+		var env = 1.0 - t
+		
+		var current_hz = lerp(start_hz, end_hz, t)
+		var phase_inc = current_hz / mix_rate
+		
+		var sample = 0.0
+		if type == "SAW":
+			sample = (phase * 2.0 - 1.0) * env * 0.15
+		elif type == "TRIANGLE":
+			sample = (abs(phase * 2.0 - 1.0) * 2.0 - 1.0) * env * 0.18
+		else:
+			sample = sin(phase * TAU) * env * 0.2
+			
+		playback.push_frame(Vector2(sample, sample))
+		phase = fmod(phase + phase_inc, 1.0)
+		frames_written += 1
 
 func show_splash_text(text: String, color: Color = Color.WHITE) -> void:
 	var canvas = CanvasLayer.new()
@@ -102,3 +188,20 @@ func show_splash_text(text: String, color: Color = Color.WHITE) -> void:
 	tween2.tween_property(lbl, "modulate:a", 0.0, 0.3)
 	tween2.tween_property(lbl, "scale", Vector2(1.2, 1.2), 0.3).set_ease(Tween.EASE_IN)
 	tween2.tween_callback(canvas.queue_free)
+
+func tween_stagger_children(parent: Control, delay_per: float = 0.05) -> void:
+	if not parent: return
+	var idx = 0
+	for child in parent.get_children():
+		if child is Control:
+			child.modulate.a = 0.0
+			var tween = create_tween()
+			tween.tween_property(child, "modulate:a", 1.0, 0.25).set_delay(idx * delay_per).set_ease(Tween.EASE_OUT)
+			idx += 1
+
+func flash_border(node: Control, color: Color = Color.WHITE) -> void:
+	if not node: return
+	var original_mod = node.modulate
+	var tween = create_tween()
+	tween.tween_property(node, "modulate", color * 1.5, 0.15)
+	tween.tween_property(node, "modulate", original_mod, 0.15)

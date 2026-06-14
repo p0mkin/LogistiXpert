@@ -7,6 +7,7 @@ import { PrismaUnitOfWork } from '../infrastructure/persistence/PrismaUnitOfWork
 import { BorrowLoanCommandHandler } from '../application/commands/BorrowLoanCommand';
 import { RepayLoanCommandHandler } from '../application/commands/RepayLoanCommand';
 import { TradeSharesCommandHandler } from '../application/commands/TradeSharesCommand';
+import { GameWebSocketServer } from '../websocket';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -477,6 +478,205 @@ router.post('/gold/trade', async (req: AuthRequest, res: Response) => {
     const statusCode = error.statusCode || 500;
     const errorCode = error.code || 'SERVER_ERROR';
     res.status(statusCode).json({ error: errorCode, message: error.message });
+  }
+});
+
+/**
+ * POST /api/finance/shares/buyback
+ * Buy back own shares from a corporate competitor
+ */
+router.post('/shares/buyback', async (req: AuthRequest, res: Response) => {
+  const companyId = req.user!.companyId;
+  const { targetCompanyId, sharesAmount } = req.body;
+
+  if (!targetCompanyId || !sharesAmount || sharesAmount <= 0) {
+    return res.status(400).json({ error: 'INVALID_INPUT', message: 'Specify targetCompanyId and positive sharesAmount.' });
+  }
+
+  const lockKey = `company:finance:${companyId}`;
+
+  try {
+    await LockService.withLock(lockKey, async () => {
+      const company = await prisma.company.findUnique({
+        where: { id: companyId },
+      });
+
+      if (!company) {
+        throw new Error('COMPANY_NOT_FOUND');
+      }
+
+      if (!company.isPublic) {
+        return res.status(400).json({ error: 'NOT_PUBLIC', message: 'Your company must be public to buy back shares.' });
+      }
+
+      const shareRecord = await prisma.companyShare.findUnique({
+        where: {
+          companyId_ownerCompanyId: {
+            companyId: companyId,
+            ownerCompanyId: targetCompanyId,
+          },
+        },
+      });
+
+      if (!shareRecord || shareRecord.shares < sharesAmount) {
+        return res.status(400).json({ error: 'INSUFFICIENT_SHARES', message: 'Target competitor does not hold enough shares.' });
+      }
+
+      const valuation = await FinanceService.calculateCompanyValuation(companyId);
+      const sharePrice = valuation / company.totalShares;
+      const totalCost = sharePrice * sharesAmount;
+
+      if (Number(company.legalBalance) < totalCost) {
+        return res.status(400).json({ error: 'INSUFFICIENT_FUNDS', message: `Insufficient clean cash. Cost: $${totalCost.toFixed(2)}, Available: $${Number(company.legalBalance).toFixed(2)}` });
+      }
+
+      // Execute buyback
+      await prisma.$transaction(async (tx) => {
+        // 1. Deduct from buyer
+        await tx.company.update({
+          where: { id: companyId },
+          data: { legalBalance: { decrement: totalCost } },
+        });
+
+        // 2. Add to seller competitor
+        await tx.company.update({
+          where: { id: targetCompanyId },
+          data: { legalBalance: { increment: totalCost } },
+        });
+
+        // 3. Decrement shares
+        if (shareRecord.shares === sharesAmount) {
+          await tx.companyShare.delete({
+            where: { id: shareRecord.id },
+          });
+        } else {
+          await tx.companyShare.update({
+            where: { id: shareRecord.id },
+            data: { shares: { decrement: sharesAmount } },
+          });
+        }
+      });
+
+      // WS Notifications
+      GameWebSocketServer.sendToCompany(companyId, 'company:balance_update', {
+        legalBalance: Number(company.legalBalance) - totalCost,
+        message: `SHARE BUYBACK: Bought back ${sharesAmount} shares from competitor for $${totalCost.toFixed(2)}.`,
+      });
+
+      GameWebSocketServer.sendToCompany(targetCompanyId, 'company:balance_update', {
+        message: `STOCK SOLD (BUYBACK): Competitor bought back ${sharesAmount} shares from your portfolio for $${totalCost.toFixed(2)}.`,
+      });
+
+      res.json({
+        success: true,
+        message: `Successfully bought back ${sharesAmount} shares for $${totalCost.toFixed(2)}.`,
+      });
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: 'SERVER_ERROR', message: error.message });
+  }
+});
+
+/**
+ * POST /api/finance/shares/dividend
+ * Payout dividends to corporate shareholders
+ */
+router.post('/shares/dividend', async (req: AuthRequest, res: Response) => {
+  const companyId = req.user!.companyId;
+  const { dividendPerShare } = req.body;
+
+  if (dividendPerShare === undefined || dividendPerShare <= 0) {
+    return res.status(400).json({ error: 'INVALID_INPUT', message: 'Specify a positive dividendPerShare.' });
+  }
+
+  const lockKey = `company:finance:${companyId}`;
+
+  try {
+    await LockService.withLock(lockKey, async () => {
+      const company = await prisma.company.findUnique({
+        where: { id: companyId },
+      });
+
+      if (!company) {
+        throw new Error('COMPANY_NOT_FOUND');
+      }
+
+      // Find all competitor shareholder records
+      const holdings = await prisma.companyShare.findMany({
+        where: { companyId: companyId },
+      });
+
+      const totalCompetitorShares = holdings.reduce((sum, h) => sum + h.shares, 0);
+      const totalCost = dividendPerShare * totalCompetitorShares;
+
+      if (Number(company.legalBalance) < totalCost) {
+        return res.status(400).json({ error: 'INSUFFICIENT_FUNDS', message: `Insufficient clean cash. Payout cost: $${totalCost.toFixed(2)}, Available: $${Number(company.legalBalance).toFixed(2)}` });
+      }
+
+      await prisma.$transaction(async (tx) => {
+        // 1. Deduct total from company
+        await tx.company.update({
+          where: { id: companyId },
+          data: { legalBalance: { decrement: totalCost } },
+        });
+
+        // 2. Pay each competitor
+        for (const h of holdings) {
+          const payout = dividendPerShare * h.shares;
+          await tx.company.update({
+            where: { id: h.ownerCompanyId },
+            data: { legalBalance: { increment: payout } },
+          });
+
+          GameWebSocketServer.sendToCompany(h.ownerCompanyId, 'company:balance_update', {
+            message: `DIVIDEND RECEIVED: Received $${payout.toFixed(2)} dividend from company ${company.name} (${h.shares} shares held).`,
+          });
+        }
+      });
+
+      GameWebSocketServer.sendToCompany(companyId, 'company:balance_update', {
+        legalBalance: Number(company.legalBalance) - totalCost,
+        message: `DIVIDENDS DISTRIBUTED: Paid out $${totalCost.toFixed(2)} total dividends to competitor shareholders ($${dividendPerShare}/share).`,
+      });
+
+      res.json({
+        success: true,
+        message: `Successfully distributed $${totalCost.toFixed(2)} total dividends ($${dividendPerShare}/share).`,
+      });
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: 'SERVER_ERROR', message: error.message });
+  }
+});
+
+/**
+ * GET /api/finance/shares/shareholders
+ * Fetch corporate shareholders holding company's shares
+ */
+router.get('/shares/shareholders', async (req: AuthRequest, res: Response) => {
+  const companyId = req.user!.companyId;
+
+  try {
+    const holdings = await prisma.companyShare.findMany({
+      where: { companyId: companyId },
+      include: {
+        ownerCompany: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    res.json(holdings.map((h) => ({
+      companyId: h.ownerCompanyId,
+      name: h.ownerCompany.name,
+      shares: h.shares,
+      avgPurchasePrice: parseFloat(Number(h.avgPurchasePrice).toFixed(4)),
+    })));
+  } catch (error: any) {
+    res.status(500).json({ error: 'SERVER_ERROR', message: error.message });
   }
 });
 

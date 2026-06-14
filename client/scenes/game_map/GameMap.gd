@@ -16,6 +16,7 @@ extends Control
 @onready var auction_btn: Button = %AuctionBtn
 @onready var laundry_btn: Button = %LaundryBtn
 @onready var underworld_btn: Button = %UnderworldBtn
+@onready var clanhq_btn: Button = %ClanHQBtn
 @onready var analytics_btn: Button = %AnalyticsBtn
 @onready var support_btn: Button = %SupportBtn
 @onready var staff_btn: Button = %StaffBtn
@@ -25,6 +26,7 @@ extends Control
 @onready var support_dropdown: PanelContainer = %SupportDropdown
 @onready var garage_manager_btn: Button = %GarageManagerBtn
 @onready var parts_shop_btn: Button = %PartsShopBtn
+@onready var chop_shop_btn: Button = %ChopShopBtn
 @onready var emergency_recovery_btn: Button = %EmergencyRecoveryBtn
 @onready var factory_showroom_btn: Button = %FactoryShowroomBtn
 @onready var rd_tech_tree_btn: Button = %RDTechTreeBtn
@@ -45,6 +47,32 @@ extends Control
 @onready var shader_overlay: ColorRect = $ShaderOverlayLayer/ShaderOverlay if has_node("ShaderOverlayLayer/ShaderOverlay") else null
 
 var clock_lbl: Label = null
+
+# Event Feed System
+var event_feed_expanded: bool = true
+var event_feed_panel: PanelContainer = null
+var event_scroll: ScrollContainer = null
+var event_list_box: VBoxContainer = null
+var event_toggle_btn: Button = null
+
+# Tooltip & Global Operations System
+var tooltip_panel: PanelContainer = null
+var tooltip_label: RichTextLabel = null
+var global_ops_panel: PanelContainer = null
+var fleet_status_lbl: Label = null
+var revenue_ticker_lbl: Label = null
+var heat_progress_bar: ProgressBar = null
+var heat_percent_lbl: Label = null
+var alerts_badge_lbl: Label = null
+var _ops_update_timer: float = 0.0
+var _ticker_transactions = [
+	"➔ Contract Route Moose: +$4,200 Clean",
+	"➔ Diesel refueled: -$420",
+	"➔ Laundry front: +$1,500 Dirty",
+	"➔ Bribe paid (Schengen): -$1,000",
+	"➔ Underworld Job: +$8,500 Dirty"
+]
+var _ticker_index = 0
 
 
 # Camera Pan & Zoom controls
@@ -512,7 +540,10 @@ func _ready() -> void:
 	_setup_world_events()
 	var side_panel = get_node_or_null("HUD/SidePanel")
 	if side_panel:
-		side_panel.visible = false
+		side_panel.visible = true
+	var route_panel = get_node_or_null("%RouteInfoPanel")
+	if route_panel:
+		route_panel.visible = false
 	
 	var phone = SmartphoneHUD.new()
 	phone.name = "SmartphoneHUD"
@@ -553,6 +584,32 @@ func _ready() -> void:
 		player_name_lbl.get_parent().add_child(spacer)
 		player_name_lbl.get_parent().add_child(clock_lbl)
 
+	# Dynamic Weather HUD Indicator
+	var weather_hud = HBoxContainer.new()
+	weather_hud.name = "WeatherHUD"
+	weather_hud.add_theme_constant_override("separation", 6)
+	weather_hud.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	
+	var weather_icon = Label.new()
+	weather_icon.name = "WeatherIcon"
+	weather_icon.text = "☀️"
+	weather_icon.add_theme_font_size_override("font_size", 16)
+	weather_hud.add_child(weather_icon)
+	
+	var weather_text = Label.new()
+	weather_text.name = "WeatherText"
+	weather_text.text = "CLEAR (SUMMER)"
+	weather_text.add_theme_font_size_override("font_size", 11)
+	weather_text.add_theme_color_override("font_color", Color(0.3, 0.8, 1.0, 1.0))
+	weather_hud.add_child(weather_text)
+	
+	var top_hbox = get_node_or_null("HUD/TopBar/Margin/HBox")
+	if top_hbox:
+		var spacer_node = top_hbox.get_node_or_null("Spacer")
+		if spacer_node:
+			top_hbox.add_child(weather_hud)
+			top_hbox.move_child(weather_hud, spacer_node.get_index())
+
 	
 	# Load and project the Baltic route network
 	_load_map_data()
@@ -563,6 +620,8 @@ func _ready() -> void:
 	# Signal listeners
 	GameState.balance_updated.connect(_on_balances_updated)
 	GameState.reputation_updated.connect(_on_reputation_updated)
+	GameState.time_synced.connect(_on_time_synced)
+	NetworkManager.ws_message_received.connect(_on_ws_message)
 	NetworkManager.connection_status_changed.connect(_on_network_status_changed)
 	
 	# Network signals for active routes telemetry
@@ -580,6 +639,7 @@ func _ready() -> void:
 	auction_btn.pressed.connect(func(): SceneTransition.change_scene_to_file("res://scenes/auction/AuctionHouse.tscn"))
 	laundry_btn.pressed.connect(func(): SceneTransition.change_scene_to_file("res://scenes/laundry/LaundryFronts.tscn"))
 	underworld_btn.pressed.connect(func(): SceneTransition.change_scene_to_file("res://scenes/underworld/UnderworldDealer.tscn"))
+	clanhq_btn.pressed.connect(func(): SceneTransition.change_scene_to_file("res://scenes/clan/ClanHQ.tscn"))
 	analytics_btn.pressed.connect(func(): SceneTransition.change_scene_to_file("res://scenes/analytics/LogisticsAnalytics.tscn"))
 	staff_btn.pressed.connect(func(): SceneTransition.change_scene_to_file("res://scenes/staff/StaffManager.tscn"))
 	
@@ -697,6 +757,11 @@ func _ready() -> void:
 	parts_shop_btn.pressed.connect(func():
 		SceneTransition.change_scene_to_file("res://scenes/shop/PartsShop.tscn")
 	)
+	chop_shop_btn.pressed.connect(func():
+		var shop = ChopShop.new()
+		add_child(shop)
+		garage_dropdown.visible = false
+	)
 	emergency_recovery_btn.pressed.connect(func():
 		SceneTransition.change_scene_to_file("res://scenes/breakdown/BreakdownPanel.tscn")
 	)
@@ -718,6 +783,9 @@ func _ready() -> void:
 		print("[DEBUG] Camera zoom initialized to: ", camera.zoom)
 	
 	set_process_input(true)
+	_setup_event_feed()
+	_setup_tooltip()
+	_setup_global_ops_panel()
 
 
 
@@ -792,9 +860,19 @@ func _setup_world_events():
 			var p = json.payload
 			var ticker_str = " |  🌐 GLOBAL COMMODITY MARKET  |  "
 			for item in p.prices:
-				var symbol = "📈" if item.priceChangePercent >= 0 else "📉"
-				var color = "green" if item.priceChangePercent >= 0 else "red"
-				ticker_str += "%s: $%0.2f %s (%0.2f%%)  |  " % [str(item.commodityType), float(item.currentPrice), symbol, float(item.priceChangePercent)]
+				var change = float(item.get("priceChangePercent", 0.0))
+				var symbol = "📈" if change >= 0 else "📉"
+				ticker_str += "%s: $%0.2f %s (%0.2f%%)  |  " % [str(item.commodityType), float(item.currentPrice), symbol, change]
+				
+				# Exceeds 5% check
+				if abs(change) >= 5.0:
+					var title = "⚡ COMMODITY VOLATILITY: " + str(item.commodityType)
+					var alert_color = Color(0.180, 0.803, 0.443) if change >= 5.0 else Color(0.901, 0.298, 0.235)
+					var direction_str = "skyrocketed" if change >= 5.0 else "crashed"
+					var alert_msg = "Price has %s by %0.2f%%. Current rate: $%0.2f per unit." % [
+						direction_str, abs(change), float(item.currentPrice)
+					]
+					GameState.log_event(title, alert_msg, alert_color)
 			market_ticker_text = ticker_str
 			
 		elif json.type == "sabotage:visual_event":
@@ -887,6 +965,32 @@ func _process(delta: float) -> void:
 		map_drawer.queue_redraw()
 	if clock_lbl and is_instance_valid(clock_lbl):
 		clock_lbl.text = GameState.get_simulated_time_string()
+		
+	_ops_update_timer += delta
+	if _ops_update_timer >= 3.0:
+		_ops_update_timer = 0.0
+		_update_global_ops_data()
+
+	# Underworld Heat Danger Pulsers (Feature 20)
+	var heat = GameState.police_heat
+	if heat >= 75:
+		var pulse = (sin(time_passed * 6.0) + 1.0) * 0.5
+		var pulse_color = Color(1.0, 1.0, 1.0).lerp(Color(1.0, 0.35, 0.35), pulse * 0.5)
+		var top_bar = get_node_or_null("HUD/TopBar")
+		if top_bar:
+			top_bar.modulate = pulse_color
+		if global_ops_panel and is_instance_valid(global_ops_panel):
+			global_ops_panel.modulate = pulse_color
+		if console_box and is_instance_valid(console_box):
+			console_box.modulate = pulse_color
+	else:
+		var top_bar = get_node_or_null("HUD/TopBar")
+		if top_bar:
+			top_bar.modulate = Color.WHITE
+		if global_ops_panel and is_instance_valid(global_ops_panel):
+			global_ops_panel.modulate = Color.WHITE
+		if console_box and is_instance_valid(console_box):
+			console_box.modulate = Color.WHITE
 
 
 func _pos_to_coords(pos: Vector2) -> Vector2:
@@ -1725,6 +1829,8 @@ func _input(event: InputEvent) -> void:
 			if event.button_index == MOUSE_BUTTON_LEFT:
 				if not hovered_city_id.is_empty():
 					_select_city(hovered_city_id)
+				else:
+					_deselect_city()
 					
 	if event is InputEventMouseMotion:
 		if is_dragging:
@@ -1753,10 +1859,19 @@ func _detect_hover_nodes(mouse_screen_pos: Vector2) -> void:
 			
 	if hovered_city_id != old_hover:
 		map_drawer.queue_redraw()
+		_update_tooltip_content(hovered_city_id)
+		
+	_update_tooltip_position(mouse_screen_pos)
 
 func _select_city(city_id: String) -> void:
 	selected_city_id = city_id
 	map_drawer.queue_redraw()
+	
+	if global_ops_panel:
+		global_ops_panel.visible = false
+	var route_panel = get_node_or_null("%RouteInfoPanel")
+	if route_panel:
+		route_panel.visible = true
 	
 	var city = cities_data[city_id]
 	city_name_lbl.text = city.name
@@ -1975,4 +2090,394 @@ func _draw_aberrated_line(from: Vector2, to: Vector2, base_color: Color, width: 
 	map_drawer.draw_line(from - Vector2(offset_val, 0), to - Vector2(offset_val, 0), Color(1.0, 0.1, 0.1, base_color.a * 0.45), width, true)
 	map_drawer.draw_line(from + Vector2(offset_val, 0), to + Vector2(offset_val, 0), Color(0.1, 0.3, 1.0, base_color.a * 0.45), width, true)
 	map_drawer.draw_line(from, to, base_color, width, true)
+
+
+# ==========================================
+# EVENT FEED SYSTEM (COMPONENT 3)
+# ==========================================
+func _setup_event_feed() -> void:
+	event_feed_panel = PanelContainer.new()
+	event_feed_panel.name = "EventFeedPanel"
+	
+	var style = StyleBoxFlat.new()
+	style.bg_color = Color(0.04, 0.05, 0.06, 0.95)
+	style.border_color = Color(0.1, 0.6, 1.0, 0.4)
+	style.border_width_left = 2
+	style.border_width_top = 2
+	style.border_width_right = 2
+	style.border_width_bottom = 2
+	style.set_corner_radius_all(6)
+	event_feed_panel.add_theme_stylebox_override("panel", style)
+	
+	$HUD.add_child(event_feed_panel)
+	
+	var vbox = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 6)
+	vbox.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	event_feed_panel.add_child(vbox)
+	
+	event_toggle_btn = Button.new()
+	event_toggle_btn.text = "🔔  EVENT FEED"
+	event_toggle_btn.custom_minimum_size = Vector2(0, 32)
+	GlobalThemeManager.apply_btn_style(event_toggle_btn, Color(0.3, 0.85, 1.0))
+	event_toggle_btn.pressed.connect(_toggle_event_feed)
+	vbox.add_child(event_toggle_btn)
+	
+	event_scroll = ScrollContainer.new()
+	event_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	vbox.add_child(event_scroll)
+	
+	event_list_box = VBoxContainer.new()
+	event_list_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	event_scroll.add_child(event_list_box)
+	
+	# Connect to GameState event logged signal
+	GameState.event_logged.connect(_on_event_logged)
+	
+	# Populate existing events
+	for entry in GameState.event_log:
+		_add_event_to_ui(entry)
+		
+	_update_event_feed_visibility()
+
+func _toggle_event_feed() -> void:
+	event_feed_expanded = not event_feed_expanded
+	_update_event_feed_visibility()
+
+func _update_event_feed_visibility() -> void:
+	if event_feed_expanded:
+		event_feed_panel.position = Vector2(16, 400)
+		event_feed_panel.size = Vector2(340, 240)
+		event_scroll.visible = true
+	else:
+		event_feed_panel.position = Vector2(16, 596)
+		event_feed_panel.size = Vector2(340, 44)
+		event_scroll.visible = false
+
+func _on_event_logged(entry: Dictionary) -> void:
+	_add_event_to_ui(entry)
+
+func _add_event_to_ui(entry: Dictionary) -> void:
+	if not event_list_box: return
+	var lbl = RichTextLabel.new()
+	lbl.bbcode_enabled = true
+	lbl.fit_content = true
+	lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	
+	var time_str = entry.get("timestamp", "").split("  ")[-1] # just the hour/minute
+	var title = entry.get("title", "")
+	var msg = entry.get("message", "")
+	var col = entry.get("color", Color.WHITE)
+	var hex_col = col.to_html()
+	
+	lbl.text = "[color=#888c99][%s][/color] [b][color=#%s]%s[/color][/b]: %s" % [time_str, hex_col, title, msg]
+	lbl.add_theme_font_size_override("normal_font_size", 11)
+	lbl.add_theme_font_size_override("bold_font_size", 11)
+	
+	event_list_box.add_child(lbl)
+	
+	# Ensure the scroll container scrolls to the bottom
+	await get_tree().process_frame
+	event_scroll.scroll_vertical = 99999
+
+
+# ==========================================
+# TOOLTIPS AND GLOBAL OPERATIONS PANEL
+# ==========================================
+func _setup_tooltip() -> void:
+	tooltip_panel = PanelContainer.new()
+	tooltip_panel.name = "CityTooltipPanel"
+	tooltip_panel.visible = false
+	tooltip_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	
+	var style = StyleBoxFlat.new()
+	style.bg_color = Color(0.05, 0.06, 0.08, 0.95)
+	style.border_color = Color(0.2, 0.9, 0.7, 0.8)
+	style.border_width_left = 2
+	style.border_width_top = 2
+	style.border_width_right = 2
+	style.border_width_bottom = 2
+	style.set_corner_radius_all(6)
+	tooltip_panel.add_theme_stylebox_override("panel", style)
+	
+	var margin = MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 10)
+	margin.add_theme_constant_override("margin_top", 10)
+	margin.add_theme_constant_override("margin_right", 10)
+	margin.add_theme_constant_override("margin_bottom", 10)
+	tooltip_panel.add_child(margin)
+	
+	tooltip_label = RichTextLabel.new()
+	tooltip_label.bbcode_enabled = true
+	tooltip_label.fit_content = true
+	tooltip_label.custom_minimum_size = Vector2(220, 0)
+	tooltip_label.add_theme_font_size_override("normal_font_size", 11)
+	tooltip_label.add_theme_font_size_override("bold_font_size", 12)
+	margin.add_child(tooltip_label)
+	
+	$HUD.add_child(tooltip_panel)
+
+func _update_tooltip_content(city_id: String) -> void:
+	if city_id.is_empty() or not cities_data.has(city_id):
+		tooltip_panel.visible = false
+		return
+		
+	var city = cities_data[city_id]
+	var text = "[color=#00ff88][b]%s[/b][/color] (%s)\n" % [city.name.to_upper(), city.get("country", "Europe").to_upper()]
+	
+	if city.is_schengen:
+		text += "[color=#2ecc71]Zone: Schengen (Open Border)[/color]\n"
+	else:
+		text += "[color=#e67e22]Zone: Customs Checkpoint[/color]\n"
+		
+	var active_routes_count = 0
+	for truck_id in GameState.active_routes:
+		var route = GameState.active_routes[truck_id]
+		var origin = ""
+		var dest = ""
+		if route.get("legalContract") != null:
+			origin = route.get("legalContract").get("origin", "").to_lower()
+			dest = route.get("legalContract").get("destination", "").to_lower()
+		elif route.get("contrabandJob") != null:
+			origin = route.get("contrabandJob").get("origin", "").to_lower()
+			dest = route.get("contrabandJob").get("destination", "").to_lower()
+			
+		if origin == city_id or dest == city_id:
+			active_routes_count += 1
+			
+	if active_routes_count > 0:
+		text += "[color=#3498db]Active Routes: %d[/color]\n" % active_routes_count
+	else:
+		text += "[color=#7f8c8d]Active Routes: None[/color]\n"
+		
+	var has_garage = false
+	var garage_data = {}
+	for g in GameState.garages:
+		if g.get("city", "").to_lower() == city_id:
+			has_garage = true
+			garage_data = g
+			break
+			
+	if has_garage:
+		text += "[color=#f1c40f][b]✓ Player Garage[/b][/color]\n"
+		text += "• Diesel: %d / %d L\n" % [int(garage_data.get("dieselStorage", 0)), int(garage_data.get("maxDiesel", 0))]
+		text += "• Electricity: %d / %d kWh\n" % [int(garage_data.get("electricityStorage", 0)), int(garage_data.get("maxElectricity", 0))]
+		text += "• AdBlue: %d / %d L\n" % [int(garage_data.get("adblueStorage", 0)), int(garage_data.get("maxAdblue", 0))]
+	else:
+		text += "[color=#95a5a6]No Garage (Commodities: D, E, A)[/color]\n"
+		
+	tooltip_label.text = text
+	tooltip_panel.visible = true
+
+func _update_tooltip_position(mouse_screen_pos: Vector2) -> void:
+	if not tooltip_panel or not tooltip_panel.visible:
+		return
+	var screen_size = get_viewport_rect().size
+	var offset = Vector2(15, 15)
+	var pos = mouse_screen_pos + offset
+	
+	if pos.x + tooltip_panel.size.x > screen_size.x:
+		pos.x = mouse_screen_pos.x - tooltip_panel.size.x - 15
+	if pos.y + tooltip_panel.size.y > screen_size.y:
+		pos.y = mouse_screen_pos.y - tooltip_panel.size.y - 15
+		
+	tooltip_panel.position = pos
+
+func _setup_global_ops_panel() -> void:
+	var vbox = get_node_or_null("HUD/SidePanel/Margin/VBox")
+	if not vbox: return
+	
+	global_ops_panel = PanelContainer.new()
+	global_ops_panel.name = "GlobalOperationsPanel"
+	
+	vbox.add_child(global_ops_panel)
+	vbox.move_child(global_ops_panel, 0)
+	
+	var style = StyleBoxFlat.new()
+	style.bg_color = Color(0.05, 0.06, 0.07, 0.85)
+	style.border_color = Color(0.18, 0.8, 0.44, 0.4)
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(4)
+	global_ops_panel.add_theme_stylebox_override("panel", style)
+	
+	var margin = MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 12)
+	margin.add_theme_constant_override("margin_top", 12)
+	margin.add_theme_constant_override("margin_right", 12)
+	margin.add_theme_constant_override("margin_bottom", 12)
+	global_ops_panel.add_child(margin)
+	
+	var content_vbox = VBoxContainer.new()
+	content_vbox.add_theme_constant_override("separation", 10)
+	margin.add_child(content_vbox)
+	
+	var header = Label.new()
+	header.text = "GLOBAL OPERATIONS"
+	header.add_theme_font_size_override("font_size", 10)
+	header.add_theme_color_override("font_color", Color(0.180, 0.803, 0.443))
+	content_vbox.add_child(header)
+	
+	var fleet_title = Label.new()
+	fleet_title.text = "FLEET STATUS"
+	fleet_title.add_theme_font_size_override("font_size", 11)
+	fleet_title.add_theme_color_override("font_color", Color(0.6, 0.7, 0.8))
+	content_vbox.add_child(fleet_title)
+	
+	fleet_status_lbl = Label.new()
+	fleet_status_lbl.add_theme_font_size_override("font_size", 12)
+	fleet_status_lbl.text = "Loading fleet stats..."
+	content_vbox.add_child(fleet_status_lbl)
+	
+	var rev_title = Label.new()
+	rev_title.text = "REVENUE TICKER"
+	rev_title.add_theme_font_size_override("font_size", 11)
+	rev_title.add_theme_color_override("font_color", Color(0.6, 0.7, 0.8))
+	content_vbox.add_child(rev_title)
+	
+	revenue_ticker_lbl = Label.new()
+	revenue_ticker_lbl.add_theme_font_size_override("font_size", 11)
+	revenue_ticker_lbl.add_theme_color_override("font_color", Color(0.2, 0.9, 0.5))
+	revenue_ticker_lbl.text = "Waiting for transactions..."
+	content_vbox.add_child(revenue_ticker_lbl)
+	
+	var heat_title_hbox = HBoxContainer.new()
+	content_vbox.add_child(heat_title_hbox)
+	
+	var heat_title = Label.new()
+	heat_title.text = "UNDERWORLD HEAT"
+	heat_title.add_theme_font_size_override("font_size", 11)
+	heat_title.add_theme_color_override("font_color", Color(0.9, 0.3, 0.3))
+	heat_title_hbox.add_child(heat_title)
+	
+	var heat_spacer = Control.new()
+	heat_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	heat_title_hbox.add_child(heat_spacer)
+	
+	heat_percent_lbl = Label.new()
+	heat_percent_lbl.add_theme_font_size_override("font_size", 11)
+	heat_percent_lbl.add_theme_color_override("font_color", Color(0.9, 0.3, 0.3))
+	heat_percent_lbl.text = "0%"
+	heat_title_hbox.add_child(heat_percent_lbl)
+	
+	var heat_bar_container = Control.new()
+	heat_bar_container.custom_minimum_size = Vector2(0, 12)
+	content_vbox.add_child(heat_bar_container)
+	
+	heat_progress_bar = ProgressBar.new()
+	heat_progress_bar.show_percentage = false
+	heat_progress_bar.custom_minimum_size = Vector2(0, 8)
+	heat_progress_bar.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	
+	var bg_style = StyleBoxFlat.new()
+	bg_style.bg_color = Color(0.1, 0.02, 0.02, 0.8)
+	bg_style.set_corner_radius_all(3)
+	heat_progress_bar.add_theme_stylebox_override("background", bg_style)
+	
+	var fg_style = StyleBoxFlat.new()
+	fg_style.bg_color = Color(0.95, 0.15, 0.15)
+	fg_style.set_corner_radius_all(3)
+	heat_progress_bar.add_theme_stylebox_override("fill", fg_style)
+	heat_bar_container.add_child(heat_progress_bar)
+	
+	alerts_badge_lbl = Label.new()
+	alerts_badge_lbl.add_theme_font_size_override("font_size", 11)
+	alerts_badge_lbl.text = "🔔 ACTIVE ALERTS: 0 RECORDED"
+	alerts_badge_lbl.add_theme_color_override("font_color", Color(0.3, 0.85, 1.0))
+	content_vbox.add_child(alerts_badge_lbl)
+	
+	_update_global_ops_data()
+
+func _update_global_ops_data() -> void:
+	if not global_ops_panel or not global_ops_panel.visible:
+		return
+		
+	var en_route = 0
+	var impounded = 0
+	var idle = 0
+	for truck in GameState.fleet:
+		if truck.get("isImpounded", false):
+			impounded += 1
+		elif GameState.active_routes.has(truck.get("id", "")):
+			en_route += 1
+		else:
+			idle += 1
+			
+	fleet_status_lbl.text = "• En-Route: %d\n• Idle: %d\n• Impounded: %d" % [en_route, idle, impounded]
+	
+	var heat = GameState.police_heat
+	heat_percent_lbl.text = "%d%%" % heat
+	heat_progress_bar.value = heat
+	
+	var fg_style = heat_progress_bar.get_theme_stylebox("fill") as StyleBoxFlat
+	if fg_style:
+		var alert_col = Color(0.95, 0.15, 0.15)
+		var calm_col = Color(0.2, 0.8, 0.4)
+		fg_style.bg_color = calm_col.lerp(alert_col, float(heat) / 100.0)
+		
+	var unread = GameState.event_log.size()
+	alerts_badge_lbl.text = "🔔 ACTIVE ALERTS: %d RECORDED" % unread
+	
+	if _ticker_transactions.size() > 0:
+		_ticker_index = (_ticker_index + 1) % _ticker_transactions.size()
+		revenue_ticker_lbl.text = _ticker_transactions[_ticker_index]
+
+func _deselect_city() -> void:
+	selected_city_id = ""
+	map_drawer.queue_redraw()
+	
+	if global_ops_panel:
+		global_ops_panel.visible = true
+		_update_global_ops_data()
+	var route_panel = get_node_or_null("%RouteInfoPanel")
+	if route_panel:
+		route_panel.visible = false
+
+
+var active_weather_type: String = "CLEAR"
+
+func _on_time_synced(_unix_time: float, season: String) -> void:
+	_update_weather_hud(active_weather_type, season)
+
+func _on_ws_message(packet: Dictionary) -> void:
+	if packet.get("type", "") == "weather_front_update":
+		var payload = packet.get("payload", {})
+		active_weather_type = payload.get("type", "CLEAR")
+		_update_weather_hud(active_weather_type, GameState.current_season)
+		
+		# Log to event feed
+		var epicenter = payload.get("epicenterId", "Unknown")
+		GameState.log_event("🌫️ WEATHER SYSTEM ALERT", "Massive %s front moving over epicenter %s." % [active_weather_type, epicenter], Color(0.3, 0.8, 1.0))
+
+func _update_weather_hud(weather_type: String, season: String) -> void:
+	var hud = get_node_or_null("HUD/TopBar/Margin/HBox/WeatherHUD")
+	if not hud:
+		return
+	var icon_lbl = hud.get_node_or_null("WeatherIcon")
+	var text_lbl = hud.get_node_or_null("WeatherText")
+	if not icon_lbl or not text_lbl:
+		return
+	
+	var w_icon = "☀️"
+	var w_color = Color(0.2, 0.85, 1.0, 1.0)
+	
+	match weather_type:
+		"CLEAR":
+			w_icon = "☀️"
+			w_color = Color(0.2, 0.85, 1.0, 1.0)
+		"RAIN":
+			w_icon = "🌧️"
+			w_color = Color(0.3, 0.5, 0.9, 1.0)
+		"THICK_FOG":
+			w_icon = "🌫️"
+			w_color = Color(0.7, 0.7, 0.8, 1.0)
+		"BLIZZARD":
+			w_icon = "❄️"
+			w_color = Color(0.9, 0.9, 1.0, 1.0)
+		"SEVERE_STORM":
+			w_icon = "⛈️"
+			w_color = Color(0.9, 0.3, 0.3, 1.0)
+			
+	icon_lbl.text = w_icon
+	text_lbl.text = "%s (%s FORECAST)" % [weather_type.replace("_", " "), season.to_upper()]
+	text_lbl.add_theme_color_override("font_color", w_color)
 

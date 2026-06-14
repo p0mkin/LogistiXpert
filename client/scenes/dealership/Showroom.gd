@@ -115,6 +115,11 @@ func _on_balance_sync(_l, _b) -> void:
 	_update_balances_strip()
 	_update_customizer_panel()
 
+func _process(_delta: float) -> void:
+	var clock = _find(scene_root, "HeaderClockLabel")
+	if clock and clock is Label:
+		clock.text = GameState.get_simulated_time_string()
+
 # ====================================================
 # PROGRAMMATIC UI SYSTEM
 # ====================================================
@@ -127,17 +132,50 @@ func _build_ui() -> void:
 	var hdr = _panel(Vector2(0, 0), Vector2(1280, 60), Color(0.04, 0.05, 0.08, 0.95), Color(0.2, 0.9, 0.7, 0.35))
 	scene_root.add_child(hdr)
 
-	var title = Label.new()
-	title.text = "🏢  LOGISTIXPERT FACTORY DEALERSHIP SHOWROOM  —  FLEET CONTRACTING"
-	title.add_theme_font_size_override("font_size", 16)
-	title.add_theme_color_override("font_color", Color(0.2, 0.9, 0.7, 1.0))
-	title.position = Vector2(24, 18)
-	hdr.add_child(title)
+	var hbox = HBoxContainer.new()
+	hbox.size = Vector2(1240, 60)
+	hbox.position = Vector2(20, 0)
+	hbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	hdr.add_child(hbox)
 
-	var back_btn = _btn("◀  MAP HUD", Vector2(1150, 11), Vector2(106, 38))
+	var back_btn = _btn("◄ BACK", Vector2.ZERO, Vector2(100, 36))
+	back_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	back_btn.pressed.connect(_go_back)
 	back_btn.add_theme_color_override("font_color", Color(0.9, 0.3, 0.3, 1.0))
-	hdr.add_child(back_btn)
+	hbox.add_child(back_btn)
+
+	var spacer1 = Control.new()
+	spacer1.custom_minimum_size = Vector2(10, 0)
+	hbox.add_child(spacer1)
+
+	var title = Label.new()
+	title.text = "FACTORY SHOWROOM"
+	title.add_theme_font_size_override("font_size", 15)
+	title.add_theme_color_override("font_color", Color(0.2, 0.9, 0.7, 1.0))
+	title.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	hbox.add_child(title)
+
+	var spacer2 = Control.new()
+	spacer2.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hbox.add_child(spacer2)
+
+	var bal_lbl = Label.new()
+	bal_lbl.name = "HeaderBalanceLabel"
+	bal_lbl.add_theme_font_size_override("font_size", 13)
+	bal_lbl.add_theme_color_override("font_color", Color(0.18, 0.8, 0.44))
+	bal_lbl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	hbox.add_child(bal_lbl)
+
+	var spacer3 = Control.new()
+	spacer3.custom_minimum_size = Vector2(20, 0)
+	hbox.add_child(spacer3)
+
+	var clock_lbl = Label.new()
+	clock_lbl.name = "HeaderClockLabel"
+	clock_lbl.add_theme_font_size_override("font_size", 13)
+	clock_lbl.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0))
+	clock_lbl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	hbox.add_child(clock_lbl)
 
 	# 2. STATUS STRIP (y=60)
 	var bar = _panel(Vector2(0, 60), Vector2(1280, 42), Color(0.04, 0.04, 0.06, 0.92), Color(0.2, 0.9, 0.7, 0.2))
@@ -193,6 +231,13 @@ func _build_ui() -> void:
 	scene_root.add_child(customizer_panel)
 
 func _update_balances_strip() -> void:
+	var header_bal = _find(scene_root, "HeaderBalanceLabel")
+	if header_bal and header_bal is Label:
+		header_bal.text = "CLEAN: $%s | DIRTY: $%s" % [
+			String.num(GameState.legal_balance, 2),
+			String.num(GameState.black_market_balance, 2)
+		]
+
 	var label = _find(scene_root, "StatusStripLabel")
 	if label and label is Label:
 		var clean = GameState.legal_balance

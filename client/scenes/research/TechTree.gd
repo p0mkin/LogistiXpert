@@ -47,6 +47,14 @@ func _on_get_response(_r, code, _h, body) -> void:
 			company_data = d
 			research_nodes = d.get("nodes", [])
 			active_partnership = d.get("brandPartnership", "NONE")
+			
+			# Sync to GameState
+			for node in research_nodes:
+				var node_key = node.get("nodeKey", "")
+				var lvl = int(node.get("currentLevel", 0))
+				GameState.research_levels[node_key] = lvl
+				GameState.research_updated.emit(node_key)
+			
 			_update_balances_strip()
 			_render_research_nodes()
 			_render_brand_contracts()

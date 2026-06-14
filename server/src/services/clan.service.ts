@@ -1,5 +1,6 @@
 import { PrismaClient, CargoType, ContrabandClass } from '@prisma/client';
 import { GameWebSocketServer } from '../websocket';
+import * as path from 'path';
 
 const prisma = new PrismaClient();
 
@@ -215,5 +216,97 @@ export class ClanService {
     const treasuryBonus = Math.floor(Number(clan.treasury) / 100000.0);
 
     return 5 + repBonus + treasuryBonus;
+  }
+
+  // ==========================================
+  // FILE-BASED JSON CHAT & ROLE STORAGE
+  // ==========================================
+  private static DATA_DIR = path.resolve(__dirname, '../../data');
+  private static CHATS_FILE = path.resolve(__dirname, '../../data/clan_chats.json');
+  private static ROLES_FILE = path.resolve(__dirname, '../../data/clan_roles.json');
+
+  private static ensureDataDir() {
+    const fs = require('fs');
+    if (!fs.existsSync(this.DATA_DIR)) {
+      fs.mkdirSync(this.DATA_DIR, { recursive: true });
+    }
+  }
+
+  static getChatMessages(clanId: string): any[] {
+    const fs = require('fs');
+    this.ensureDataDir();
+    if (!fs.existsSync(this.CHATS_FILE)) {
+      return [];
+    }
+    try {
+      const data = JSON.parse(fs.readFileSync(this.CHATS_FILE, 'utf8'));
+      return data[clanId] || [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  static addChatMessage(clanId: string, message: { senderId: string; senderName: string; text: string; timestamp: string }) {
+    const fs = require('fs');
+    this.ensureDataDir();
+    let data: any = {};
+    if (fs.existsSync(this.CHATS_FILE)) {
+      try {
+        data = JSON.parse(fs.readFileSync(this.CHATS_FILE, 'utf8'));
+      } catch (e) {
+        data = {};
+      }
+    }
+    if (!data[clanId]) {
+      data[clanId] = [];
+    }
+    data[clanId].push(message);
+    if (data[clanId].length > 50) {
+      data[clanId].shift();
+    }
+    fs.writeFileSync(this.CHATS_FILE, JSON.stringify(data, null, 2), 'utf8');
+  }
+
+  static getCompanyRole(companyId: string): string {
+    const fs = require('fs');
+    this.ensureDataDir();
+    if (!fs.existsSync(this.ROLES_FILE)) {
+      return 'MEMBER';
+    }
+    try {
+      const data = JSON.parse(fs.readFileSync(this.ROLES_FILE, 'utf8'));
+      return data[companyId] || 'MEMBER';
+    } catch (e) {
+      return 'MEMBER';
+    }
+  }
+
+  static setCompanyRole(companyId: string, role: 'OWNER' | 'OFFICER' | 'MEMBER') {
+    const fs = require('fs');
+    this.ensureDataDir();
+    let data: any = {};
+    if (fs.existsSync(this.ROLES_FILE)) {
+      try {
+        data = JSON.parse(fs.readFileSync(this.ROLES_FILE, 'utf8'));
+      } catch (e) {
+        data = {};
+      }
+    }
+    data[companyId] = role;
+    fs.writeFileSync(this.ROLES_FILE, JSON.stringify(data, null, 2), 'utf8');
+  }
+
+  static removeCompanyRole(companyId: string) {
+    const fs = require('fs');
+    this.ensureDataDir();
+    if (fs.existsSync(this.ROLES_FILE)) {
+      try {
+        const data = JSON.parse(fs.readFileSync(this.ROLES_FILE, 'utf8'));
+        if (data[companyId]) {
+          delete data[companyId];
+          fs.writeFileSync(this.ROLES_FILE, JSON.stringify(data, null, 2), 'utf8');
+        }
+      } catch (e) {}
+    }
   }
 }

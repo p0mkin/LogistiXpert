@@ -24,6 +24,9 @@ var action_btn_3: Button = null
 @onready var balance_lbl: Label = %BalanceLabel
 @onready var dirty_lbl: Label = %DirtyLabel
 @onready var player_lbl: Label = %PlayerLabel
+@onready var fleet_tab_btn: Button = %FleetTabBtn
+@onready var driver_tab_btn: Button = %DriverTabBtn
+@onready var chop_shop_tab_btn: Button = %ChopShopTabBtn
 
 var api_base: String:
 	get: return NetworkManager.HTTP_URL
@@ -32,6 +35,7 @@ var drivers_data: Array = []
 var selected_truck: Dictionary = {}
 var selected_driver: Dictionary = {}
 var mode: String = "fleet" # "fleet" or "drivers"
+var fleet_controls_hbox: HBoxContainer = null
 
 # Commodity Trading Panel Variables
 var commodity_panel: PanelContainer = null
@@ -47,6 +51,14 @@ var price_histories: Dictionary = {
 	"ELECTRICITY": [],
 	"ADBLUE": [],
 	"CO2_ALLOWANCE": []
+}
+
+const TRAIT_TOOLTIPS = {
+	"BALANCED": "BALANCED: Standard driver. No special buffs or penalties.",
+	"LEAD_FOOT": "LEAD_FOOT: +20% travel speed but +15% fuel consumption and +25% barricade run success.",
+	"SLEEP_DEPRIVED": "SLEEP_DEPRIVED: Sleep fatigue grows +25% slower but has a 10% chance of triggering microsleep crash events at high fatigue.",
+	"LOYAL": "LOYAL: Will never snitch to the police when impounded/busted. Can administer stimulants without loyalty loss.",
+	"CHARISMATIC": "CHARISMATIC: +1.5% success chance per charisma point during border crossing bribes (up to +30%)."
 }
 
 # Programmatically Nested Custom Gauges & Graph Renderers
@@ -191,6 +203,21 @@ func _ready() -> void:
 	hire_btn.pressed.connect(_on_hire_driver)
 	action_btn_1.pressed.connect(_on_action_1)
 	action_btn_2.pressed.connect(_on_action_2)
+	
+	fleet_tab_btn.pressed.connect(func():
+		mode = "fleet"
+		_update_tabs()
+	)
+	driver_tab_btn.pressed.connect(func():
+		mode = "drivers"
+		_update_tabs()
+	)
+	chop_shop_tab_btn.pressed.connect(func():
+		var shop = ChopShop.new()
+		add_child(shop)
+	)
+	_update_tabs()
+	_setup_fleet_controls()
 	
 	# Dynamically inject the third action button into detail panel if not present
 	var detail_inner = detail_panel.get_node("DetailInner")
@@ -530,7 +557,37 @@ func _render_fleet_list() -> void:
 	for child in fleet_list.get_children():
 		child.queue_free()
 	
-	for truck in trucks_data:
+	var filtered_trucks = trucks_data.duplicate()
+	
+	# 1. Filter
+	var filter_idx = 0
+	if fleet_controls_hbox:
+		var filter_opt = fleet_controls_hbox.get_node("FilterOpt") as OptionButton
+		if filter_opt: filter_idx = filter_opt.selected
+		
+	match filter_idx:
+		1: # En-Route
+			filtered_trucks = filtered_trucks.filter(func(t): return t.has("activeRoute") and t.activeRoute != null)
+		2: # Idle
+			filtered_trucks = filtered_trucks.filter(func(t): return not t.get("isImpounded", false) and (not t.has("activeRoute") or t.activeRoute == null))
+		3: # Seized
+			filtered_trucks = filtered_trucks.filter(func(t): return t.get("isImpounded", false))
+			
+	# 2. Sort
+	var sort_idx = 0
+	if fleet_controls_hbox:
+		var sort_opt = fleet_controls_hbox.get_node("SortOpt") as OptionButton
+		if sort_opt: sort_idx = sort_opt.selected
+		
+	match sort_idx:
+		0: # Name (model)
+			filtered_trucks.sort_custom(func(a, b): return a.get("model", "").to_lower() < b.get("model", "").to_lower())
+		1: # Engine Health
+			filtered_trucks.sort_custom(func(a, b): return float(a.get("engineHealth", 100)) > float(b.get("engineHealth", 100)))
+		2: # Mileage
+			filtered_trucks.sort_custom(func(a, b): return float(a.get("mileage", 0)) > float(b.get("mileage", 0)))
+			
+	for truck in filtered_trucks:
 		var card = _build_truck_card(truck)
 		fleet_list.add_child(card)
 
@@ -567,7 +624,11 @@ func _build_truck_card(truck: Dictionary) -> PanelContainer:
 	# Truck header
 	var header = HBoxContainer.new()
 	var model_lbl = Label.new()
-	model_lbl.text = truck.get("model", "Unknown Truck")
+	var nick = truck.get("nickname", "")
+	if nick != "":
+		model_lbl.text = "%s (\"%s\")" % [truck.get("model", "Unknown Truck"), nick]
+	else:
+		model_lbl.text = truck.get("model", "Unknown Truck")
 	model_lbl.add_theme_color_override("font_color", Color(1, 1, 1, 1))
 	model_lbl.add_theme_font_size_override("font_size", 15)
 	header.add_child(model_lbl)
@@ -698,6 +759,9 @@ func _build_driver_card(driver: Dictionary) -> PanelContainer:
 	var trait_lbl = Label.new()
 	trait_lbl.text = "[%s]" % driver_trait
 	trait_lbl.add_theme_font_size_override("font_size", 11)
+	trait_lbl.mouse_filter = Control.MOUSE_FILTER_PASS
+	if driver_trait in TRAIT_TOOLTIPS:
+		trait_lbl.tooltip_text = TRAIT_TOOLTIPS[driver_trait]
 	match driver_trait:
 		"LOYAL":
 			trait_lbl.add_theme_color_override("font_color", Color(0.607, 0.349, 0.713))
@@ -831,6 +895,33 @@ func _select_truck(truck: Dictionary) -> void:
 	blueprint.custom_minimum_size = Vector2(380, 140) # Compact size for detail panel
 	detail_body.add_child(blueprint)
 
+	# Callsign / Nickname Editor
+	var nick_lbl = Label.new()
+	nick_lbl.text = "VEHICLE CALLSIGN / NICKNAME:"
+	nick_lbl.add_theme_font_size_override("font_size", 9)
+	nick_lbl.add_theme_color_override("font_color", Color(0.2, 0.9, 0.7))
+	detail_body.add_child(nick_lbl)
+
+	var nick_hbox = HBoxContainer.new()
+	nick_hbox.add_theme_constant_override("separation", 6)
+	detail_body.add_child(nick_hbox)
+	
+	var nick_edit = LineEdit.new()
+	nick_edit.placeholder_text = "Enter callsign..."
+	nick_edit.text = truck.get("nickname", "")
+	nick_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	nick_edit.add_theme_font_size_override("font_size", 11)
+	nick_hbox.add_child(nick_edit)
+	
+	var nick_save_btn = Button.new()
+	nick_save_btn.text = "SET"
+	nick_save_btn.add_theme_font_size_override("font_size", 11)
+	_style_btn(nick_save_btn, Color(0.2, 0.9, 0.7))
+	nick_save_btn.pressed.connect(func():
+		_rename_truck(truck.get("id", ""), nick_edit.text)
+	)
+	nick_hbox.add_child(nick_save_btn)
+
 	var info_lines = [
 		"VIN: " + truck.get("vin", "???"),
 		"Engine Health: %d%%" % engine,
@@ -932,6 +1023,9 @@ func _select_driver(driver: Dictionary) -> void:
 	
 	detail_title.text = driver_name
 	detail_status.text = "TRAIT: " + driver_trait
+	detail_status.mouse_filter = Control.MOUSE_FILTER_PASS
+	if driver_trait in TRAIT_TOOLTIPS:
+		detail_status.tooltip_text = TRAIT_TOOLTIPS[driver_trait]
 	detail_status.add_theme_color_override("font_color", Color(0.607, 0.349, 0.713))
 	
 	for child in detail_body.get_children():
@@ -1052,6 +1146,21 @@ func _on_hire_driver() -> void:
 # ==========================================
 # HELPERS
 # ==========================================
+func _update_tabs() -> void:
+	if mode == "fleet":
+		fleet_list.visible = true
+		driver_list.visible = false
+		if fleet_controls_hbox: fleet_controls_hbox.visible = true
+		GlobalThemeManager.apply_tab_style(fleet_tab_btn, true, Color(0.18, 0.8, 0.44))
+		GlobalThemeManager.apply_tab_style(driver_tab_btn, false, Color(0.6, 0.35, 0.7))
+	else:
+		fleet_list.visible = false
+		driver_list.visible = true
+		if fleet_controls_hbox: fleet_controls_hbox.visible = false
+		GlobalThemeManager.apply_tab_style(fleet_tab_btn, false, Color(0.18, 0.8, 0.44))
+		GlobalThemeManager.apply_tab_style(driver_tab_btn, true, Color(0.6, 0.35, 0.7))
+	GlobalThemeManager.apply_tab_style(chop_shop_tab_btn, false, Color(1.0, 0.3, 0.3))
+
 func _refresh_balances() -> void:
 	balance_lbl.text = "$%s CLEAN" % String.num(GameState.legal_balance, 2)
 	dirty_lbl.text = "$%s DIRTY" % String.num(GameState.black_market_balance, 2)
@@ -1398,6 +1507,35 @@ func _render_commodity_item(comm: Dictionary, garage_id: String) -> void:
 		
 		buy_btn.pressed.connect(_buy_commodity.bind(garage_id, comm.type, amt))
 		buy_btn_row.add_child(buy_btn)
+
+	# Action Sell Buttons
+	var sell_btn_row = HBoxContainer.new()
+	sell_btn_row.add_theme_constant_override("separation", 6)
+	item_vbox.add_child(sell_btn_row)
+	
+	for amt in comm.buy_amounts:
+		var sell_btn = Button.new()
+		var is_co2 = comm.type == "CO2_ALLOWANCE"
+		var unit_label = "T" if is_co2 else comm.unit
+		var est_earned = amt * curr_price * 0.95
+		sell_btn.text = "-%.0f %s ($%.0f)" % [amt, unit_label, est_earned]
+		sell_btn.add_theme_font_size_override("font_size", 9)
+		sell_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		
+		var s_style = StyleBoxFlat.new()
+		s_style.bg_color = Color(0.180, 0.803, 0.443, 0.08) # green transparent
+		s_style.border_color = Color(0.180, 0.803, 0.443, 0.35)
+		s_style.border_width_bottom = 1
+		s_style.set_corner_radius_all(4)
+		sell_btn.add_theme_stylebox_override("normal", s_style)
+		sell_btn.add_theme_color_override("font_color", Color(0.180, 0.803, 0.443))
+		
+		if comm.current < amt:
+			sell_btn.disabled = true
+			sell_btn.modulate = Color(1, 1, 1, 0.4)
+			
+		sell_btn.pressed.connect(_sell_commodity.bind(garage_id, comm.type, amt))
+		sell_btn_row.add_child(sell_btn)
 		
 	var sep_bottom = HSeparator.new()
 	sep_bottom.modulate = Color(1, 1, 1, 0.15)
@@ -1427,13 +1565,44 @@ func _on_commodity_buy_response(result: int, response_code: int, headers: Packed
 		var cost = float(data.get("totalCost", 0))
 		_log("✓ Stockpile refilled! Cost: $%.2f legal cash deducted." % cost, Color(0.180, 0.803, 0.443))
 		UIEffects.play_refuel()
-		# Re-fetch fleet, which will naturally update local stock levels in GameState and redraw
 		_fetch_fleet()
 	else:
 		var err_msg = "Transaction rejected by market regulatory."
 		if data and data is Dictionary and data.has("message"):
 			err_msg = data.message
 		_log("⛔ Refill failed: " + err_msg, Color(0.901, 0.298, 0.235))
+		UIEffects.play_error()
+
+func _sell_commodity(garage_id: String, commodity_type: String, amount: float) -> void:
+	_log("Ordering stockpile sale: %.0f %s..." % [amount, commodity_type], Color(0.180, 0.803, 0.443))
+	var http = HTTPRequest.new()
+	add_child(http)
+	http.request_completed.connect(_on_commodity_sell_response.bind(http))
+	var body = JSON.stringify({
+		"garageId": garage_id,
+		"commodityType": commodity_type,
+		"amount": amount
+	})
+	http.request(
+		api_base + "/commodity/sell",
+		["Authorization: Bearer " + NetworkManager.jwt_token, "Content-Type: application/json"],
+		HTTPClient.METHOD_POST,
+		body
+	)
+
+func _on_commodity_sell_response(result: int, response_code: int, headers: PackedStringArray, body: PackedByteArray, http: HTTPRequest) -> void:
+	http.queue_free()
+	var data = JSON.parse_string(body.get_string_from_utf8())
+	if response_code == 200:
+		var earned = float(data.get("totalEarned", 0))
+		_log("✓ Stockpile sold! Earned: $%.2f legal cash credited." % earned, Color(0.180, 0.803, 0.443))
+		UIEffects.play_refuel()
+		_fetch_fleet()
+	else:
+		var err_msg = "Transaction rejected by market regulatory."
+		if data and data is Dictionary and data.has("message"):
+			err_msg = data.message
+		_log("⛔ Sale failed: " + err_msg, Color(0.901, 0.298, 0.235))
 		UIEffects.play_error()
 
 
@@ -1603,6 +1772,29 @@ func _open_commodity_refill_modal(comm: Dictionary, garage_id: String) -> void:
 	line_graph.graph_color = Color(0.925, 0.607, 0.141, 1.0)
 	right_vbox.add_child(line_graph)
 	
+	# Mode Selection HBox
+	var mode_hbox = HBoxContainer.new()
+	mode_hbox.add_theme_constant_override("separation", 10)
+	right_vbox.add_child(mode_hbox)
+	
+	var buy_mode_btn = Button.new()
+	buy_mode_btn.text = "💳  BUY MODE"
+	buy_mode_btn.toggle_mode = true
+	buy_mode_btn.button_pressed = true
+	buy_mode_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	mode_hbox.add_child(buy_mode_btn)
+	
+	var sell_mode_btn = Button.new()
+	sell_mode_btn.text = "💰  SELL MODE"
+	sell_mode_btn.toggle_mode = true
+	sell_mode_btn.button_pressed = false
+	sell_mode_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	mode_hbox.add_child(sell_mode_btn)
+	
+	var mode_group = ButtonGroup.new()
+	buy_mode_btn.button_group = mode_group
+	sell_mode_btn.button_group = mode_group
+
 	var slider_label = Label.new()
 	slider_label.text = "SELECT AMOUNT TO PURCHASE"
 	slider_label.add_theme_font_size_override("font_size", 11)
@@ -1659,32 +1851,81 @@ func _open_commodity_refill_modal(comm: Dictionary, garage_id: String) -> void:
 	purchase_btn.disabled = true
 	right_vbox.add_child(purchase_btn)
 	
+	var state = { "is_sell_mode": false }
+	
+	var update_slider_limits = func():
+		if not state.is_sell_mode:
+			slider_label.text = "SELECT AMOUNT TO PURCHASE"
+			var rem_space = comm.max - comm.current if comm.max > 0 else 100.0
+			if rem_space < 0: rem_space = 0.0
+			amt_slider.max_value = rem_space
+			purchase_btn.text = "💳  EXECUTE REFILL ORDER"
+		else:
+			slider_label.text = "SELECT AMOUNT TO SELL"
+			amt_slider.max_value = comm.current
+			purchase_btn.text = "💰  EXECUTE SELL ORDER"
+		amt_slider.value = 0.0
+		slider_val_lbl.text = "0 %s" % comm.unit
+		invoice_lbl.text = "Total cost: $0.00  |  Remaining Cash: $%s" % _fmt_cash(GameState.legal_balance)
+		purchase_btn.disabled = true
+		purchase_btn.remove_theme_color_override("font_color")
+
+	buy_mode_btn.toggled.connect(func(pressed):
+		if pressed:
+			state.is_sell_mode = false
+			update_slider_limits.call()
+	)
+	
+	sell_mode_btn.toggled.connect(func(pressed):
+		if pressed:
+			state.is_sell_mode = true
+			update_slider_limits.call()
+	)
+
 	amt_slider.value_changed.connect(func(val):
 		var unit_label = "Tons" if comm.type == "CO2_ALLOWANCE" else comm.unit
 		slider_val_lbl.text = "%.1f %s" % [val, unit_label] if comm.type == "CO2_ALLOWANCE" else "%.0f %s" % [val, unit_label]
 		
 		var unit_price = market_prices[comm.type]["price"]
-		var cost = val * unit_price
-		var remaining_cash = GameState.legal_balance - cost
+		var cost_or_earned = val * unit_price
 		
-		if cost > 0:
-			invoice_lbl.text = "Total Cost: $%.2f  |  Remaining Cash: $%s" % [cost, _fmt_cash(remaining_cash)]
+		if not state.is_sell_mode:
+			var remaining_cash = GameState.legal_balance - cost_or_earned
+			if cost_or_earned > 0:
+				invoice_lbl.text = "Total Cost: $%.2f  |  Remaining Cash: $%s" % [cost_or_earned, _fmt_cash(remaining_cash)]
+			else:
+				invoice_lbl.text = "Total Cost: $0.00  |  Remaining Cash: $%s" % _fmt_cash(GameState.legal_balance)
+				
+			if cost_or_earned > GameState.legal_balance:
+				invoice_lbl.add_theme_color_override("font_color", Color(0.901, 0.298, 0.235))
+				purchase_btn.disabled = true
+				purchase_btn.text = "⛔ INSUFFICIENT LEGAL CASH"
+			else:
+				invoice_lbl.add_theme_color_override("font_color", Color(0.709, 0.768, 0.843, 0.85))
+				if val > 0:
+					purchase_btn.disabled = false
+					purchase_btn.text = "💳  EXECUTE REFILL ORDER ($%.2f)" % cost_or_earned
+					purchase_btn.add_theme_color_override("font_color", Color(0.180, 0.803, 0.443))
+				else:
+					purchase_btn.disabled = true
+					purchase_btn.text = "💳  EXECUTE REFILL ORDER"
+					purchase_btn.remove_theme_color_override("font_color")
 		else:
-			invoice_lbl.text = "Total Cost: $0.00  |  Remaining Cash: $%s" % _fmt_cash(GameState.legal_balance)
-			
-		if cost > GameState.legal_balance:
-			invoice_lbl.add_theme_color_override("font_color", Color(0.901, 0.298, 0.235))
-			purchase_btn.disabled = true
-			purchase_btn.text = "⛔ INSUFFICIENT LEGAL CASH"
-		else:
+			var sell_earned = cost_or_earned * 0.95
+			var new_cash = GameState.legal_balance + sell_earned
+			if sell_earned > 0:
+				invoice_lbl.text = "Estimated Earnings: $%.2f  |  New Legal Cash: $%s" % [sell_earned, _fmt_cash(new_cash)]
+			else:
+				invoice_lbl.text = "Estimated Earnings: $0.00  |  Remaining Cash: $%s" % _fmt_cash(GameState.legal_balance)
+				
 			invoice_lbl.add_theme_color_override("font_color", Color(0.709, 0.768, 0.843, 0.85))
 			if val > 0:
 				purchase_btn.disabled = false
-				purchase_btn.text = "💳  EXECUTE REFILL ORDER ($%.2f)" % cost
+				purchase_btn.text = "💰  EXECUTE SELL ORDER ($%.2f)" % sell_earned
 				purchase_btn.add_theme_color_override("font_color", Color(0.180, 0.803, 0.443))
 			else:
 				purchase_btn.disabled = true
-				purchase_btn.text = "💳  EXECUTE REFILL ORDER"
+				purchase_btn.text = "💰  EXECUTE SELL ORDER"
 				purchase_btn.remove_theme_color_override("font_color")
 	)
 	
@@ -1693,7 +1934,10 @@ func _open_commodity_refill_modal(comm: Dictionary, garage_id: String) -> void:
 		if val > 0:
 			purchase_btn.disabled = true
 			amt_slider.editable = false
-			_buy_commodity_via_modal(garage_id, comm.type, val, modal_overlay, purchase_btn, amt_slider)
+			if not state.is_sell_mode:
+				_buy_commodity_via_modal(garage_id, comm.type, val, modal_overlay, purchase_btn, amt_slider)
+			else:
+				_sell_commodity_via_modal(garage_id, comm.type, val, modal_overlay, purchase_btn, amt_slider)
 	)
 	
 	add_child(modal_overlay)
@@ -1820,6 +2064,114 @@ func _buy_commodity_via_modal(garage_id: String, commodity_type: String, amount:
 		api_base + "/commodity/buy",
 		["Authorization: Bearer " + NetworkManager.jwt_token, "Content-Type: application/json"],
 		HTTPClient.METHOD_POST,
+		body
+	)
+
+func _sell_commodity_via_modal(garage_id: String, commodity_type: String, amount: float, modal_overlay: Node, purchase_btn: Button, amt_slider: HSlider) -> void:
+	_log("Executing stockpile sale from modal: %.1f %s..." % [amount, commodity_type], Color(0.180, 0.803, 0.443))
+	var http = HTTPRequest.new()
+	add_child(http)
+	http.request_completed.connect(func(result, response_code, headers, body):
+		http.queue_free()
+		var data = JSON.parse_string(body.get_string_from_utf8())
+		if response_code == 200:
+			var earned = float(data.get("totalEarned", 0))
+			_log("✓ Stockpile sold! Earned: $%.2f legal cash credited." % earned, Color(0.180, 0.803, 0.443))
+			UIEffects.play_refuel()
+			modal_overlay.queue_free()
+			_fetch_fleet()
+		else:
+			var err_msg = "Transaction rejected by market regulatory."
+			if data and data is Dictionary and data.has("message"):
+				err_msg = data.message
+			_log("⛔ Sale failed: " + err_msg, Color(0.901, 0.298, 0.235))
+			UIEffects.play_error()
+			purchase_btn.disabled = false
+			amt_slider.editable = true
+	)
+	var body = JSON.stringify({
+		"garageId": garage_id,
+		"commodityType": commodity_type,
+		"amount": amount
+	})
+	http.request(
+		api_base + "/commodity/sell",
+		["Authorization: Bearer " + NetworkManager.jwt_token, "Content-Type: application/json"],
+		HTTPClient.METHOD_POST,
+		body
+	)
+
+func _setup_fleet_controls() -> void:
+	fleet_controls_hbox = HBoxContainer.new()
+	fleet_controls_hbox.name = "FleetControlsHBox"
+	fleet_controls_hbox.add_theme_constant_override("separation", 10)
+	
+	var filter_lbl = Label.new()
+	filter_lbl.text = "FILTER:"
+	filter_lbl.add_theme_font_size_override("font_size", 9)
+	filter_lbl.add_theme_color_override("font_color", Color(0.2, 0.9, 0.7))
+	fleet_controls_hbox.add_child(filter_lbl)
+	
+	var filter_opt = OptionButton.new()
+	filter_opt.name = "FilterOpt"
+	filter_opt.add_item("ALL TRUCKS", 0)
+	filter_opt.add_item("EN-ROUTE", 1)
+	filter_opt.add_item("IDLE", 2)
+	filter_opt.add_item("SEIZED", 3)
+	filter_opt.selected = 0
+	filter_opt.add_theme_font_size_override("font_size", 9)
+	filter_opt.custom_minimum_size.x = 100
+	_style_btn(filter_opt, Color(0.2, 0.9, 0.7))
+	filter_opt.item_selected.connect(func(idx): _render_fleet_list())
+	fleet_controls_hbox.add_child(filter_opt)
+	
+	var sort_lbl = Label.new()
+	sort_lbl.text = "SORT:"
+	sort_lbl.add_theme_font_size_override("font_size", 9)
+	sort_lbl.add_theme_color_override("font_color", Color(0.2, 0.9, 0.7))
+	fleet_controls_hbox.add_child(sort_lbl)
+	
+	var sort_opt = OptionButton.new()
+	sort_opt.name = "SortOpt"
+	sort_opt.add_item("MODEL NAME", 0)
+	sort_opt.add_item("ENGINE HP", 1)
+	sort_opt.add_item("MILEAGE", 2)
+	sort_opt.selected = 0
+	sort_opt.add_theme_font_size_override("font_size", 9)
+	sort_opt.custom_minimum_size.x = 100
+	_style_btn(sort_opt, Color(0.2, 0.9, 0.7))
+	sort_opt.item_selected.connect(func(idx): _render_fleet_list())
+	fleet_controls_hbox.add_child(sort_opt)
+	
+	var scroll_area = fleet_list.get_parent().get_parent()
+	var left_panel = scroll_area.get_parent()
+	left_panel.add_child(fleet_controls_hbox)
+	left_panel.move_child(fleet_controls_hbox, scroll_area.get_index())
+	
+	# Set initial visibility
+	fleet_controls_hbox.visible = (mode == "fleet")
+
+func _rename_truck(truck_id: String, new_nickname: String) -> void:
+	_log("Renaming vehicle...", Color(0.925, 0.607, 0.141))
+	var http = HTTPRequest.new()
+	add_child(http)
+	http.request_completed.connect(func(result, response_code, headers, body):
+		http.queue_free()
+		var data = JSON.parse_string(body.get_string_from_utf8())
+		if response_code == 200:
+			_log("✓ Vehicle nickname updated!", Color(0.180, 0.803, 0.443))
+			UIEffects.play_success()
+			_fetch_fleet()
+			detail_panel.hide()
+		else:
+			_log("Rename failed: " + data.get("message", "Error"), Color(0.901, 0.298, 0.235))
+			UIEffects.play_error()
+	)
+	var body = JSON.stringify({"nickname": new_nickname})
+	http.request(
+		api_base + "/garage/trucks/" + truck_id + "/rename",
+		["Authorization: Bearer " + NetworkManager.jwt_token, "Content-Type: application/json"],
+		HTTPClient.METHOD_PATCH,
 		body
 	)
 

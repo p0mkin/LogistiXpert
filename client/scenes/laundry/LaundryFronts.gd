@@ -306,6 +306,18 @@ func _build_front_card(front: Dictionary) -> PanelContainer:
 	meta_lbl.add_theme_font_size_override("font_size", 11)
 	vbox.add_child(meta_lbl)
 
+	# Heat Shield decay rating
+	var shield_lbl = Label.new()
+	var shield_pct = int(front.get("upgradeLevel", 1)) * 15
+	if is_raided:
+		shield_lbl.text = "🛡️ Heat Shield: +0% (Audited)"
+		shield_lbl.add_theme_color_override("font_color", Color(0.9, 0.3, 0.3, 0.7))
+	else:
+		shield_lbl.text = "🛡️ Heat Shield: +%d%% police heat decay" % shield_pct
+		shield_lbl.add_theme_color_override("font_color", Color(0.2, 0.8, 1.0, 0.8))
+	shield_lbl.add_theme_font_size_override("font_size", 11)
+	vbox.add_child(shield_lbl)
+
 	# Yield rate bar
 	var yield_pct = int(float(front.get("lossMultiplier", 0.8)) * 100)
 	var yield_row = HBoxContainer.new()

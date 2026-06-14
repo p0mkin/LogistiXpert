@@ -286,12 +286,14 @@ func _parse_and_route_message(json_str: String) -> void:
 			
 		"border:cleared":
 			border_event_resolved.emit("cleared", payload)
+			GameState.log_event("🛂 CUSTOMS CLEARED", payload.get("message", "Customs cleared successfully!"), Color(0.2, 0.9, 0.5, 1.0))
 			
 		"border:bust":
 			border_event_resolved.emit("bust", payload)
 		
 		"border:bribe_success":
 			border_event_resolved.emit("bribe_success", payload)
+			GameState.log_event("💸 BRIBE ACCEPTED", payload.get("message", "Officer accepted the bribe."), Color(0.2, 0.9, 0.5, 1.0))
 		
 		"border:bribe_fail":
 			border_event_resolved.emit("bribe_fail", payload)
@@ -299,6 +301,7 @@ func _parse_and_route_message(json_str: String) -> void:
 		
 		"border:run_success":
 			border_event_resolved.emit("run_success", payload)
+			GameState.log_event("🚧 BARRICADE CLEARED", payload.get("message", "Successfully ran the border barricade!"), Color(0.2, 0.9, 0.5, 1.0))
 		
 		"border:run_fail":
 			border_event_resolved.emit("run_fail", payload)
@@ -307,6 +310,7 @@ func _parse_and_route_message(json_str: String) -> void:
 		"route:completed":
 			route_completed.emit(payload)
 			GameState.update_balances(0.0, float(payload.get("payout", 0)))
+			GameState.log_event("🚚 ROUTE COMPLETED", "Route completed: %s -> %s. Payout: $%s." % [payload.get("origin", ""), payload.get("destination", ""), str(payload.get("payout", 0))], Color(0.2, 0.9, 0.5, 1.0))
 			
 		"route:progress":
 			# Update local GameState active routes cache
@@ -352,6 +356,7 @@ func _parse_and_route_message(json_str: String) -> void:
 		
 		"border:inspection_event":
 			border_inspection_started.emit(payload)
+			GameState.log_event("🛂 CUSTOMS INSPECTION", payload.get("message", "Truck stopped for custom check."), Color(1.0, 0.75, 0.1, 1.0))
 			
 		"dispatch:no_fuel_alert":
 			dispatch_no_fuel_alert.emit(payload)
@@ -424,6 +429,10 @@ func _parse_and_route_message(json_str: String) -> void:
 			GameState.balance_updated.emit(GameState.legal_balance, GameState.black_market_balance)
 			company_balance_updated.emit(payload)
 			
+		"company:heat_update":
+			GameState.police_heat = int(payload.get("policeHeat", GameState.police_heat))
+			GameState.reputation_updated.emit(GameState.reputation_score, GameState.police_heat)
+			
 		"DISPATCH_TICK", "BORDER_CHECK", "ROUTE_COMPLETE", "MICROSLEEP_CRASH", "SEIZURE":
 			# Legacy keys — routed via ws_message_received broadcast to DispatchCenter
 			pass
@@ -441,6 +450,9 @@ func _parse_and_route_message(json_str: String) -> void:
 var _alert_overlay: Node = null
 
 func _show_emergency_alert(title: String, message: String, color: Color) -> void:
+	# Log to the event feed as well
+	GameState.log_event(title, message, color)
+	
 	# Remove any existing alert
 	if _alert_overlay and is_instance_valid(_alert_overlay):
 		_alert_overlay.queue_free()

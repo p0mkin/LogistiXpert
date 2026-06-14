@@ -467,6 +467,19 @@ func _render_action_panel(truck: Dictionary) -> void:
 
 		y += 64
 
+		# SMUGGLER'S TOW BUTTON
+		var smuggler_btn = Button.new()
+		smuggler_btn.text = "💜  SMUGGLER'S TOW ($3,500 BM)\nRecover truck to terminal & stash contraband safely"
+		smuggler_btn.position = Vector2(14, y)
+		smuggler_btn.size = Vector2(404, 56)
+		smuggler_btn.add_theme_font_size_override("font_size", 13)
+		smuggler_btn.add_theme_color_override("font_color", Color(0.75, 0.3, 1.0, 1.0))
+		smuggler_btn.disabled = GameState.black_market_balance < 3500
+		smuggler_btn.pressed.connect(func(): _do_smuggler_tow(truck))
+		p.add_child(smuggler_btn)
+
+		y += 64
+
 		# Warning for active route
 		if truck.get("progressPct", null) != null:
 			var warn = Label.new()
@@ -502,6 +515,19 @@ func _do_repair(repair_type: String, truck: Dictionary) -> void:
 	action_http.request(BASE_URL + endpoint, headers, HTTPClient.METHOD_POST, body)
 	_show_toast("🔧 Requesting %s repair..." % repair_type, Color(1.0, 0.75, 0.2, 1.0))
 
+func _do_smuggler_tow(truck: Dictionary) -> void:
+	if action_http.get_http_client_status() != HTTPClient.STATUS_DISCONNECTED:
+		_show_toast("✕ Action already in progress. Please wait...", Color(1.0, 0.3, 0.3, 1.0))
+		return
+	var token = GameState.auth_token
+	var headers = ["Content-Type: application/json", "Authorization: Bearer " + token]
+	var body = JSON.stringify({
+		"truckId": truck.get("truckId", "")
+	})
+	pending_action = "smuggler"
+	action_http.request(BASE_URL + "/api/breakdown/smugglers-tow", headers, HTTPClient.METHOD_POST, body)
+	_show_toast("💜 Requesting Smuggler's Tow...", Color(0.75, 0.3, 1.0, 1.0))
+
 func _do_action(action_type: String, truck_id: String, _extra: Dictionary) -> void:
 	if action_http.get_http_client_status() != HTTPClient.STATUS_DISCONNECTED:
 		_show_toast("✕ Action already in progress. Please wait...", Color(1.0, 0.3, 0.3, 1.0))
@@ -527,6 +553,12 @@ func _on_action_response(_r, code, _h, body) -> void:
 				if d.get("contrabandJettisoned", false):
 					msg += "  ⚠ Contraband jettisoned by driver."
 				_show_toast(msg, Color(0.3, 0.85, 1.0, 1.0))
+			"smuggler":
+				GameState.update_balances(0.0, -float(d.get("towCost", 0)))
+				msg = "✔ Smuggler's Tow complete! Paid: $%s BM" % _fmt(int(d.get("towCost", 0)))
+				if d.get("contrabandRecovered", false):
+					msg += " 🔑 Contraband safely recovered to terminal."
+				_show_toast(msg, Color(0.75, 0.3, 1.0, 1.0))
 			"release":
 				var fee = d.get("fee", 0)
 				if fee > 0:

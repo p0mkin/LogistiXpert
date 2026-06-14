@@ -18,11 +18,14 @@ var company_val: Dictionary = {}
 var market_data: Dictionary = {}
 var credit_data: Dictionary = {}
 var active_listings: Array = []
+var shareholders_list: Array = []
+var shareholders_http: HTTPRequest = null
 
 var selected_listing_id: String = ""
 var trade_qty: int = 1000
 var loan_qty: float = 10000.00
 var gold_qty: float = 5.0
+var dividend_value: float = 0.10
 
 @onready var scene_root = $CanvasLayer
 @onready var val_http = $ValHTTPRequest
@@ -38,6 +41,11 @@ var ticker_offset: float = 0.0
 
 func _ready() -> void:
 	_build_ui()
+	
+	shareholders_http = HTTPRequest.new()
+	add_child(shareholders_http)
+	shareholders_http.request_completed.connect(_on_shareholders_response)
+	
 	_fetch_all_data()
 	
 	# Connect to real-time WebSocket signals for live updates
@@ -70,6 +78,10 @@ func _fetch_all_data() -> void:
 	
 	# 3. Fetch Stock Exchange listings
 	market_http.request(BASE_URL + "/market", ["Authorization: Bearer " + token], HTTPClient.METHOD_GET)
+	
+	# 4. Fetch Corporate Shareholders
+	_fetch_shareholders()
+
 
 func _on_val_response(_r, code, _h, body) -> void:
 	if code == 200:
@@ -99,6 +111,40 @@ func _on_market_response(_r, code, _h, body) -> void:
 				_render_stocks_tab()
 			elif active_tab == Tab.SPECS:
 				_render_specs_tab()
+
+func _fetch_shareholders() -> void:
+	var token = GameState.auth_token
+	if token.is_empty(): return
+	shareholders_http.request(BASE_URL + "/shares/shareholders", ["Authorization: Bearer " + token], HTTPClient.METHOD_GET)
+
+func _on_shareholders_response(_r, code, _h, body) -> void:
+	if code == 200:
+		var d = JSON.parse_string(body.get_string_from_utf8())
+		if d:
+			shareholders_list = d
+			if active_tab == Tab.STOCKS:
+				# Re-render details to show updated shareholders list
+				var view = _find(scene_root, "MainView")
+				if view:
+					var trade_panel = _find(view, "TradePanelContainer")
+					if trade_panel:
+						var target = null
+						for l in active_listings:
+							if l.companyId == selected_listing_id:
+								target = l
+								break
+						if target:
+							# Clear old
+							for c in trade_panel.get_children():
+								c.queue_free()
+							# Re-render title
+							var tr_lbl = Label.new()
+							tr_lbl.text = "🛒  INVESTMENT & HOSTILE TAKEOVER"
+							tr_lbl.add_theme_font_size_override("font_size", 12)
+							tr_lbl.add_theme_color_override("font_color", Color(0.9, 0.75, 0.2, 1.0))
+							tr_lbl.position = Vector2(16, 16)
+							trade_panel.add_child(tr_lbl)
+							_render_trading_details(trade_panel, target)
 
 func _update_ticker_text(c500: float, gold: float) -> void:
 	ticker_text = "▲ C500 INDEX: %.2f PTS   ·   ✨ GOLD SPOT: $%.2f / OZ   ·   🎰 INVEST RESPONSIBLY   ·   🔥 KEEP POLICE HEAT UNDER 30%% FOR IPO" % [c500, gold]
@@ -481,6 +527,7 @@ func _render_stocks_tab() -> void:
 
 	# Right Column: Buy/Sell Panel
 	var trade_panel = _panel(Vector2(780, 16), Vector2(456, 432), Color(0.06, 0.05, 0.09, 0.95), Color(0.9, 0.75, 0.2, 0.3))
+	trade_panel.name = "TradePanelContainer"
 	view.add_child(trade_panel)
 
 	var tr_lbl = Label.new()
@@ -580,73 +627,149 @@ func _render_trading_details(panel: PanelContainer, target: Dictionary) -> void:
 	p_lbl.position = Vector2(16, 74)
 	panel.add_child(p_lbl)
 
-	# Quantity inputs
-	var qty_lbl = Label.new()
-	qty_lbl.text = "Share Quantity to Trade:"
-	qty_lbl.add_theme_font_size_override("font_size", 11)
-	qty_lbl.add_theme_color_override("font_color", Color(0.5, 0.5, 0.6, 1.0))
-	qty_lbl.position = Vector2(16, 114)
-	panel.add_child(qty_lbl)
+	if target.companyId == GameState.company_id:
+		# OWN COMPANY SHARE MANAGEMENT (Buyback & Dividends)
+		var bb_lbl = Label.new()
+		bb_lbl.text = "CORPORATE SHAREHOLDERS & BUYBACKS:"
+		bb_lbl.add_theme_font_size_override("font_size", 11)
+		bb_lbl.add_theme_color_override("font_color", Color(0.3, 0.85, 1.0, 1.0))
+		bb_lbl.position = Vector2(16, 110)
+		panel.add_child(bb_lbl)
 
-	# Adjust Qty Buttons
-	var qtys = [500, 1000, 5000, 20000]
-	var q_x = 16
-	for q in qtys:
-		var q_btn = Button.new()
-		q_btn.text = "+" + _fmt(q)
-		q_btn.position = Vector2(q_x, 134)
-		q_btn.size = Vector2(90, 28)
-		_style_customizer_btn(q_btn, trade_qty == q, Color(0.9, 0.75, 0.2))
-		q_btn.pressed.connect(func():
-			trade_qty = q
-			_render_stocks_tab()
+		var scroll = ScrollContainer.new()
+		scroll.position = Vector2(16, 130)
+		scroll.size = Vector2(424, 130)
+		panel.add_child(scroll)
+
+		var list = VBoxContainer.new()
+		list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		scroll.add_child(list)
+
+		var corporate_shareholders = shareholders_list
+		if corporate_shareholders.is_empty():
+			var empty = Label.new()
+			empty.text = "No competitors hold shares of your company."
+			empty.add_theme_font_size_override("font_size", 11)
+			empty.add_theme_color_override("font_color", Color(0.5, 0.5, 0.6, 1.0))
+			list.add_child(empty)
+		else:
+			for sh in corporate_shareholders:
+				var row = HBoxContainer.new()
+				list.add_child(row)
+
+				var sh_lbl = Label.new()
+				sh_lbl.text = "%s (%s sh)" % [sh.name, _fmt(sh.shares)]
+				sh_lbl.add_theme_font_size_override("font_size", 11)
+				sh_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+				row.add_child(sh_lbl)
+
+				var bb_btn = Button.new()
+				bb_btn.text = "BUY BACK"
+				bb_btn.custom_minimum_size = Vector2(80, 24)
+				GlobalThemeManager.apply_btn_style(bb_btn, Color(0.2, 0.85, 0.45))
+				var target_comp_id = sh.companyId
+				var sh_count = sh.shares
+				bb_btn.pressed.connect(func(): _execute_buyback(target_comp_id, sh_count))
+				row.add_child(bb_btn)
+
+		# Dividends controls below
+		var div_lbl = Label.new()
+		div_lbl.text = "DISTRIBUTE CASH DIVIDENDS:"
+		div_lbl.add_theme_font_size_override("font_size", 11)
+		div_lbl.add_theme_color_override("font_color", Color(0.2, 0.9, 0.5, 1.0))
+		div_lbl.position = Vector2(16, 280)
+		panel.add_child(div_lbl)
+
+		var div_input = LineEdit.new()
+		div_input.placeholder_text = "Dividend per share (e.g. 0.10)..."
+		div_input.text = "%.2f" % dividend_value
+		div_input.position = Vector2(16, 310)
+		div_input.size = Vector2(200, 38)
+		GlobalThemeManager.apply_input_style(div_input)
+		panel.add_child(div_input)
+
+		var pay_div_btn = Button.new()
+		pay_div_btn.text = "💸 Payout Dividends"
+		pay_div_btn.position = Vector2(230, 310)
+		pay_div_btn.size = Vector2(210, 38)
+		GlobalThemeManager.apply_btn_style(pay_div_btn, Color(0.2, 0.9, 0.5))
+		pay_div_btn.pressed.connect(func():
+			var val = float(div_input.text)
+			if val > 0:
+				dividend_value = val
+				_execute_dividend_payout(val)
 		)
-		panel.add_child(q_btn)
-		q_x += 104
+		panel.add_child(pay_div_btn)
 
-	var q_lbl = Label.new()
-	q_lbl.text = "Trade Volume: %s Shares" % _fmt(trade_qty)
-	q_lbl.add_theme_font_size_override("font_size", 13)
-	q_lbl.add_theme_color_override("font_color", Color(0.85, 0.85, 0.9, 1.0))
-	q_lbl.position = Vector2(16, 178)
-	q_lbl.name = "TradeQtyLabel"
-	panel.add_child(q_lbl)
+	else:
+		# Quantity inputs
+		var qty_lbl = Label.new()
+		qty_lbl.text = "Share Quantity to Trade:"
+		qty_lbl.add_theme_font_size_override("font_size", 11)
+		qty_lbl.add_theme_color_override("font_color", Color(0.5, 0.5, 0.6, 1.0))
+		qty_lbl.position = Vector2(16, 114)
+		panel.add_child(qty_lbl)
 
-	var est = target.sharePrice * trade_qty
-	var est_lbl = Label.new()
-	est_lbl.text = "Total Cost estimate: $%.2f" % est
-	est_lbl.add_theme_font_size_override("font_size", 12)
-	est_lbl.add_theme_color_override("font_color", Color(0.2, 0.85, 0.45, 1.0))
-	est_lbl.position = Vector2(16, 204)
-	est_lbl.name = "TotalEstLabel"
-	panel.add_child(est_lbl)
+		# Adjust Qty Buttons
+		var qtys = [500, 1000, 5000, 20000]
+		var q_x = 16
+		for q in qtys:
+			var q_btn = Button.new()
+			q_btn.text = "+" + _fmt(q)
+			q_btn.position = Vector2(q_x, 134)
+			q_btn.size = Vector2(90, 28)
+			_style_customizer_btn(q_btn, trade_qty == q, Color(0.9, 0.75, 0.2))
+			q_btn.pressed.connect(func():
+				trade_qty = q
+				_render_stocks_tab()
+			)
+			panel.add_child(q_btn)
+			q_x += 104
 
-	# Warning text (takeover limits, tax)
-	var warn = Label.new()
-	warn.text = "🚨 Takeover Shield Limit: You cannot own more than 49% of outstanding shares. Day-trading holding period < 10 mins triggers short-term Capital Gains surcharges."
-	warn.add_theme_font_size_override("font_size", 10)
-	warn.add_theme_color_override("font_color", Color(1.0, 0.45, 0.2, 0.8))
-	warn.position = Vector2(16, 238)
-	warn.size = Vector2(424, 48)
-	warn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	panel.add_child(warn)
+		var q_lbl = Label.new()
+		q_lbl.text = "Trade Volume: %s Shares" % _fmt(trade_qty)
+		q_lbl.add_theme_font_size_override("font_size", 13)
+		q_lbl.add_theme_color_override("font_color", Color(0.85, 0.85, 0.9, 1.0))
+		q_lbl.position = Vector2(16, 178)
+		q_lbl.name = "TradeQtyLabel"
+		panel.add_child(q_lbl)
 
-	# Transact buttons
-	var buy_btn = Button.new()
-	buy_btn.text = "✔  BUY SHARES"
-	buy_btn.position = Vector2(16, 310)
-	buy_btn.size = Vector2(200, 44)
-	buy_btn.add_theme_color_override("font_color", Color(0.2, 0.85, 0.45, 1.0))
-	buy_btn.pressed.connect(func(): _execute_trade("BUY", target.companyId))
-	panel.add_child(buy_btn)
+		var est = target.sharePrice * trade_qty
+		var est_lbl = Label.new()
+		est_lbl.text = "Total Cost estimate: $%.2f" % est
+		est_lbl.add_theme_font_size_override("font_size", 12)
+		est_lbl.add_theme_color_override("font_color", Color(0.2, 0.85, 0.45, 1.0))
+		est_lbl.position = Vector2(16, 204)
+		est_lbl.name = "TotalEstLabel"
+		panel.add_child(est_lbl)
 
-	var sell_btn = Button.new()
-	sell_btn.text = "✕  SELL SHARES"
-	sell_btn.position = Vector2(240, 310)
-	sell_btn.size = Vector2(200, 44)
-	sell_btn.add_theme_color_override("font_color", Color(1.0, 0.3, 0.3, 1.0))
-	sell_btn.pressed.connect(func(): _execute_trade("SELL", target.companyId))
-	panel.add_child(sell_btn)
+		# Warning text (takeover limits, tax)
+		var warn = Label.new()
+		warn.text = "🚨 Takeover Shield Limit: You cannot own more than 49% of outstanding shares. Day-trading holding period < 10 mins triggers short-term Capital Gains surcharges."
+		warn.add_theme_font_size_override("font_size", 10)
+		warn.add_theme_color_override("font_color", Color(1.0, 0.45, 0.2, 0.8))
+		warn.position = Vector2(16, 238)
+		warn.size = Vector2(424, 48)
+		warn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		panel.add_child(warn)
+
+		# Transact buttons
+		var buy_btn = Button.new()
+		buy_btn.text = "✔  BUY SHARES"
+		buy_btn.position = Vector2(16, 310)
+		buy_btn.size = Vector2(200, 44)
+		buy_btn.add_theme_color_override("font_color", Color(0.2, 0.85, 0.45, 1.0))
+		buy_btn.pressed.connect(func(): _execute_trade("BUY", target.companyId))
+		panel.add_child(buy_btn)
+
+		var sell_btn = Button.new()
+		sell_btn.text = "✕  SELL SHARES"
+		sell_btn.position = Vector2(240, 310)
+		sell_btn.size = Vector2(200, 44)
+		sell_btn.add_theme_color_override("font_color", Color(1.0, 0.3, 0.3, 1.0))
+		sell_btn.pressed.connect(func(): _execute_trade("SELL", target.companyId))
+		panel.add_child(sell_btn)
+
 
 func _execute_trade(action_type: String, target_id: String) -> void:
 	var token = GameState.auth_token
@@ -824,6 +947,26 @@ func _render_credit_tab() -> void:
 	repay_btn.add_theme_color_override("font_color", Color(1.0, 0.7, 0.2, 1.0))
 	repay_btn.pressed.connect(func(): _execute_credit_action("loans/repay", loan_qty))
 	right.add_child(repay_btn)
+
+	var custom_input = LineEdit.new()
+	custom_input.placeholder_text = "Custom repayment amount..."
+	custom_input.position = Vector2(16, 340)
+	custom_input.size = Vector2(360, 38)
+	GlobalThemeManager.apply_input_style(custom_input)
+	right.add_child(custom_input)
+
+	var repay_custom_btn = Button.new()
+	repay_custom_btn.text = "📤  REPAY CUSTOM"
+	repay_custom_btn.position = Vector2(390, 340)
+	repay_custom_btn.size = Vector2(186, 38)
+	GlobalThemeManager.apply_btn_style(repay_custom_btn, Color(1.0, 0.7, 0.2))
+	repay_custom_btn.pressed.connect(func():
+		var val = float(custom_input.text)
+		if val > 0:
+			_execute_credit_action("loans/repay", val)
+	)
+	right.add_child(repay_custom_btn)
+
 
 func _execute_credit_action(endpoint_path: String, amount: float) -> void:
 	var token = GameState.auth_token

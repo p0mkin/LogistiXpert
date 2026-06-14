@@ -445,133 +445,145 @@ func _render_active_routes() -> void:
 		var card = _build_route_card(route)
 		active_routes_list.add_child(card)
 
+func _get_border_crossings(origin: String, dest: String) -> int:
+	var belarus = ["Minsk", "Brest", "Grodno", "Mogilev", "Gomel", "Vitebsk"]
+	var is_origin_by = origin in belarus
+	var is_dest_by = dest in belarus
+	if is_origin_by != is_dest_by:
+		return 1
+	return 0
+
 func _build_contract_card(contract: Dictionary) -> PanelContainer:
 	var panel = PanelContainer.new()
 	var style = StyleBoxFlat.new()
-	style.bg_color = Color(0.02, 0.02, 0.03, 0.75)
+	style.bg_color = Color(0.04, 0.05, 0.07, 0.95)
 	
-	if is_contraband_mode:
-		style.border_color = Color(0.607, 0.349, 0.713, 0.6)
-	else:
-		style.border_color = Color(0.18, 0.803, 0.443, 0.5)
-	style.border_width_left = 2
+	var btn_color = Color(0.607, 0.349, 0.713) if is_contraband_mode else Color(0.18, 0.803, 0.443)
+	style.border_color = btn_color * 0.6
+	style.border_width_left = 3
+	style.border_width_top = 1
+	style.border_width_right = 1
 	style.border_width_bottom = 1
-	style.set_corner_radius_all(2)
-	style.content_margin_left = 12
-	style.content_margin_right = 12
-	style.content_margin_top = 8
-	style.content_margin_bottom = 8
+	style.set_corner_radius_all(6)
+	style.content_margin_left = 14
+	style.content_margin_right = 14
+	style.content_margin_top = 10
+	style.content_margin_bottom = 10
 	panel.add_theme_stylebox_override("panel", style)
 	
 	var vbox = VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 5)
+	vbox.add_theme_constant_override("separation", 6)
 	panel.add_child(vbox)
 	
-	# Route header horizontal container for title + badge capsule
+	# Route header
 	var header_row = HBoxContainer.new()
 	header_row.add_theme_constant_override("separation", 10)
 	vbox.add_child(header_row)
 	
 	var header_lbl = Label.new()
-	header_lbl.text = "%s → %s" % [contract.get("origin", "?"), contract.get("destination", "?")]
-	header_lbl.add_theme_color_override("font_color", Color(1, 1, 1))
+	header_lbl.text = "🏁  %s ➔ %s" % [contract.get("origin", "?"), contract.get("destination", "?")]
+	header_lbl.add_theme_color_override("font_color", Color.WHITE)
 	header_lbl.add_theme_font_size_override("font_size", 14)
 	header_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header_row.add_child(header_lbl)
 	
-	# Append the contract type badge
+	# Badge for contract type
 	var contract_type = contract.get("contractType", "SPOT")
-	if contract_type == "SPOT":
-		var badge = _create_badge_capsule("SPOT", Color(0.2, 0.22, 0.25, 0.5), Color(0.35, 0.38, 0.42, 0.6))
-		header_row.add_child(badge)
-	elif contract_type == "PERSISTENT":
-		var badge = _create_badge_capsule("PERSISTENT ∞", Color(0.0, 0.4, 0.8, 0.15), Color(0.0, 0.6, 1.0, 0.5))
-		header_row.add_child(badge)
-	elif contract_type == "LIMITED":
-		var badge = _create_badge_capsule("LIMITED", Color(0.9, 0.45, 0.0, 0.15), Color(1.0, 0.6, 0.1, 0.5))
-		header_row.add_child(badge)
+	var badge = _create_badge_capsule(contract_type, Color(0.1, 0.1, 0.12, 0.8), btn_color * 0.8)
+	header_row.add_child(badge)
 	
-	# Details row for cargo, distance and payout
-	var details_row = HBoxContainer.new()
-	details_row.add_theme_constant_override("separation", 15)
-	vbox.add_child(details_row)
-
-	# Cargo + distance
+	# Details grid
+	var details_grid = GridContainer.new()
+	details_grid.columns = 2
+	details_grid.add_theme_constant_override("h_separation", 24)
+	details_grid.add_theme_constant_override("v_separation", 4)
+	vbox.add_child(details_grid)
+	
+	var dist_val = int(contract.get("distanceKm", 0))
+	var hours = float(dist_val) / 80.0
+	var h_int = int(hours)
+	var m_int = int((hours - h_int) * 60)
+	var time_str = "%dh %dm" % [h_int, m_int]
+	
+	var fuel_liters = dist_val * 0.35
+	var fuel_cost = fuel_liters * 1.50
+	
+	var border_count = _get_border_crossings(contract.get("origin", ""), contract.get("destination", ""))
+	
+	# Column 1
+	var col1_v = VBoxContainer.new()
+	details_grid.add_child(col1_v)
+	
 	var cargo_lbl = Label.new()
-	cargo_lbl.text = "CARGO: %s  //  %d KM" % [contract.get("cargoType", "?"), int(contract.get("distanceKm", 0))]
-	cargo_lbl.add_theme_color_override("font_color", Color(0.709, 0.768, 0.843, 0.6))
-	cargo_lbl.add_theme_font_size_override("font_size", 10)
-	details_row.add_child(cargo_lbl)
+	cargo_lbl.text = "📦 Cargo: %s" % contract.get("cargoType", "COMMODITIES")
+	cargo_lbl.add_theme_color_override("font_color", Color(0.7, 0.7, 0.8))
+	cargo_lbl.add_theme_font_size_override("font_size", 11)
+	col1_v.add_child(cargo_lbl)
 	
-	# Payout
-	var pay_lbl = Label.new()
-	var payout = contract.get("payoutCash", 0)
+	var dist_lbl = Label.new()
+	dist_lbl.text = "🗺️ Distance: %d Km (%s)" % [dist_val, time_str]
+	dist_lbl.add_theme_color_override("font_color", Color(0.7, 0.7, 0.8))
+	dist_lbl.add_theme_font_size_override("font_size", 11)
+	col1_v.add_child(dist_lbl)
+	
+	# Column 2
+	var col2_v = VBoxContainer.new()
+	details_grid.add_child(col2_v)
+	
+	var fuel_lbl = Label.new()
+	fuel_lbl.text = "⛽ Est. Fuel: $%.0f (%d L)" % [fuel_cost, int(fuel_liters)]
+	fuel_lbl.add_theme_color_override("font_color", Color(0.7, 0.7, 0.8))
+	fuel_lbl.add_theme_font_size_override("font_size", 11)
+	col2_v.add_child(fuel_lbl)
+	
+	var border_lbl = Label.new()
+	border_lbl.text = "🛂 Customs Checkpoints: %d" % border_count
+	border_lbl.add_theme_color_override("font_color", Color(0.7, 0.7, 0.8) if border_count == 0 else Color(1.0, 0.6, 0.1))
+	border_lbl.add_theme_font_size_override("font_size", 11)
+	col2_v.add_child(border_lbl)
+	
+	# Risk and Payout Row
+	var bottom_info = HBoxContainer.new()
+	bottom_info.add_theme_constant_override("separation", 16)
+	vbox.add_child(bottom_info)
+	
+	# Risk Rating Badge
+	var risk_badge: PanelContainer = null
 	if is_contraband_mode:
-		pay_lbl.text = "[ DIRTY: $%d ]" % payout
+		var risk_val = int(contract.get("detectionRisk", 0))
+		if risk_val < 10:
+			risk_badge = _create_badge_capsule("SAFE RISK", Color(0.05, 0.3, 0.1, 0.2), Color(0.2, 0.9, 0.45))
+		elif risk_val < 30:
+			risk_badge = _create_badge_capsule("MODERATE RISK", Color(0.3, 0.2, 0.05, 0.2), Color(1.0, 0.8, 0.2))
+		elif risk_val < 60:
+			risk_badge = _create_badge_capsule("HIGH RISK", Color(0.35, 0.15, 0.05, 0.2), Color(1.0, 0.55, 0.1))
+		else:
+			risk_badge = _create_badge_capsule("EXTREME RISK 💀", Color(0.4, 0.05, 0.05, 0.2), Color(1.0, 0.2, 0.2))
+	else:
+		risk_badge = _create_badge_capsule("SAFE ROUTE", Color(0.05, 0.3, 0.1, 0.2), Color(0.2, 0.9, 0.45))
+	
+	bottom_info.add_child(risk_badge)
+	
+	# Payout split
+	var pay_lbl = Label.new()
+	var payout = int(contract.get("payoutCash", 0))
+	if is_contraband_mode:
+		pay_lbl.text = "Payout: $0 Clean | $%d Dirty" % payout
 		pay_lbl.add_theme_color_override("font_color", Color(0.607, 0.349, 0.713))
 	else:
-		pay_lbl.text = "[ CLEAN: $%d ]" % payout
+		pay_lbl.text = "Payout: $%d Clean | $0 Dirty" % payout
 		pay_lbl.add_theme_color_override("font_color", Color(0.18, 0.803, 0.443))
-	pay_lbl.add_theme_font_size_override("font_size", 11)
-	details_row.add_child(pay_lbl)
+	pay_lbl.add_theme_font_size_override("font_size", 12)
+	pay_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	bottom_info.add_child(pay_lbl)
 	
-	# Risk (contraband)
-	if is_contraband_mode:
-		var risk_lbl = Label.new()
-		risk_lbl.text = "⚠ Detection Risk: %d%%" % int(contract.get("detectionRisk", 0))
-		risk_lbl.add_theme_color_override("font_color", Color(0.925, 0.607, 0.141))
-		risk_lbl.add_theme_font_size_override("font_size", 11)
-		vbox.add_child(risk_lbl)
-		
-	# Quota and timer for LIMITED
-	if contract_type == "LIMITED":
-		var quota_val = contract.get("remainingQuota", null)
-		if quota_val != null:
-			var quota_lbl = Label.new()
-			quota_lbl.text = "📦 QUOTA REMAINING: %s kg" % String.num(float(quota_val), 0)
-			quota_lbl.add_theme_color_override("font_color", Color(1.0, 0.6, 0.1))
-			quota_lbl.add_theme_font_size_override("font_size", 10)
-			vbox.add_child(quota_lbl)
-			
-		var expires_at = contract.get("expiresAt", null)
-		if expires_at != null and typeof(expires_at) == TYPE_STRING and expires_at != "":
-			var expires_unix = Time.get_unix_time_from_datetime_string(expires_at)
-			var current_unix = Time.get_unix_time_from_system()
-			var remaining_sec = expires_unix - current_unix
-			if remaining_sec > 0:
-				var h = int(remaining_sec / 3600)
-				var m = int((int(remaining_sec) % 3600) / 60)
-				var timer_lbl = Label.new()
-				timer_lbl.text = "⏰ TIME REMAINING: %dh %dm" % [h, m]
-				timer_lbl.add_theme_color_override("font_color", Color(1.0, 0.45, 0.0))
-				timer_lbl.add_theme_font_size_override("font_size", 10)
-				vbox.add_child(timer_lbl)
-	
-	var bottom_row = HBoxContainer.new()
-	vbox.add_child(bottom_row)
-	
-	var spacer = Control.new()
-	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	bottom_row.add_child(spacer)
-
+	# Select Button
 	var btn = Button.new()
-	btn.text = " ▶ SELECT "
-	btn.custom_minimum_size = Vector2(100, 24)
-	btn.add_theme_font_size_override("font_size", 11)
-	var btn_color = Color(0.607, 0.349, 0.713) if is_contraband_mode else Color(0.18, 0.803, 0.443)
-	btn.add_theme_color_override("font_color", btn_color)
-	var style_btn = StyleBoxFlat.new()
-	style_btn.bg_color = Color(0.0, 0.0, 0.0, 0.4)
-	style_btn.border_color = Color(btn_color.r, btn_color.g, btn_color.b, 0.5)
-	style_btn.border_width_all = 1
-	style_btn.set_corner_radius_all(2)
-	btn.add_theme_stylebox_override("normal", style_btn)
-	
-	var style_btn_hover = style_btn.duplicate()
-	style_btn_hover.bg_color = Color(btn_color.r, btn_color.g, btn_color.b, 0.15)
-	btn.add_theme_stylebox_override("hover", style_btn_hover)
+	btn.text = "▶ SELECT"
+	btn.custom_minimum_size = Vector2(100, 28)
+	GlobalThemeManager.apply_btn_style(btn, btn_color)
 	btn.pressed.connect(_select_contract.bind(contract))
-	bottom_row.add_child(btn)
+	bottom_info.add_child(btn)
 	
 	return panel
 
@@ -604,7 +616,6 @@ func _build_route_card(route: Dictionary) -> PanelContainer:
 	if dest == "" or dest == null:
 		dest = route.get("destination", "?")
 	
-	# Cosmetic health parsing
 	var cosmetic_hp = 100
 	if route.has("cosmeticHealth"):
 		cosmetic_hp = int(route.get("cosmeticHealth", 100))
@@ -616,8 +627,9 @@ func _build_route_card(route: Dictionary) -> PanelContainer:
 	var panel = PanelContainer.new()
 	panel.name = "route_" + truck_id
 	var style = StyleBoxFlat.new()
-	style.bg_color = Color(0.055, 0.063, 0.090, 1.0)
-	style.border_color = Color(0.607, 0.349, 0.713, 0.6) if is_smuggle else Color(0.925, 0.607, 0.141, 0.4)
+	style.bg_color = Color(0.045, 0.05, 0.07, 0.95)
+	var border_color = Color(0.607, 0.349, 0.713, 0.6) if is_smuggle else Color(0.925, 0.607, 0.141, 0.4)
+	style.border_color = border_color
 	style.border_width_left = 4
 	style.set_corner_radius_all(6)
 	style.content_margin_left = 14
@@ -627,119 +639,172 @@ func _build_route_card(route: Dictionary) -> PanelContainer:
 	panel.add_theme_stylebox_override("panel", style)
 
 	var vbox = VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 5)
+	vbox.add_theme_constant_override("separation", 6)
 	panel.add_child(vbox)
 
 	# Header row
 	var header_row = HBoxContainer.new()
-	header_row.add_theme_constant_override("separation", 8)
+	header_row.add_theme_constant_override("separation", 10)
+	vbox.add_child(header_row)
+
 	var route_icon = Label.new()
-	route_icon.text = "⚠ SMUGGLE" if is_smuggle else "🚛 LEGAL"
+	route_icon.text = "💀 SMUGGLE" if is_smuggle else "🚛 LEGAL"
 	route_icon.add_theme_color_override("font_color", Color(0.607, 0.349, 0.713) if is_smuggle else Color(0.18, 0.803, 0.443))
 	route_icon.add_theme_font_size_override("font_size", 12)
 	header_row.add_child(route_icon)
+
 	var route_lbl = Label.new()
 	route_lbl.text = "%s → %s" % [origin, dest]
-	route_lbl.add_theme_color_override("font_color", Color(1, 1, 1))
+	route_lbl.add_theme_color_override("font_color", Color.WHITE)
 	route_lbl.add_theme_font_size_override("font_size", 13)
 	route_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header_row.add_child(route_lbl)
+
+	# Weather Badge
+	var w_icon = "☀️"
+	if weather == "RAIN": w_icon = "🌧️"
+	elif weather == "ICE_STORM": w_icon = "❄️"
+	elif weather == "THICK_FOG": w_icon = "🌫️"
+	var w_badge = _create_badge_capsule(w_icon + " " + weather.replace("_", " "), Color(0.1, 0.1, 0.12, 0.8), Color(0.3, 0.8, 1.0))
+	header_row.add_child(w_badge)
+
+	# ETA & Location Line
+	var loc_row = HBoxContainer.new()
+	vbox.add_child(loc_row)
+	
 	var city_lbl = Label.new()
-	city_lbl.text = "📍 " + current_city
-	city_lbl.add_theme_color_override("font_color", Color(0.709, 0.768, 0.843, 0.6))
-	city_lbl.add_theme_font_size_override("font_size", 10)
-	header_row.add_child(city_lbl)
-	vbox.add_child(header_row)
+	city_lbl.text = "📍 Position: " + current_city
+	city_lbl.add_theme_color_override("font_color", Color(0.7, 0.7, 0.8))
+	city_lbl.add_theme_font_size_override("font_size", 11)
+	city_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	loc_row.add_child(city_lbl)
 
-	# Route progress bar
-	_add_stat_bar(vbox, "ROUTE", pct, 100, Color(0.925, 0.607, 0.141))
+	var eta_lbl = Label.new()
+	var eta_msg = "ETA: --:--"
+	if route.has("eta") and route.eta != null:
+		var eta_unix = Time.get_unix_time_from_datetime_string(route.eta)
+		var remaining_sec = eta_unix - GameState.simulated_time_unix
+		if remaining_sec > 0:
+			var hours_left = int(remaining_sec / 3600)
+			var mins_left = int((int(remaining_sec) % 3600) / 60)
+			eta_msg = "ETA: %dh %dm" % [hours_left, mins_left]
+		else:
+			eta_msg = "UNLOADING..."
+	eta_lbl.text = eta_msg
+	eta_lbl.add_theme_color_override("font_color", Color(0.2, 0.9, 0.5))
+	eta_lbl.add_theme_font_size_override("font_size", 11)
+	loc_row.add_child(eta_lbl)
 
-	# Weather banner (if applicable)
-	if weather != "CLEAR":
-		var weather_banner = PanelContainer.new()
-		var w_style = StyleBoxFlat.new()
-		if weather == "THICK_FOG":
-			w_style.bg_color = Color(0.2, 0.22, 0.25, 0.4)
-			w_style.border_color = Color(0.5, 0.55, 0.6, 0.6)
-		elif weather == "ICE_STORM":
-			w_style.bg_color = Color(0.0, 0.3, 0.5, 0.3)
-			w_style.border_color = Color(0.0, 0.7, 1.0, 0.6)
-		w_style.set_border_width_all(1)
-		w_style.set_corner_radius_all(4)
-		w_style.content_margin_left = 10
-		w_style.content_margin_right = 10
-		w_style.content_margin_top = 4
-		w_style.content_margin_bottom = 4
-		weather_banner.add_theme_stylebox_override("panel", w_style)
-		
-		var w_lbl = Label.new()
-		if weather == "THICK_FOG":
-			w_lbl.text = "🌫️ WEATHER HAZARD: THICK FOG (-50% Speed)"
-			w_lbl.add_theme_color_override("font_color", Color(0.85, 0.85, 0.9))
-		elif weather == "ICE_STORM":
-			w_lbl.text = "❄️ WEATHER HAZARD: ICE STORM (Cosmetic Damage)"
-			w_lbl.add_theme_color_override("font_color", Color(0.4, 0.9, 1.0))
-		w_lbl.add_theme_font_size_override("font_size", 10)
-		weather_banner.add_child(w_lbl)
-		vbox.add_child(weather_banner)
-
-	# Driver row
-	var driver_row = HBoxContainer.new()
-	driver_row.add_theme_constant_override("separation", 8)
-	var driver_icon = Label.new()
-	driver_icon.text = "💊" if stimulated else "👤"
-	driver_icon.add_theme_font_size_override("font_size", 12)
-	driver_row.add_child(driver_icon)
-	var d_name_lbl = Label.new()
-	d_name_lbl.text = driver_name
-	d_name_lbl.add_theme_color_override("font_color", Color(0.607, 0.349, 0.713) if stimulated else Color(0.709, 0.768, 0.843))
-	d_name_lbl.add_theme_font_size_override("font_size", 11)
-	d_name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	driver_row.add_child(d_name_lbl)
-	var tacho_lbl = Label.new()
-	tacho_lbl.text = "TACHO: %.1fh" % tacho
-	var tacho_color = Color(0.901, 0.298, 0.235) if tacho > 10.0 else (Color(0.925, 0.607, 0.141) if tacho > 7.0 else Color(0.18, 0.803, 0.443))
-	tacho_lbl.add_theme_color_override("font_color", tacho_color)
-	tacho_lbl.add_theme_font_size_override("font_size", 11)
-	driver_row.add_child(tacho_lbl)
-	vbox.add_child(driver_row)
-
-	# Fatigue bar
-	var fatigue_color = Color(0.901, 0.298, 0.235) if fatigue > 80 else (Color(0.925, 0.607, 0.141) if fatigue > 50 else Color(0.18, 0.803, 0.443))
-	_add_stat_bar(vbox, "FATIGUE", fatigue, 100, fatigue_color)
-
-	# Truck health row
-	var health_row = HBoxContainer.new()
-	health_row.add_theme_constant_override("separation", 8)
+	# Custom Mini-Map line
+	var map_hbox = HBoxContainer.new()
+	map_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	map_hbox.add_theme_constant_override("separation", 10)
+	vbox.add_child(map_hbox)
 	
-	var engine_lbl = Label.new()
-	engine_lbl.text = "ENG"
-	engine_lbl.add_theme_color_override("font_color", Color(0.709, 0.768, 0.843, 0.5))
-	engine_lbl.add_theme_font_size_override("font_size", 9)
-	health_row.add_child(engine_lbl)
-	var e_bar_bg = _make_bar_bg(Color(0.901, 0.298, 0.235) if engine_hp < 30 else Color(0.18, 0.803, 0.443), engine_hp, 100)
-	e_bar_bg.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	health_row.add_child(e_bar_bg)
+	var o_lbl = Label.new()
+	o_lbl.text = origin.substr(0, 4).to_upper()
+	o_lbl.add_theme_font_size_override("font_size", 10)
+	o_lbl.add_theme_color_override("font_color", Color(0.6, 0.6, 0.7))
+	map_hbox.add_child(o_lbl)
 	
-	var tire_lbl = Label.new()
-	tire_lbl.text = "TIR"
-	tire_lbl.add_theme_color_override("font_color", Color(0.709, 0.768, 0.843, 0.5))
-	tire_lbl.add_theme_font_size_override("font_size", 9)
-	health_row.add_child(tire_lbl)
-	var t_bar_bg = _make_bar_bg(Color(0.901, 0.298, 0.235) if tire_hp < 30 else Color(0.925, 0.607, 0.141), tire_hp, 100)
-	t_bar_bg.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	health_row.add_child(t_bar_bg)
+	var p_bar = ProgressBar.new()
+	p_bar.value = pct
+	p_bar.min_value = 0
+	p_bar.max_value = 100
+	p_bar.show_percentage = false
+	p_bar.custom_minimum_size = Vector2(0, 6)
+	p_bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	p_bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	
+	var sb_bg = StyleBoxFlat.new()
+	sb_bg.bg_color = Color(0.1, 0.1, 0.15, 0.8)
+	sb_bg.set_corner_radius_all(3)
+	p_bar.add_theme_stylebox_override("background", sb_bg)
+	
+	var sb_fg = StyleBoxFlat.new()
+	sb_fg.bg_color = border_color
+	sb_fg.set_corner_radius_all(3)
+	p_bar.add_theme_stylebox_override("fill", sb_fg)
+	map_hbox.add_child(p_bar)
+	
+	var d_lbl = Label.new()
+	d_lbl.text = dest.substr(0, 4).to_upper()
+	d_lbl.add_theme_font_size_override("font_size", 10)
+	d_lbl.add_theme_color_override("font_color", Color(0.6, 0.6, 0.7))
+	map_hbox.add_child(d_lbl)
 
-	var cosmetic_lbl = Label.new()
-	cosmetic_lbl.text = "COS"
-	cosmetic_lbl.add_theme_color_override("font_color", Color(0.709, 0.768, 0.843, 0.5))
-	cosmetic_lbl.add_theme_font_size_override("font_size", 9)
-	health_row.add_child(cosmetic_lbl)
-	var c_bar_bg = _make_bar_bg(Color(0.901, 0.298, 0.235) if cosmetic_hp < 30 else Color(0.7, 0.8, 0.9), cosmetic_hp, 100)
-	c_bar_bg.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	health_row.add_child(c_bar_bg)
-	
-	vbox.add_child(health_row)
+	# Stats grid (Fuel, Fatigue, Health)
+	var stats_row = HBoxContainer.new()
+	stats_row.add_theme_constant_override("separation", 14)
+	vbox.add_child(stats_row)
+
+	# Fuel gauge
+	var fuel_pct = clamp(100 - int(pct * 0.6), 10, 100)
+	var fuel_vbox = VBoxContainer.new()
+	fuel_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	stats_row.add_child(fuel_vbox)
+	var fuel_title = Label.new()
+	fuel_title.text = "⛽ FUEL: %d%%" % fuel_pct
+	fuel_title.add_theme_font_size_override("font_size", 9)
+	fuel_title.add_theme_color_override("font_color", Color(0.6, 0.6, 0.7))
+	fuel_vbox.add_child(fuel_title)
+	var fuel_progress = ProgressBar.new()
+	fuel_progress.value = fuel_pct
+	fuel_progress.show_percentage = false
+	fuel_progress.custom_minimum_size = Vector2(0, 6)
+	var sb_fuel = StyleBoxFlat.new()
+	sb_fuel.bg_color = Color(0.2, 0.8, 0.3) if fuel_pct > 25 else Color(0.9, 0.3, 0.2)
+	sb_fuel.set_corner_radius_all(3)
+	fuel_progress.add_theme_stylebox_override("fill", sb_fuel)
+	fuel_progress.add_theme_stylebox_override("background", sb_bg)
+	fuel_vbox.add_child(fuel_progress)
+
+	# Fatigue
+	var fat_vbox = VBoxContainer.new()
+	fat_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	stats_row.add_child(fat_vbox)
+	var fat_title = Label.new()
+	fat_title.text = "😴 FATIGUE: %d%%" % fatigue
+	fat_title.add_theme_font_size_override("font_size", 9)
+	fat_title.add_theme_color_override("font_color", Color(0.6, 0.6, 0.7))
+	fat_vbox.add_child(fat_title)
+	var fat_progress = ProgressBar.new()
+	fat_progress.value = fatigue
+	fat_progress.show_percentage = false
+	fat_progress.custom_minimum_size = Vector2(0, 6)
+	var sb_fat = StyleBoxFlat.new()
+	sb_fat.bg_color = Color(0.9, 0.3, 0.2) if fatigue > 75 else Color(0.2, 0.8, 0.3)
+	sb_fat.set_corner_radius_all(3)
+	fat_progress.add_theme_stylebox_override("fill", sb_fat)
+	fat_progress.add_theme_stylebox_override("background", sb_bg)
+	fat_vbox.add_child(fat_progress)
+
+	# Engine Health
+	var eng_vbox = VBoxContainer.new()
+	eng_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	stats_row.add_child(eng_vbox)
+	var eng_title = Label.new()
+	eng_title.text = "⚙️ ENGINE: %d%%" % engine_hp
+	eng_title.add_theme_font_size_override("font_size", 9)
+	eng_title.add_theme_color_override("font_color", Color(0.6, 0.6, 0.7))
+	eng_vbox.add_child(eng_title)
+	var eng_progress = ProgressBar.new()
+	eng_progress.value = engine_hp
+	eng_progress.show_percentage = false
+	eng_progress.custom_minimum_size = Vector2(0, 6)
+	var sb_eng = StyleBoxFlat.new()
+	sb_eng.bg_color = Color(0.2, 0.8, 0.3) if engine_hp > 30 else Color(0.9, 0.3, 0.2)
+	sb_eng.set_corner_radius_all(3)
+	eng_progress.add_theme_stylebox_override("fill", sb_eng)
+	eng_progress.add_theme_stylebox_override("background", sb_bg)
+	eng_vbox.add_child(eng_progress)
+
+	# Clicking card expands detail (if clickable signal connected, we can connect on panel gui_input)
+	panel.gui_input.connect(func(event):
+		if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+			# Signal or toggle route view details in panel
+			pass
+	)
 
 	return panel
 
@@ -1171,11 +1236,68 @@ func _on_border_inspection(payload: Dictionary) -> void:
 	btn_clear.pressed.connect(func(): NetworkManager.trigger_border_action(truck_id, "CLEARANCE"))
 	hbox.add_child(btn_clear)
 	
+	var bribe_vbox = VBoxContainer.new()
+	bribe_vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	bribe_vbox.add_theme_constant_override("separation", 5)
+	
+	var bribe_slider = HSlider.new()
+	bribe_slider.min_value = 1000
+	bribe_slider.max_value = min(15000, GameState.legal_balance)
+	if bribe_slider.max_value < 1000:
+		bribe_slider.max_value = 1000
+	bribe_slider.step = 250
+	bribe_slider.value = min(5000, bribe_slider.max_value)
+	bribe_slider.custom_minimum_size = Vector2(180, 20)
+	bribe_vbox.add_child(bribe_slider)
+	
+	var chance_lbl = Label.new()
+	chance_lbl.add_theme_font_size_override("font_size", 10)
+	chance_lbl.add_theme_color_override("font_color", Color(0.925, 0.607, 0.141))
+	bribe_vbox.add_child(chance_lbl)
+	
 	var btn_bribe = Button.new()
-	btn_bribe.text = "BRIBE OFFICER\n($5000 Clean Cash)"
-	btn_bribe.custom_minimum_size = Vector2(160, 60)
-	btn_bribe.pressed.connect(func(): NetworkManager.trigger_border_action(truck_id, "BRIBE", 5000.0))
-	hbox.add_child(btn_bribe)
+	btn_bribe.custom_minimum_size = Vector2(180, 45)
+	bribe_vbox.add_child(btn_bribe)
+	hbox.add_child(bribe_vbox)
+	
+	var active_route_obj = null
+	for r in active_routes:
+		if r.get("truckId") == truck_id:
+			active_route_obj = r
+			break
+			
+	var driver_charisma = 5
+	var driver_loyalty = 50
+	var payout_black = 10000.0
+	if active_route_obj:
+		var d_obj = active_route_obj.get("driver", {})
+		if d_obj:
+			driver_charisma = d_obj.get("charisma", 5)
+			driver_loyalty = d_obj.get("loyalty", 50)
+		var job_obj = active_route_obj.get("contrabandJob", {})
+		if job_obj:
+			payout_black = float(job_obj.get("payoutBlack", 10000.0))
+			
+	var recalculate_bribe_chance = func(bribe_val: float) -> void:
+		var max_bribe_scale = max(1000.0, payout_black * 0.25)
+		var bribe_weight = clamp((bribe_val / max_bribe_scale) * 50.0, 0.0, 50.0)
+		var charisma_weight = driver_charisma * 1.5
+		var heat_weight = GameState.police_heat * 0.3
+		var chance = 20.0 + bribe_weight + charisma_weight - heat_weight
+		if driver_loyalty < 40:
+			chance -= 15.0
+		chance = clamp(chance, 5.0, 90.0)
+		chance_lbl.text = "Bribe: $%d | Success: %d%%" % [int(bribe_val), int(chance)]
+		btn_bribe.disabled = GameState.legal_balance < bribe_val
+		if btn_bribe.disabled:
+			btn_bribe.text = "INSUFFICIENT FUNDS"
+		else:
+			btn_bribe.text = "EXECUTE BRIBE\n($%d Clean)" % int(bribe_val)
+			
+	bribe_slider.value_changed.connect(recalculate_bribe_chance)
+	recalculate_bribe_chance.call(bribe_slider.value)
+	
+	btn_bribe.pressed.connect(func(): NetworkManager.trigger_border_action(truck_id, "BRIBE", bribe_slider.value))
 	
 	var btn_run = Button.new()
 	btn_run.text = "RUN BARRICADE\n(High Risk)"

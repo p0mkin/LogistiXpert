@@ -171,6 +171,27 @@ export class FinanceService {
             });
           }
         }
+
+        // C. PASSIVE POLICE HEAT DECAY
+        let baseDecay = 0.2;
+        let totalBoostMultiplier = 1.0;
+        for (const front of updatedCompany.fronts) {
+          if (!front.isRaided) {
+            totalBoostMultiplier += front.upgradeLevel * 0.15;
+          }
+        }
+        const finalDecay = baseDecay * totalBoostMultiplier;
+        if (updatedCompany.policeHeat > 0) {
+          const newHeat = Math.max(0, updatedCompany.policeHeat - finalDecay);
+          await prisma.company.update({
+            where: { id: company.id },
+            data: { policeHeat: Math.round(newHeat) },
+          });
+
+          GameWebSocketServer.sendToCompany(company.id, 'company:heat_update', {
+            policeHeat: Math.round(newHeat),
+          });
+        }
       }).catch((lockErr) => {
         // Log and proceed, do not crash ticker
         console.warn(`[Finance Ticker] Locked company ${company.id} skipped this tick: ${lockErr.message}`);

@@ -275,4 +275,114 @@ export class CommodityMarketService {
       };
     });
   }
+
+  /**
+   * Sells a commodity from the target garage stockpile and credits company legal balance
+   */
+  static async sellCommodity(
+    companyId: string,
+    garageId: string,
+    type: CommodityType,
+    amount: number
+  ) {
+    if (amount <= 0) {
+      throw new Error('INVALID_AMOUNT');
+    }
+
+    return await prisma.$transaction(async (tx) => {
+      // 1. Fetch current price
+      const marketRecord = await tx.commodityMarket.findUnique({
+        where: { commodityType: type },
+      });
+      if (!marketRecord) {
+        throw new Error('COMMODITY_NOT_FOUND');
+      }
+
+      const unitPrice = marketRecord.currentPrice.toNumber();
+      // Apply a small sell penalty (e.g. 5% lower than purchase) to simulate market spread
+      const sellUnitPrice = Math.round(unitPrice * 0.95 * 10000) / 10000;
+      const totalEarned = Math.round(sellUnitPrice * amount * 100) / 100;
+
+      // 2. Fetch garage and verify stockpile has enough units
+      const garage = await tx.garage.findUnique({
+        where: { id: garageId },
+      });
+      if (!garage || garage.companyId !== companyId) {
+        throw new Error('GARAGE_NOT_FOUND');
+      }
+
+      let currentStorage = 0;
+      switch (type) {
+        case CommodityType.DIESEL:
+          currentStorage = garage.dieselStorage;
+          break;
+        case CommodityType.ELECTRICITY:
+          currentStorage = garage.electricityStorage;
+          break;
+        case CommodityType.ADBLUE:
+          currentStorage = garage.adblueStorage;
+          break;
+        case CommodityType.CO2_ALLOWANCE:
+          currentStorage = garage.co2Allowances;
+          break;
+      }
+
+      if (currentStorage < amount) {
+        throw new Error('INSUFFICIENT_STORAGE_UNITS');
+      }
+
+      // 3. Increment company legal balance
+      const updatedCompany = await tx.company.update({
+        where: { id: companyId },
+        data: {
+          legalBalance: { increment: totalEarned },
+        },
+      });
+
+      // Record transaction
+      await AnalyticsService.recordTransaction(
+        tx,
+        companyId,
+        garageId,
+        garage.city,
+        'REVENUE_LEGAL',
+        totalEarned
+      );
+
+      // 4. Update garage storage stockpiles
+      const garageUpdateData: any = {};
+      switch (type) {
+        case CommodityType.DIESEL:
+          garageUpdateData.dieselStorage = { decrement: amount };
+          break;
+        case CommodityType.ELECTRICITY:
+          garageUpdateData.electricityStorage = { decrement: amount };
+          break;
+        case CommodityType.ADBLUE:
+          garageUpdateData.adblueStorage = { decrement: amount };
+          break;
+        case CommodityType.CO2_ALLOWANCE:
+          garageUpdateData.co2Allowances = { decrement: amount };
+          break;
+      }
+
+      const updatedGarage = await tx.garage.update({
+        where: { id: garageId },
+        data: garageUpdateData,
+      });
+
+      // 5. Broadcast updated balances and garage stats company-wide
+      GameWebSocketServer.sendToCompany(companyId, 'company:balance_update', {
+        legalBalance: updatedCompany.legalBalance.toNumber(),
+        blackMarketBalance: updatedCompany.blackMarketBalance.toNumber(),
+      });
+
+      return {
+        company: updatedCompany,
+        garage: updatedGarage,
+        totalEarned,
+        unitPrice: sellUnitPrice,
+      };
+    });
+  }
 }
