@@ -181,16 +181,59 @@ export class FinanceService {
           }
         }
         const finalDecay = baseDecay * totalBoostMultiplier;
+        let activeHeat = updatedCompany.policeHeat;
         if (updatedCompany.policeHeat > 0) {
           const newHeat = Math.max(0, updatedCompany.policeHeat - finalDecay);
+          activeHeat = Math.round(newHeat);
           await prisma.company.update({
             where: { id: company.id },
-            data: { policeHeat: Math.round(newHeat) },
+            data: { policeHeat: activeHeat },
           });
 
           GameWebSocketServer.sendToCompany(company.id, 'company:heat_update', {
-            policeHeat: Math.round(newHeat),
+            policeHeat: activeHeat,
           });
+        }
+
+        // D. PERIODIC POLICE RAIDS ON LAUNDROMAT FRONTS (v0.6.9)
+        if (activeHeat > 60 && updatedCompany.fronts.length > 0) {
+          // Raid probability scales with police heat above 60. e.g. 70 heat = 5% chance per tick. 100 heat = 20% chance per tick.
+          const raidProb = (activeHeat - 60) * 0.005;
+          if (Math.random() < raidProb) {
+            const nonRaidedFronts = updatedCompany.fronts.filter(f => !f.isRaided);
+            if (nonRaidedFronts.length > 0) {
+              const targetFront = nonRaidedFronts[Math.floor(Math.random() * nonRaidedFronts.length)];
+              const cooldownDate = new Date();
+              cooldownDate.setHours(cooldownDate.getHours() + 24); // 24 hours lock
+
+              const dirtyCashToWipe = Number(updatedCompany.blackMarketBalance) * 0.5;
+
+              await prisma.$transaction(async (tx) => {
+                await tx.frontBusiness.update({
+                  where: { id: targetFront.id },
+                  data: {
+                    isRaided: true,
+                    raidCooldown: cooldownDate,
+                  },
+                });
+
+                await tx.company.update({
+                  where: { id: company.id },
+                  data: {
+                    blackMarketBalance: { decrement: dirtyCashToWipe },
+                    policeHeat: { increment: 15 },
+                  },
+                });
+              });
+
+              GameWebSocketServer.sendToCompany(company.id, 'laundry:front_raided_periodic', {
+                frontId: targetFront.id,
+                frontName: targetFront.name,
+                seizedAmount: parseFloat(dirtyCashToWipe.toFixed(2)),
+                message: `🚨 PERIODIC POLICE RAID! High police heat of ${activeHeat} triggered a raid on "${targetFront.name}". 50% of dirty cash ($${dirtyCashToWipe.toFixed(2)}) was seized. Business locked for 24h.`,
+              });
+            }
+          }
         }
       }).catch((lockErr) => {
         // Log and proceed, do not crash ticker

@@ -77,6 +77,28 @@ const CATALOG = [
 		"stat_effect": "-10% X-Ray/K9 detection per level (max 5)",
 		"description": "Lead-alloy lined sleeper compartment plating. Absorbs X-Ray scatter and disrupts EM scans. Stackable up to Level 5.",
 	},
+	{
+		"id": "chaff_flares",
+		"name": "Chaff & Flare Sabotage Countermeasures",
+		"category": "RIGGING",
+		"cost": 25000,
+		"currency": "BLACK_MARKET",
+		"icon": "✨",
+		"color": Color(0.8, 0.4, 1.0, 1.0),
+		"stat_effect": "-40% Sabotage Success Chance",
+		"description": "Countermeasure pods mounted to the sleeper sides. Automatically deploys chaff and thermal flares to deflect rival cartel sabotage.",
+	},
+	{
+		"id": "reinforced_armor",
+		"name": "Reinforced Kevlar Armor Plates",
+		"category": "RIGGING",
+		"cost": 35000,
+		"currency": "BLACK_MARKET",
+		"icon": "🧱",
+		"color": Color(0.8, 0.4, 1.0, 1.0),
+		"stat_effect": "-50% Sabotage damage & success",
+		"description": "Composite Kevlar-titanium plates lining the engine bay and cabin. Reduces physical sabotage success chance by 50% and limits damage by 50%.",
+	},
 ]
 
 var selected_item: Dictionary = {}
@@ -709,6 +731,10 @@ func _render_truck_blueprint(truck: Dictionary) -> void:
 		"CHASSIS_CAVITY": mod_lines.append("🔩 Chassis Cavity Stash  [ACTIVE]")
 		_: mod_lines.append("⬜ No Concealment Mod  [STOCK]")
 	mod_lines.append("🛡 Lead Shielding: Level %d / 5" % shielding)
+	if truck.get("hasChaffFlares", false):
+		mod_lines.append("✨ Chaff & Flares  [ACTIVE]")
+	if truck.get("hasReinforcedArmor", false):
+		mod_lines.append("🧱 Kevlar Armor Plates  [ACTIVE]")
 
 	for line in mod_lines:
 		var ml = Label.new()

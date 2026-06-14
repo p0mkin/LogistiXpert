@@ -465,7 +465,7 @@ export class DispatchSimulationService {
           let routeStatusMessage = '';
 
           // Add customs delays for legal routes crossing Non-Schengen borders
-          if (!isSchengenPath && !isSmuggling && !isCurrentlyFerrySegment) {
+          if (!isSchengenPath && !isSmuggling && !isCurrentlyFerrySegment && !routeAgg.state.bypassSchengen) {
             if (routeAgg.state.progressPct < 50.0 && (routeAgg.state.progressPct + progressStep) >= 50.0) {
               progressStep *= 0.1;
               routeStatusMessage = 'CUSTOMS INSPECTION: Legal cargo delayed at border crossing.';
@@ -638,7 +638,7 @@ export class DispatchSimulationService {
           // Border crossing check (smuggling only)
           const crossedBorderThreshold = routeAgg.state.progressPct < 50.0 && newProgress >= 50.0;
 
-          if (isSmuggling && crossedBorderThreshold && !isCurrentlyFerrySegment) {
+          if (isSmuggling && crossedBorderThreshold && !isCurrentlyFerrySegment && !routeAgg.state.bypassSchengen) {
             let checkpointName = `${destCity.name} Border Control`;
             let alertLevel = 4;
             let hasK9 = true;
@@ -818,6 +818,63 @@ export class DispatchSimulationService {
                 }));
               }
               return; // route resolved
+            } else if (routeAgg.state.autopilotPolicy === 'INTERACTIVE') {
+              // Pause active route
+              routeAgg.state.isUnderBorderCheck = true;
+              routeAgg.state.isPaused = true;
+              await txUow.activeRouteRepository.save(routeAgg);
+
+              // Dispatch started notification
+              const contrabandJob = routeAgg.state.contrabandJob;
+              if (contrabandJob) {
+                GameWebSocketServer.sendToCompany(routeAgg.state.companyId, 'border:inspection_event', {
+                  routeId: routeAgg.id,
+                  truckId: truck.id,
+                  driverName: driver.name,
+                  contrabandClass: contrabandJob.cargoClass,
+                  origin: contrabandJob.origin,
+                  destination: contrabandJob.destination,
+                  alertLevel: checkpoint.alertLevel,
+                  hasK9: checkpoint.hasK9,
+                  message: `INTERACTIVE CHECKPOINT: Truck ${truck.model} was stopped at border inspection! Please choose: Submit, Bribe, or Run.`
+                });
+              }
+
+              // Set a safety timeout
+              setTimeout(async () => {
+                try {
+                  const currentRoute = await prisma.activeRoute.findUnique({
+                    where: { id: routeAgg.id }
+                  });
+                  if (currentRoute && currentRoute.isUnderBorderCheck) {
+                    const result = await BorderService.calculateClearance(truck.id, checkpoint);
+                    if (result.cleared) {
+                      const successResult = await BorderService.applyClearanceSuccess(truck.id);
+                      GameWebSocketServer.sendToCompany(routeAgg.state.companyId, 'border:cleared', {
+                        truckId: truck.id,
+                        roll: result.roll,
+                        probability: result.detectionProbability,
+                        payout: successResult.payout,
+                        message: 'Customs cleared automatically after timeout.',
+                      });
+                    } else {
+                      const penalties = result.penalties!;
+                      await BorderService.applyBustPenalties(truck.id, penalties);
+                      GameWebSocketServer.sendToCompany(routeAgg.state.companyId, 'border:bust', {
+                        truckId: truck.id,
+                        roll: result.roll,
+                        probability: result.detectionProbability,
+                        penalties,
+                        message: 'Busted smuggling at border checkpoint automatically after timeout.',
+                      });
+                    }
+                  }
+                } catch (timeoutErr) {
+                  console.error('[Border Timeout Error]', timeoutErr);
+                }
+              }, 30000);
+              
+              return; // pause processing this route now
             }
           }
 

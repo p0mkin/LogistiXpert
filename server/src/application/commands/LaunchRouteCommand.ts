@@ -8,6 +8,7 @@ export interface LaunchRouteDto {
   legalContractId?: string | null;
   contrabandJobId?: string | null;
   autopilotPolicy?: string | null;
+  bypassSchengen?: boolean;
 }
 
 export class LaunchRouteCommandHandler {
@@ -66,6 +67,10 @@ export class LaunchRouteCommandHandler {
         origin = job.origin;
         destination = job.destination;
         distanceKm = 350; // Brest/Minsk standard smuggles
+      }
+
+      if (dto.bypassSchengen) {
+        distanceKm = Math.round(distanceKm * 1.3); // detouring Schengen checkpoint takes 30% longer distance
       }
 
       const cargoWeight = AnalyticsService.getCargoWeight(truck.tier);
@@ -167,6 +172,7 @@ export class LaunchRouteCommandHandler {
         progressPct: 0.0,
         eta,
         currentCity: origin,
+        bypassSchengen: dto.bypassSchengen ?? false,
       });
 
       // Update route settings directly via repo or state

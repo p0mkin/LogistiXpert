@@ -184,6 +184,8 @@ model Truck {
   hasReinforcedTires        Boolean     @default(false)
   hasLeadLinedCompartment   Boolean     @default(false)
   hasRadarScrambler         Boolean     @default(false)
+  hasChaffFlares            Boolean     @default(false)
+  hasReinforcedArmor        Boolean     @default(false)
 
   createdAt        DateTime    @default(now())
 
@@ -281,6 +283,7 @@ model ActiveRoute {
   isUnderBorderCheck Boolean  @default(false)
   isPaused           Boolean  @default(false)
   isFerryTransit     Boolean  @default(false) // Active route is crossing water on a ferry
+  bypassSchengen     Boolean  @default(false)
   stage              RouteStage @default(LOADING) // LOADING, TRANSIT, UNLOADING
   
   autopilotPolicy    AutopilotPolicy @default(SAFE)
@@ -378,6 +381,7 @@ enum AutopilotPolicy {
   SAFE
   AVERAGE
   GREEDY
+  INTERACTIVE
 }
 
 

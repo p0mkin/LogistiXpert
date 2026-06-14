@@ -66,6 +66,22 @@ const PARTS_CATALOG: Record<string, PartsCatalogItem> = {
     cost: 3500,
     currency: 'BLACK_MARKET',
     description: 'Lead-lined plates surrounding sleeper compartments. Block customs scanners (X-Ray/K9 detection rate reduced by 10%). Max Level 5.',
+  },
+  chaff_flares: {
+    id: 'chaff_flares',
+    name: 'Chaff & Flare Sabotage Countermeasures',
+    category: 'RIGGING',
+    cost: 25000,
+    currency: 'BLACK_MARKET',
+    description: 'Countermeasure pods mounted to the sleeper sides. Automatically deploys chaff and thermal flares to deflect rival cartel sabotage (-40% success rate).',
+  },
+  reinforced_armor: {
+    id: 'reinforced_armor',
+    name: 'Reinforced Kevlar Armor Plates',
+    category: 'RIGGING',
+    cost: 35000,
+    currency: 'BLACK_MARKET',
+    description: 'Composite Kevlar-titanium plates lining the engine bay and cabin. Reduces physical sabotage success chance by 50% and limits damage by 50%.',
   }
 };
 
@@ -175,6 +191,8 @@ router.post('/buy', async (req: AuthRequest, res: Response) => {
       let upTires = truck.tireWear;
       let fuelTankMod = truck.fuelTankMod;
       let shielding = truck.scannerShielding;
+      let chaffFlares = truck.hasChaffFlares;
+      let reinforcedArmor = truck.hasReinforcedArmor;
 
       if (part.id === 'engine_kit') {
         upEngine = Math.min(truck.engineHealth + 25, 100);
@@ -194,6 +212,18 @@ router.post('/buy', async (req: AuthRequest, res: Response) => {
         }
         shielding = truck.scannerShielding + 1;
         logDesc += ` Radiation shielding upgraded to level ${shielding}.`;
+      } else if (part.id === 'chaff_flares') {
+        if (truck.hasChaffFlares) {
+          throw new Error('ALREADY_OWNED');
+        }
+        chaffFlares = true;
+        logDesc += ` Sabotage countermeasures installed.`;
+      } else if (part.id === 'reinforced_armor') {
+        if (truck.hasReinforcedArmor) {
+          throw new Error('ALREADY_OWNED');
+        }
+        reinforcedArmor = true;
+        logDesc += ` Reinforced Kevlar armor plating installed.`;
       }
 
       // Update truck parameters
@@ -204,6 +234,8 @@ router.post('/buy', async (req: AuthRequest, res: Response) => {
           tireWear: upTires,
           fuelTankMod,
           scannerShielding: shielding,
+          hasChaffFlares: chaffFlares,
+          hasReinforcedArmor: reinforcedArmor,
         },
       });
 
@@ -227,6 +259,9 @@ router.post('/buy', async (req: AuthRequest, res: Response) => {
   } catch (error: any) {
     if (error.message === 'MAX_SHIELDING_REACHED') {
       return res.status(400).json({ error: 'MAX_SHIELDING', message: 'Your vehicle already has maximum Lead shielding density (Level 5).' });
+    }
+    if (error.message === 'ALREADY_OWNED') {
+      return res.status(400).json({ error: 'ALREADY_OWNED', message: 'Your vehicle already has this upgrade installed.' });
     }
     res.status(500).json({ error: 'SERVER_ERROR', message: 'Store transaction processing failed.' });
   }

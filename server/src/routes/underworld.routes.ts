@@ -86,7 +86,30 @@ router.post('/sabotage', authenticateJWT, async (req: AuthRequest, res) => {
       }
 
       const victimTruck = allTrucks[Math.floor(Math.random() * allTrucks.length)];
-      const damageCost = attackCost * (1.5 + Math.random()); // Causes more damage than it costs
+      
+      // Calculate success chance
+      let successChance = 1.0;
+      if (victimTruck.hasChaffFlares) {
+        successChance *= 0.6; // -40% success rate
+      }
+      
+      const isPhysical = ['TIRE_BLOWOUT', 'ENGINE_FIRE', 'DRIVER_ASSAULT'].includes(type);
+      if (victimTruck.hasReinforcedArmor && isPhysical) {
+        successChance *= 0.5; // -50% success rate for physical attacks
+      }
+      
+      const isSuccess = Math.random() < successChance;
+      let damageCost = 0;
+      
+      if (isSuccess) {
+        let baseDmgCost = attackCost * (1.5 + Math.random());
+        if (victimTruck.hasReinforcedArmor) {
+          baseDmgCost = baseDmgCost * 0.5; // halving repair/cargo cost if armored
+        }
+        damageCost = Math.round(baseDmgCost);
+      } else {
+        damageCost = 0;
+      }
 
       const event = await tx.sabotageEvent.create({
         data: {
@@ -95,21 +118,28 @@ router.post('/sabotage', authenticateJWT, async (req: AuthRequest, res) => {
           truckId: victimTruck.id,
           type: type as SabotageType,
           costToRepair: damageCost,
-          success: true
+          success: isSuccess
         }
       });
 
-      // Apply actual physical damage/effects
-      if (type === 'TIRE_BLOWOUT') {
-        await tx.truck.update({ where: { id: victimTruck.id }, data: { tireWear: Math.max(0, victimTruck.tireWear - 40) }});
-      } else if (type === 'ENGINE_FIRE') {
-        await tx.truck.update({ where: { id: victimTruck.id }, data: { engineHealth: Math.max(0, victimTruck.engineHealth - 80) }});
-      } else if (type === 'CARGO_THEFT') {
-        await tx.company.update({ where: { id: targetId }, data: { legalBalance: { decrement: damageCost } }});
-      } else if (type === 'DRIVER_ASSAULT') {
-        const d = await tx.driver.findFirst({ where: { assignedTruckId: victimTruck.id } });
-        if (d) {
-          await tx.driver.update({ where: { id: d.id }, data: { fatigue: 100 } });
+      // Apply actual physical damage/effects if successful
+      if (isSuccess) {
+        const damageReduction = victimTruck.hasReinforcedArmor ? 0.5 : 1.0;
+
+        if (type === 'TIRE_BLOWOUT') {
+          const dmg = Math.round(40 * damageReduction);
+          await tx.truck.update({ where: { id: victimTruck.id }, data: { tireWear: Math.max(0, victimTruck.tireWear - dmg) }});
+        } else if (type === 'ENGINE_FIRE') {
+          const dmg = Math.round(80 * damageReduction);
+          await tx.truck.update({ where: { id: victimTruck.id }, data: { engineHealth: Math.max(0, victimTruck.engineHealth - dmg) }});
+        } else if (type === 'CARGO_THEFT') {
+          await tx.company.update({ where: { id: targetId }, data: { legalBalance: { decrement: damageCost } }});
+        } else if (type === 'DRIVER_ASSAULT') {
+          const d = await tx.driver.findFirst({ where: { assignedTruckId: victimTruck.id } });
+          if (d) {
+            const fatigueInc = Math.round(100 * damageReduction);
+            await tx.driver.update({ where: { id: d.id }, data: { fatigue: Math.min(100, d.fatigue + fatigueInc) } });
+          }
         }
       }
 

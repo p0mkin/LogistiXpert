@@ -40,6 +40,7 @@ var tacho_anim_time: float = 0.0
 var live_progress: float = 0.0  # 0.0 - 1.0
 
 var autopilot_policy_box: OptionButton = null
+var bypass_schengen_checkbox: CheckBox = null
 var clock_lbl: Label = null
 
 func _ready() -> void:
@@ -81,6 +82,13 @@ func _ready() -> void:
 	autopilot_policy_box.add_item("🛡 SAFE (Never risk crossings/weather)", 0)
 	autopilot_policy_box.add_item("⚖ AVERAGE (Auto-solve using worker skills)", 1)
 	autopilot_policy_box.add_item("🔥 GREEDY (Speedy, aggressive, high-risk)", 2)
+	autopilot_policy_box.add_item("🎮 INTERACTIVE (Pause & prompt for manual actions)", 3)
+	
+	bypass_schengen_checkbox = CheckBox.new()
+	bypass_schengen_checkbox.name = "BypassSchengenCheckbox"
+	bypass_schengen_checkbox.text = "🛰 SCHENGEN BYPASS (+30% Distance)"
+	bypass_schengen_checkbox.add_theme_font_size_override("font_size", 11)
+	bypass_schengen_checkbox.add_theme_color_override("font_color", Color(0.75, 0.3, 1.0, 1.0))
 	
 	var dispatch_inner = %DispatchPanel.get_node("DispatchInner")
 	var launch_idx = %LaunchBtn.get_index()
@@ -88,6 +96,8 @@ func _ready() -> void:
 	dispatch_inner.move_child(policy_lbl, launch_idx)
 	dispatch_inner.add_child(autopilot_policy_box)
 	dispatch_inner.move_child(autopilot_policy_box, launch_idx + 1)
+	dispatch_inner.add_child(bypass_schengen_checkbox)
+	dispatch_inner.move_child(bypass_schengen_checkbox, launch_idx + 2)
 	
 	_fetch_contracts()
 	_fetch_active_routes()
@@ -237,10 +247,17 @@ func _launch_dispatch() -> void:
 		policy_str = "AVERAGE"
 	elif policy_idx == 2:
 		policy_str = "GREEDY"
+	elif policy_idx == 3:
+		policy_str = "INTERACTIVE"
+		
+	var bypass_val = false
+	if bypass_schengen_checkbox and is_instance_valid(bypass_schengen_checkbox):
+		bypass_val = bypass_schengen_checkbox.button_pressed
 		
 	var body: Dictionary = {
 		"truckId": truck_id,
-		"autopilotPolicy": policy_str
+		"autopilotPolicy": policy_str,
+		"bypassSchengen": bypass_val
 	}
 	
 	if is_contraband_mode:
@@ -248,7 +265,7 @@ func _launch_dispatch() -> void:
 	else:
 		body["legalContractId"] = selected_contract.get("id", "")
 	
-	_log("Dispatching truck %s with %s autopilot..." % [truck_id, policy_str], Color(0.925, 0.607, 0.141))
+	_log("Dispatching truck %s with %s autopilot (Bypass: %s)..." % [truck_id, policy_str, str(bypass_val)], Color(0.925, 0.607, 0.141))
 	
 	var http = HTTPRequest.new()
 	add_child(http)

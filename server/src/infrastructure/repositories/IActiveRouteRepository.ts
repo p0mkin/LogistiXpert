@@ -15,6 +15,7 @@ export interface IActiveRouteRepository {
     progressPct?: number;
     eta: Date;
     currentCity: string;
+    bypassSchengen?: boolean;
   }): Promise<ActiveRouteAggregate>;
   delete(id: string): Promise<void>;
 }

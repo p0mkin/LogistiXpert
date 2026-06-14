@@ -56,6 +56,7 @@ export class PrismaActiveRouteRepository implements IActiveRouteRepository {
         isUnderBorderCheck: route.state.isUnderBorderCheck,
         isPaused: route.state.isPaused,
         isFerryTransit: route.state.isFerryTransit,
+        bypassSchengen: route.state.bypassSchengen,
         stage: route.state.stage,
         autopilotPolicy: route.state.autopilotPolicy,
         currentWeather: route.state.currentWeather,
@@ -98,6 +99,7 @@ export class PrismaActiveRouteRepository implements IActiveRouteRepository {
     progressPct?: number;
     eta: Date;
     currentCity: string;
+    bypassSchengen?: boolean;
   }): Promise<ActiveRouteAggregate> {
     const raw = await this.client.activeRoute.create({
       data: {
@@ -110,6 +112,7 @@ export class PrismaActiveRouteRepository implements IActiveRouteRepository {
         progressPct: data.progressPct ?? 0.0,
         eta: data.eta,
         currentCity: data.currentCity,
+        bypassSchengen: data.bypassSchengen ?? false,
       },
       include: {
         driver: true,

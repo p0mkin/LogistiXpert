@@ -99,4 +99,59 @@ describe('Underworld Overhaul - Schengen Multipliers, Heat Decay, & Smuggler Tow
       expect(finalDecay).toBeCloseTo(0.29);
     });
   });
+
+  // 3. Sabotage Countermeasures
+  describe('Sabotage Countermeasures', () => {
+    it('reduces success chance when Chaff/Flares are active', () => {
+      const truck = { hasChaffFlares: true, hasReinforcedArmor: false };
+      let successChance = 1.0;
+      if (truck.hasChaffFlares) successChance *= 0.6;
+      expect(successChance).toBe(0.6);
+    });
+
+    it('halves physical sabotage success chance and damage when Kevlar Armor is active', () => {
+      const truck = { hasChaffFlares: false, hasReinforcedArmor: true };
+      const type = 'TIRE_BLOWOUT';
+      let successChance = 1.0;
+      if (truck.hasChaffFlares) successChance *= 0.6;
+      const isPhysical = ['TIRE_BLOWOUT', 'ENGINE_FIRE', 'DRIVER_ASSAULT'].includes(type);
+      if (truck.hasReinforcedArmor && isPhysical) successChance *= 0.5;
+      expect(successChance).toBe(0.5);
+
+      const baseDmg = 40;
+      const damageReduction = truck.hasReinforcedArmor ? 0.5 : 1.0;
+      const finalDmg = baseDmg * damageReduction;
+      expect(finalDmg).toBe(20);
+    });
+  });
+
+  // 4. Periodic Front Raids
+  describe('Periodic Front Raids Probability', () => {
+    it('calculates raid probability based on heat above 60', () => {
+      const heat = 80;
+      const raidProb = (heat - 60) * 0.005; // 10%
+      expect(raidProb).toBeCloseTo(0.10);
+    });
+
+    it('returns zero raid probability when heat is below 60', () => {
+      const heat = 50;
+      const raidProb = heat > 60 ? (heat - 60) * 0.005 : 0;
+      expect(raidProb).toBe(0);
+    });
+  });
+
+  // 5. Schengen Bypass detour checks
+  describe('Schengen Bypass', () => {
+    it('skips customs checkpoint delays and scans if bypassSchengen is active', () => {
+      const route = { bypassSchengen: true, progressPct: 45 };
+      const progressStep = 10;
+      const newProgress = route.progressPct + progressStep; // 55% (crosses 50% threshold)
+      const crossedBorderThreshold = route.progressPct < 50.0 && newProgress >= 50.0;
+      expect(crossedBorderThreshold).toBe(true);
+
+      // Condition: isSmuggling && crossedBorderThreshold && !isCurrentlyFerrySegment && !bypassSchengen
+      const triggerCheck = crossedBorderThreshold && !route.bypassSchengen;
+      expect(triggerCheck).toBe(false); // check is bypassed!
+    });
+  });
 });

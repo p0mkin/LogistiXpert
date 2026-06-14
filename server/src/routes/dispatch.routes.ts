@@ -191,7 +191,7 @@ router.get('/contracts/contraband', async (req: AuthRequest, res: Response) => {
 // 2. DISPATCH A TRUCK ON A ROUTE CONTRACT
 router.post('/launch', async (req: AuthRequest, res: Response) => {
   const companyId = req.user!.companyId;
-  const { truckId, legalContractId, contrabandJobId, autopilotPolicy } = req.body;
+  const { truckId, legalContractId, contrabandJobId, autopilotPolicy, bypassSchengen } = req.body;
 
   if (!truckId || (!legalContractId && !contrabandJobId)) {
     return res.status(400).json({
@@ -200,10 +200,10 @@ router.post('/launch', async (req: AuthRequest, res: Response) => {
     });
   }
 
-  if (autopilotPolicy && !['SAFE', 'AVERAGE', 'GREEDY'].includes(autopilotPolicy)) {
+  if (autopilotPolicy && !['SAFE', 'AVERAGE', 'GREEDY', 'INTERACTIVE'].includes(autopilotPolicy)) {
     return res.status(400).json({
       error: 'INVALID_INPUT',
-      message: 'Invalid autopilotPolicy. Allowed values: SAFE, AVERAGE, GREEDY.',
+      message: 'Invalid autopilotPolicy. Allowed values: SAFE, AVERAGE, GREEDY, INTERACTIVE.',
     });
   }
 
@@ -217,6 +217,7 @@ router.post('/launch', async (req: AuthRequest, res: Response) => {
       legalContractId,
       contrabandJobId,
       autopilotPolicy,
+      bypassSchengen,
     });
 
     res.status(201).json({
