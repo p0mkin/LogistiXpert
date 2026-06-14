@@ -174,4 +174,68 @@ router.post('/sabotage', authenticateJWT, async (req: AuthRequest, res) => {
   }
 });
 
+/**
+ * POST /api/underworld/wipe-heat
+ * Pay police commissioner massive dirty cash sums to reset police heat to 0
+ */
+router.post('/wipe-heat', authenticateJWT, async (req: AuthRequest, res) => {
+  const companyId = req.user?.companyId;
+  if (!companyId) return res.status(401).json({ error: 'Unauthorized' });
+
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      const company = await tx.company.findUnique({ where: { id: companyId } });
+      if (!company) throw new Error('Company not found');
+
+      const currentHeat = company.policeHeat;
+      if (currentHeat <= 0) {
+        throw new Error('NO_HEAT');
+      }
+
+      const cost = currentHeat * 800;
+      if (company.blackMarketBalance.toNumber() < cost) {
+        throw new Error('INSUFFICIENT_BLACK_MARKET_FUNDS');
+      }
+
+      const updated = await tx.company.update({
+        where: { id: companyId },
+        data: {
+          blackMarketBalance: { decrement: cost },
+          policeHeat: 0,
+        },
+      });
+
+      return { updated, cost, oldHeat: currentHeat };
+    });
+
+    // Broadcast balance & heat updates
+    GameWebSocketServer.sendToCompany(companyId, 'company:balance_update', {
+      legalBalance: parseFloat(Number(result.updated.legalBalance).toFixed(2)),
+      blackMarketBalance: parseFloat(Number(result.updated.blackMarketBalance).toFixed(2)),
+      message: `POLICE RECORD WIPED: Bribed police commissioner with $${result.cost.toLocaleString()} Black Market Cash. Police heat reset to 0.`,
+    });
+
+    GameWebSocketServer.sendToCompany(companyId, 'company:heat_update', {
+      policeHeat: 0,
+    });
+
+    res.json({
+      success: true,
+      message: `Police heat successfully reset to 0. Bribe cost: $${result.cost} Black Market Cash.`,
+      cost: result.cost,
+      policeHeat: 0,
+    });
+  } catch (error: any) {
+    const code = error.message || 'WIPE_HEAT_FAILED';
+    let status = 400;
+    let message = 'Failed to bribe police commissioner.';
+    if (code === 'NO_HEAT') {
+      message = 'Company has no active police heat to wipe.';
+    } else if (code === 'INSUFFICIENT_BLACK_MARKET_FUNDS') {
+      message = `Insufficient Black Market funds.`;
+    }
+    res.status(status).json({ error: code, message });
+  }
+});
+
 export default router;

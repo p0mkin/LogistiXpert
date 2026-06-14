@@ -442,6 +442,11 @@ func _on_drivers_response(result: int, response_code: int, headers: PackedString
 			drivers_data = data
 			_render_driver_list()
 			_log("Driver roster loaded: %d contractors on payroll." % drivers_data.size(), Color(0.180, 0.803, 0.443))
+			if not selected_driver.is_empty():
+				for d in drivers_data:
+					if d.get("id") == selected_driver.get("id"):
+						_select_driver(d)
+						break
 		else:
 			_log("Driver roster loaded with invalid schema format.", Color(0.901, 0.298, 0.235))
 	else:
@@ -922,6 +927,7 @@ func _select_truck(truck: Dictionary) -> void:
 	)
 	nick_hbox.add_child(nick_save_btn)
 
+	var neon = truck.get("neonColor", "NONE")
 	var info_lines = [
 		"VIN: " + truck.get("vin", "???"),
 		"Engine Health: %d%%" % engine,
@@ -930,6 +936,7 @@ func _select_truck(truck: Dictionary) -> void:
 		"Fuel Capacity: %.0f L" % truck.get("fuelCapacity", 0),
 		"Shield Level: %d/5" % int(truck.get("scannerShielding", 0)),
 		"Rigging: " + truck.get("fuelTankMod", "STOCK"),
+		"Underglow: " + (neon if neon != "NONE" else "NONE"),
 	]
 
 	for line in info_lines:
@@ -1027,11 +1034,17 @@ func _select_driver(driver: Dictionary) -> void:
 	if driver_trait in TRAIT_TOOLTIPS:
 		detail_status.tooltip_text = TRAIT_TOOLTIPS[driver_trait]
 	detail_status.add_theme_color_override("font_color", Color(0.607, 0.349, 0.713))
-	
+	var level = int(driver.get("level", 1))
+	var xp = int(driver.get("xp", 0))
+	var skill_points = int(driver.get("skillPoints", 0))
+
 	for child in detail_body.get_children():
 		child.queue_free()
 	
 	var info_lines = [
+		"Level: %d" % level,
+		"XP: %d / %d" % [xp, level * 100],
+		"Skill Points: %d" % skill_points,
 		"Loyalty: %d / 100" % loyalty,
 		"Fatigue: %d%%" % fatigue,
 		"Tacho Hours: %.1f h" % tacho,
@@ -1045,6 +1058,30 @@ func _select_driver(driver: Dictionary) -> void:
 		lbl.add_theme_font_size_override("font_size", 12)
 		lbl.add_theme_color_override("font_color", Color(0.709, 0.768, 0.843, 0.85))
 		detail_body.add_child(lbl)
+
+	if skill_points > 0:
+		var skill_lbl = Label.new()
+		skill_lbl.text = "ALLOCATE SKILL POINT:"
+		skill_lbl.add_theme_font_size_override("font_size", 11)
+		skill_lbl.add_theme_color_override("font_color", Color(0.9, 0.7, 0.2))
+		detail_body.add_child(skill_lbl)
+
+		var skill_hbox = HBoxContainer.new()
+		detail_body.add_child(skill_hbox)
+
+		var add_cha_btn = Button.new()
+		add_cha_btn.text = "+1 CHARISMA"
+		add_cha_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		add_cha_btn.pressed.connect(func(): _allocate_skill(driver.get("id", ""), "CHARISMA"))
+		_style_btn(add_cha_btn, Color(0.2, 0.9, 0.7))
+		skill_hbox.add_child(add_cha_btn)
+
+		var add_loy_btn = Button.new()
+		add_loy_btn.text = "+5 LOYALTY"
+		add_loy_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		add_loy_btn.pressed.connect(func(): _allocate_skill(driver.get("id", ""), "LOYALTY"))
+		_style_btn(add_loy_btn, Color(0.2, 0.9, 0.7))
+		skill_hbox.add_child(add_loy_btn)
 	
 	action_btn_1.text = "⚗ ADMINISTER STIMULANT ($500 BM)"
 	action_btn_1.show()
@@ -2172,6 +2209,31 @@ func _rename_truck(truck_id: String, new_nickname: String) -> void:
 		api_base + "/garage/trucks/" + truck_id + "/rename",
 		["Authorization: Bearer " + NetworkManager.jwt_token, "Content-Type: application/json"],
 		HTTPClient.METHOD_PATCH,
+		body
+	)
+
+func _allocate_skill(driver_id: String, skill_type: String) -> void:
+	_log("Allocating driver skill point...", Color(0.9, 0.7, 0.2))
+	var http = HTTPRequest.new()
+	add_child(http)
+	http.request_completed.connect(func(_r, code, _h, body):
+		var parsed = JSON.parse_string(body.get_string_from_utf8())
+		if code == 200:
+			_log("Skill point allocated successfully!", Color(0.2, 0.9, 0.5))
+			var new_driver = parsed.get("driver", {})
+			if not new_driver.is_empty():
+				_select_driver(new_driver)
+			_fetch_drivers()
+		else:
+			var err = parsed.get("error", "UNKNOWN") if parsed else "SERVER_ERROR"
+			_log("Failed to allocate skill: " + err, Color(1.0, 0.3, 0.3))
+		http.queue_free()
+	)
+	var body = JSON.stringify({"skill": skill_type})
+	http.request(
+		api_base + "/driver/" + driver_id + "/allocate-skill",
+		["Authorization: Bearer " + NetworkManager.jwt_token, "Content-Type: application/json"],
+		HTTPClient.METHOD_POST,
 		body
 	)
 

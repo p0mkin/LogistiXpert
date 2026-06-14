@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { AnalyticsService } from './analytics.service';
 import { CITIES_DATASET } from '../domain/cities';
+import { GameWebSocketServer } from '../websocket';
 
 const prisma = new PrismaClient();
 
@@ -37,6 +38,18 @@ export class BorderService {
       return 1.5;
     }
     return 1.0;
+  }
+
+  static getJurisdictionTaxRate(jurisdiction: string): number {
+    switch (jurisdiction) {
+      case 'SCANDINAVIA': return 0.30;
+      case 'GERMANY': return 0.25;
+      case 'BALTICS': return 0.15;
+      case 'BELARUS': return 0.05;
+      case 'SWITZERLAND': return 0.08;
+      case 'CAYMAN_ISLANDS': return 0.00;
+      default: return 0.15;
+    }
   }
 
   /**
@@ -286,7 +299,7 @@ export class BorderService {
     const runLogic = async (transactionalClient: any) => {
       const truck = await transactionalClient.truck.findUnique({
         where: { id: truckId },
-        include: { company: true, garage: true, activeRoute: { include: { contrabandJob: true, legalContract: true, clanContract: true } } },
+        include: { company: true, garage: true, activeRoute: { include: { driver: true, contrabandJob: true, legalContract: true, clanContract: true } } },
       });
 
       if (!truck || !truck.activeRoute) {
@@ -342,13 +355,17 @@ export class BorderService {
         const routerBoost = getRouterProfitBoost(truck.company);
         payout = Math.round(basePayout * (1.0 + (routerBoost / 100.0)));
 
+        const taxRate = BorderService.getJurisdictionTaxRate(truck.company.jurisdiction);
+        const taxCharged = Math.round(payout * taxRate);
+        const netPayout = payout - taxCharged;
+
         await transactionalClient.company.update({
           where: { id: truck.companyId },
           data: {
-            legalBalance: { increment: payout },
+            legalBalance: { increment: netPayout },
           },
         });
-        payoutLog = `Delivered legal cargo to ${route.legalContract.destination}. Payout: $${payout.toFixed(2)} (Legal Cash).`;
+        payoutLog = `Delivered legal cargo to ${route.legalContract.destination}. Payout: $${payout} Clean Cash. Paid corporate tax: $${taxCharged} (${taxRate * 100}%). Net: $${netPayout}.`;
 
         await AnalyticsService.recordTransaction(
           transactionalClient,
@@ -356,7 +373,7 @@ export class BorderService {
           truck.garageId,
           truck.garage.city,
           'REVENUE_LEGAL',
-          payout
+          netPayout
         );
       } else if (route.clanContract) {
         // Clan Payout
@@ -431,6 +448,41 @@ export class BorderService {
           tireWear: newTires,
         },
       });
+
+      // Award driver XP (v0.7.0)
+      const driver = route.driver;
+      if (driver) {
+        const xpGained = Math.round(distance / 10);
+        let newXp = driver.xp + xpGained;
+        let newLevel = driver.level;
+        let newSkillPoints = driver.skillPoints;
+        let leveledUp = false;
+
+        while (newXp >= newLevel * 100) {
+          newXp -= newLevel * 100;
+          newLevel += 1;
+          newSkillPoints += 1;
+          leveledUp = true;
+        }
+
+        await transactionalClient.driver.update({
+          where: { id: driver.id },
+          data: {
+            xp: newXp,
+            level: newLevel,
+            skillPoints: newSkillPoints,
+          },
+        });
+
+        if (leveledUp) {
+          GameWebSocketServer.sendToCompany(truck.companyId, 'driver:level_up', {
+            driverId: driver.id,
+            driverName: driver.name,
+            level: newLevel,
+            message: `🎉 LEVEL UP! Operative ${driver.name} reached Level ${newLevel}! +1 Skill Point available.`,
+          });
+        }
+      }
 
       // Get destination city for terminal re-binding
       let destinationCity = '';

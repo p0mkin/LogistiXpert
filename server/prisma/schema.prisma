@@ -186,6 +186,7 @@ model Truck {
   hasRadarScrambler         Boolean     @default(false)
   hasChaffFlares            Boolean     @default(false)
   hasReinforcedArmor        Boolean     @default(false)
+  neonColor                 String      @default("NONE")
 
   createdAt        DateTime    @default(now())
 
@@ -226,6 +227,9 @@ model Driver {
   tachoHours      Float       @default(0.0) // Schengen tachometer log: 0.0 to 10.0 hours
   isStimulated    Boolean     @default(false) // Substance usage fatigue override active
   assignedTruckId String?     @unique
+  level           Int         @default(1)
+  xp              Int         @default(0)
+  skillPoints     Int         @default(0)
   createdAt       DateTime    @default(now())
 
   company       Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -466,6 +470,8 @@ enum Jurisdiction {
   GERMANY
   BALTICS
   BELARUS
+  SWITZERLAND
+  CAYMAN_ISLANDS
 }
 
 enum RouteStage {

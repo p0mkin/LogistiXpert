@@ -137,12 +137,16 @@ export class CompanyAggregate {
       if (jurisdiction === Jurisdiction.SCANDINAVIA) capGainsRate = 0.45;
       else if (jurisdiction === Jurisdiction.GERMANY) capGainsRate = 0.40;
       else if (jurisdiction === Jurisdiction.BALTICS) capGainsRate = 0.25;
+      else if (jurisdiction === Jurisdiction.SWITZERLAND) capGainsRate = 0.08;
+      else if (jurisdiction === Jurisdiction.CAYMAN_ISLANDS) capGainsRate = 0.00;
       else capGainsRate = 0.15; // Belarus
     } else {
       // Long-Term standard
       if (jurisdiction === Jurisdiction.SCANDINAVIA) capGainsRate = 0.30;
       else if (jurisdiction === Jurisdiction.GERMANY) capGainsRate = 0.25;
       else if (jurisdiction === Jurisdiction.BALTICS) capGainsRate = 0.19;
+      else if (jurisdiction === Jurisdiction.SWITZERLAND) capGainsRate = 0.05;
+      else if (jurisdiction === Jurisdiction.CAYMAN_ISLANDS) capGainsRate = 0.00;
       else capGainsRate = 0.10; // Belarus
     }
 

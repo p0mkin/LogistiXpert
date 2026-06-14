@@ -44,6 +44,7 @@ router.get('/valuation', async (req: AuthRequest, res: Response) => {
       reputationScore: company.reputationScore,
       policeHeat: company.policeHeat,
       activeDebtPrincipal: parseFloat(Number(company.activeDebtPrincipal).toFixed(2)),
+      jurisdiction: company.jurisdiction,
     });
   } catch (error: any) {
     const statusCode = error.statusCode || 500;
@@ -125,6 +126,8 @@ router.post('/ipo', async (req: AuthRequest, res: Response) => {
  * Returns public market ticker tape and listings
  */
 router.get('/market', async (req: AuthRequest, res: Response) => {
+  const companyId = req.user!.companyId;
+
   try {
     const publicCompanies = await prisma.company.findMany({
       where: { isPublic: true },
@@ -139,12 +142,24 @@ router.get('/market', async (req: AuthRequest, res: Response) => {
     const listings = [];
     for (const comp of publicCompanies) {
       const val = await FinanceService.calculateCompanyValuation(comp.id);
+
+      const holding = await prisma.companyShare.findUnique({
+        where: {
+          companyId_ownerCompanyId: {
+            companyId: comp.id,
+            ownerCompanyId: companyId,
+          },
+        },
+      });
+
       listings.push({
         companyId: comp.id,
         name: comp.name,
         valuation: parseFloat(val.toFixed(2)),
         sharePrice: parseFloat((val / comp.totalShares).toFixed(4)),
         totalShares: comp.totalShares,
+        sharesOwned: holding ? holding.shares : 0,
+        avgPurchasePrice: holding ? parseFloat(Number(holding.avgPurchasePrice).toFixed(4)) : 0,
       });
     }
 
@@ -606,22 +621,26 @@ router.post('/shares/dividend', async (req: AuthRequest, res: Response) => {
         where: { companyId: companyId },
       });
 
-      const totalCompetitorShares = holdings.reduce((sum, h) => sum + h.shares, 0);
-      const totalCost = dividendPerShare * totalCompetitorShares;
+      const longHoldings = holdings.filter(h => h.shares > 0);
+      const shortHoldings = holdings.filter(h => h.shares < 0);
 
-      if (Number(company.legalBalance) < totalCost) {
-        return res.status(400).json({ error: 'INSUFFICIENT_FUNDS', message: `Insufficient clean cash. Payout cost: $${totalCost.toFixed(2)}, Available: $${Number(company.legalBalance).toFixed(2)}` });
+      const totalLongShares = longHoldings.reduce((sum, h) => sum + h.shares, 0);
+      const totalShortShares = shortHoldings.reduce((sum, h) => sum + Math.abs(h.shares), 0);
+      const totalCost = dividendPerShare * (totalLongShares - totalShortShares);
+
+      if (totalCost > 0 && Number(company.legalBalance) < totalCost) {
+        return res.status(400).json({ error: 'INSUFFICIENT_FUNDS', message: `Insufficient clean cash. Net payout cost: $${totalCost.toFixed(2)}, Available: $${Number(company.legalBalance).toFixed(2)}` });
       }
 
       await prisma.$transaction(async (tx) => {
-        // 1. Deduct total from company
+        // 1. Deduct net cost from company
         await tx.company.update({
           where: { id: companyId },
           data: { legalBalance: { decrement: totalCost } },
         });
 
-        // 2. Pay each competitor
-        for (const h of holdings) {
+        // 2. Pay each long competitor
+        for (const h of longHoldings) {
           const payout = dividendPerShare * h.shares;
           await tx.company.update({
             where: { id: h.ownerCompanyId },
@@ -632,16 +651,29 @@ router.post('/shares/dividend', async (req: AuthRequest, res: Response) => {
             message: `DIVIDEND RECEIVED: Received $${payout.toFixed(2)} dividend from company ${company.name} (${h.shares} shares held).`,
           });
         }
+
+        // 3. Charge each short competitor (Short Seller dividend penalty)
+        for (const h of shortHoldings) {
+          const charge = dividendPerShare * Math.abs(h.shares);
+          await tx.company.update({
+            where: { id: h.ownerCompanyId },
+            data: { legalBalance: { decrement: charge } },
+          });
+
+          GameWebSocketServer.sendToCompany(h.ownerCompanyId, 'company:balance_update', {
+            message: `DIVIDEND SHORT PENALTY: Charged $${charge.toFixed(2)} dividend penalty on your short position of ${company.name} (${Math.abs(h.shares)} shares short).`,
+          });
+        }
       });
 
       GameWebSocketServer.sendToCompany(companyId, 'company:balance_update', {
         legalBalance: Number(company.legalBalance) - totalCost,
-        message: `DIVIDENDS DISTRIBUTED: Paid out $${totalCost.toFixed(2)} total dividends to competitor shareholders ($${dividendPerShare}/share).`,
+        message: `DIVIDENDS DISTRIBUTED: Paid out $${totalCost.toFixed(2)} net dividends to competitor shareholders ($${dividendPerShare}/share).`,
       });
 
       res.json({
         success: true,
-        message: `Successfully distributed $${totalCost.toFixed(2)} total dividends ($${dividendPerShare}/share).`,
+        message: `Successfully distributed $${totalCost.toFixed(2)} net dividends ($${dividendPerShare}/share).`,
       });
     });
   } catch (error: any) {
@@ -675,6 +707,76 @@ router.get('/shares/shareholders', async (req: AuthRequest, res: Response) => {
       shares: h.shares,
       avgPurchasePrice: parseFloat(Number(h.avgPurchasePrice).toFixed(4)),
     })));
+  } catch (error: any) {
+    res.status(500).json({ error: 'SERVER_ERROR', message: error.message });
+  }
+});
+
+/**
+ * POST /api/finance/relocate
+ * Relocate corporate HQ / shell havens
+ */
+router.post('/relocate', async (req: AuthRequest, res: Response) => {
+  const companyId = req.user!.companyId;
+  const { jurisdiction } = req.body;
+
+  const validJurisdictions = ['BALTICS', 'GERMANY', 'SCANDINAVIA', 'BELARUS', 'SWITZERLAND', 'CAYMAN_ISLANDS'];
+  if (!validJurisdictions.includes(jurisdiction)) {
+    return res.status(400).json({ error: 'INVALID_JURISDICTION', message: 'Specify a valid jurisdiction.' });
+  }
+
+  const relocationFees: Record<string, number> = {
+    BALTICS: 25000,
+    GERMANY: 50000,
+    SCANDINAVIA: 75000,
+    BELARUS: 10000,
+    SWITZERLAND: 250000,
+    CAYMAN_ISLANDS: 500000,
+  };
+
+  const fee = relocationFees[jurisdiction];
+  const lockKey = `company:finance:${companyId}`;
+
+  try {
+    await LockService.withLock(lockKey, async () => {
+      const company = await prisma.company.findUnique({ where: { id: companyId } });
+      if (!company) {
+        res.status(404).json({ error: 'COMPANY_NOT_FOUND', message: 'Company not found.' });
+        return;
+      }
+
+      if (company.jurisdiction === jurisdiction) {
+        res.status(400).json({ error: 'ALREADY_RELOCATED', message: 'Your corporate HQ is already registered in this jurisdiction.' });
+        return;
+      }
+
+      if (Number(company.legalBalance) < fee) {
+        res.status(400).json({ error: 'INSUFFICIENT_FUNDS', message: `Relocation to ${jurisdiction} requires $${fee.toLocaleString()} Clean Cash.` });
+        return;
+      }
+
+      await prisma.$transaction(async (tx) => {
+        await tx.company.update({
+          where: { id: companyId },
+          data: {
+            legalBalance: { decrement: fee },
+            jurisdiction: jurisdiction as Jurisdiction,
+          },
+        });
+      });
+
+      GameWebSocketServer.sendToCompany(companyId, 'company:balance_update', {
+        legalBalance: parseFloat((Number(company.legalBalance) - fee).toFixed(2)),
+        blackMarketBalance: parseFloat(Number(company.blackMarketBalance).toFixed(2)),
+        message: `HQ RELOCATED: Transferred corporate shell coordinates to ${jurisdiction}. Paid $${fee.toLocaleString()} Clean Cash relocation duties.`,
+      });
+
+      res.json({
+        message: `Successfully relocated HQ to ${jurisdiction}.`,
+        jurisdiction,
+        feePaid: fee,
+      });
+    });
   } catch (error: any) {
     res.status(500).json({ error: 'SERVER_ERROR', message: error.message });
   }

@@ -254,15 +254,28 @@ func _build_dealer_card(parent: Control) -> void:
 	greeting.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	parent.add_child(greeting)
 
-	# Risk warning
+	# Risk warning (moved slightly up and shortened height)
 	var warning = Label.new()
 	warning.text = "⚠ ALL TRANSACTIONS ARE FINAL\n⚠ DO NOT SPEAK TO POLICE\n⚠ DRIVER LOYALTY MATTERS"
-	warning.add_theme_font_size_override("font_size", 12)
+	warning.add_theme_font_size_override("font_size", 11)
 	warning.add_theme_color_override("font_color", Color(0.8, 0.3, 0.3, 0.8))
-	warning.position = Vector2(15, 435)
-	warning.size = Vector2(290, 90)
+	warning.position = Vector2(15, 425)
+	warning.size = Vector2(290, 50)
 	warning.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	parent.add_child(warning)
+
+	# Bribe Commissioner Button
+	var bribe_btn = Button.new()
+	bribe_btn.name = "BribeBtn"
+	var cost = GameState.police_heat * 800
+	bribe_btn.text = "👮 BRIBE COMMISSIONER ($%d BM)" % cost if GameState.police_heat > 0 else "👮 COMMISSIONER BRIBE (0 HEAT)"
+	bribe_btn.position = Vector2(15, 485)
+	bribe_btn.size = Vector2(290, 44)
+	bribe_btn.add_theme_font_size_override("font_size", 12)
+	bribe_btn.disabled = GameState.police_heat <= 0
+	_style_btn(bribe_btn, Color(0.65, 0.45, 1.0))
+	bribe_btn.pressed.connect(_bribe_commissioner)
+	parent.add_child(bribe_btn)
 
 	# Truck selector
 	var truck_label = Label.new()
@@ -867,3 +880,58 @@ func _style_panel(panel: PanelContainer, accent_col: Color) -> void:
 
 func _style_btn(btn: Button, accent_col: Color, is_selected: bool = false) -> void:
 	GlobalThemeManager.apply_btn_style(btn, accent_col)
+
+func _bribe_commissioner() -> void:
+	if GameState.police_heat <= 0:
+		_show_toast("No police heat to wipe.", Color(1.0, 0.6, 0.1, 1.0))
+		return
+	
+	var cost = GameState.police_heat * 800
+	if GameState.black_market_balance < cost:
+		_show_toast("Insufficient Black Market cash for bribe.", Color(1.0, 0.3, 0.3, 1.0))
+		return
+
+	var bribe_http = HTTPRequest.new()
+	add_child(bribe_http)
+	bribe_http.request_completed.connect(func(_r, code, _h, body):
+		var parsed = JSON.parse_string(body.get_string_from_utf8())
+		if code == 200:
+			_show_toast("Police records wiped! Heat reset to 0.", Color(0.2, 0.9, 0.5, 1.0))
+			GameState.police_heat = 0
+			GameState.update_balances(0, -cost)
+			_update_heat_ui()
+		else:
+			var err = parsed.get("error", "UNKNOWN") if parsed else "SERVER_ERROR"
+			_show_toast("Bribe failed: " + err, Color(1.0, 0.3, 0.3, 1.0))
+		bribe_http.queue_free()
+	)
+	
+	var token = GameState.auth_token
+	var headers = ["Content-Type: application/json", "Authorization: Bearer " + token]
+	bribe_http.request(BASE_URL + "/api/underworld/wipe-heat", headers, HTTPClient.METHOD_POST, "{}")
+
+func _update_heat_ui() -> void:
+	var heat_lbl = _find_node_recursive(scene_root, "HeatLabel")
+	if heat_lbl and heat_lbl is Label:
+		heat_lbl.add_theme_color_override("font_color", _heat_color(GameState.police_heat))
+	
+	var heat_fill = _find_node_recursive(scene_root, "HeatFill")
+	if heat_fill and heat_fill is ColorRect:
+		heat_fill.color = _heat_color(GameState.police_heat)
+		heat_fill.anchor_right = float(GameState.police_heat) / 100.0
+		
+	var heat_val = _find_node_recursive(scene_root, "HeatValLbl")
+	if heat_val and heat_val is Label:
+		heat_val.text = "%d%%" % GameState.police_heat
+		
+	var status = _find_node_recursive(scene_root, "StatusLabel")
+	if status and status is Label:
+		status.text = "💰 Legal: $%.0f   💜 Black Market: $%.0f   🚛 Active Truck: Select from Garage" % [
+			GameState.legal_balance, GameState.black_market_balance
+		]
+
+	var bribe_btn = _find_node_recursive(scene_root, "BribeBtn")
+	if bribe_btn and bribe_btn is Button:
+		var cost = GameState.police_heat * 800
+		bribe_btn.text = "👮 BRIBE COMMISSIONER ($%d BM)" % cost if GameState.police_heat > 0 else "👮 COMMISSIONER BRIBE (0 HEAT)"
+		bribe_btn.disabled = GameState.police_heat <= 0

@@ -102,8 +102,13 @@ func _render_drivers(drivers: Array) -> void:
         card.add_child(hb)
         
         var info = Label.new()
-        info.text = "👤 %s | Trait: %s\nCharisma: %d | Loyalty: %d | Fatigue: %d%%" % [
-            d.name, d.trait, d.charisma, d.loyalty, d.fatigue
+        var level = int(d.get("level", 1))
+        var xp = int(d.get("xp", 0))
+        var tacho = float(d.get("tachoHours", 0.0))
+        var stimulated = bool(d.get("isStimulated", false))
+        
+        info.text = "👤 %s [Lvl %d (XP: %d/%d)] | Trait: %s\nCharisma: %d | Loyalty: %d | Fatigue: %d%%" % [
+            d.name, level, xp, level * 100, d.trait, d.charisma, d.loyalty, d.fatigue
         ]
         info.add_theme_font_size_override("font_size", 14)
         info.mouse_filter = Control.MOUSE_FILTER_PASS
@@ -111,3 +116,27 @@ func _render_drivers(drivers: Array) -> void:
         if trait_name in TRAIT_TOOLTIPS:
             info.tooltip_text = TRAIT_TOOLTIPS[trait_name]
         hb.add_child(info)
+
+        # Add a spacer
+        var hs = Control.new()
+        hs.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+        hb.add_child(hs)
+
+        # Add Tacho / Stimulated indicators
+        var tacho_lbl = Label.new()
+        tacho_lbl.text = "Tacho: %.1f/10.0h%s" % [tacho, " ⚗" if stimulated else ""]
+        tacho_lbl.add_theme_font_size_override("font_size", 13)
+        if tacho > 10.0:
+            tacho_lbl.add_theme_color_override("font_color", Color(1.0, 0.5, 0.0, 1.0)) # Warning Orange
+            # Pulse/Flash effect
+            var t = tacho_lbl.create_tween().set_loops()
+            t.tween_property(tacho_lbl, "modulate:a", 0.4, 0.4)
+            t.tween_property(tacho_lbl, "modulate:a", 1.0, 0.4)
+        else:
+            tacho_lbl.add_theme_color_override("font_color", Color(0.709, 0.768, 0.843, 0.85))
+        hb.add_child(tacho_lbl)
+        
+        # Spacer
+        var hs2 = Control.new()
+        hs2.custom_minimum_size = Vector2(10, 0)
+        hb.add_child(hs2)

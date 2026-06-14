@@ -615,4 +615,98 @@ router.post('/member/kick', async (req: AuthRequest, res: Response) => {
   }
 });
 
+/**
+ * POST /api/clan/treasury/distribute
+ * Distribute clan treasury funds back to members (Owner/Officer only)
+ */
+router.post('/treasury/distribute', async (req: AuthRequest, res: Response) => {
+  const companyId = req.user!.companyId;
+  const { amount } = req.body;
+
+  if (amount === undefined || amount <= 0) {
+    return res.status(400).json({ error: 'INVALID_INPUT', message: 'Specify a positive amount.' });
+  }
+
+  try {
+    const actorRole = ClanService.getCompanyRole(companyId);
+    if (actorRole !== 'OWNER' && actorRole !== 'OFFICER') {
+      return res.status(403).json({ error: 'FORBIDDEN', message: 'Only owners or officers can distribute treasury funds.' });
+    }
+
+    const company = await prisma.company.findUnique({
+      where: { id: companyId },
+      include: {
+        clan: {
+          include: {
+            companies: true,
+          },
+        },
+      },
+    });
+
+    if (!company || !company.clan) {
+      return res.status(400).json({ error: 'NO_CLAN', message: 'You must belong to a clan.' });
+    }
+
+    const clan = company.clan;
+    if (Number(clan.treasury) < amount) {
+      return res.status(400).json({ error: 'INSUFFICIENT_FUNDS', message: `Clan treasury only has $${Number(clan.treasury).toFixed(2)} available.` });
+    }
+
+    const membersCount = clan.companies.length;
+    if (membersCount === 0) {
+      return res.status(400).json({ error: 'NO_MEMBERS', message: 'Clan has no member companies.' });
+    }
+
+    const share = amount / membersCount;
+
+    await prisma.$transaction(async (tx) => {
+      // 1. Deduct from treasury
+      await tx.clan.update({
+        where: { id: clan.id },
+        data: { treasury: { decrement: amount } },
+      });
+
+      // 2. Add to each member company
+      for (const member of clan.companies) {
+        await tx.company.update({
+          where: { id: member.id },
+          data: { legalBalance: { increment: share } },
+        });
+
+        // Broadcast balance update
+        GameWebSocketServer.sendToCompany(member.id, 'company:balance_update', {
+          legalBalance: parseFloat((Number(member.legalBalance) + share).toFixed(2)),
+          blackMarketBalance: parseFloat(Number(member.blackMarketBalance).toFixed(2)),
+          message: `CLAN DIVIDEND: Received $${share.toFixed(2)} Clean Cash distributed from Clan Treasury.`,
+        });
+      }
+    });
+
+    // Post in clan chat
+    const alertMsg = `📢 TREASURY DISTRIBUTION: Officer distributed $${amount.toFixed(2)} Clean Cash equally among all ${membersCount} members ($${share.toFixed(2)}/company).`;
+    ClanService.addChatMessage(clan.id, {
+      senderId: 'SYSTEM',
+      senderName: 'SYN-NETWORK',
+      text: alertMsg,
+      timestamp: new Date().toISOString(),
+    });
+
+    GameWebSocketServer.broadcastToClan(clan.id, 'clan:chat_message', {
+      senderId: 'SYSTEM',
+      senderName: 'SYN-NETWORK',
+      message: alertMsg,
+      timestamp: new Date().toISOString(),
+    });
+
+    res.json({
+      success: true,
+      message: `Successfully distributed $${amount.toFixed(2)} Clean Cash equally among all ${membersCount} members.`,
+      share,
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: 'SERVER_ERROR', message: error.message });
+  }
+});
+
 export default router;

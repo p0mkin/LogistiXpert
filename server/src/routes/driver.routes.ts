@@ -213,13 +213,29 @@ router.post('/:driverId/stimulate', async (req: AuthRequest, res: Response) => {
         data: { blackMarketBalance: { decrement: chemicalCost } },
       });
 
+      // Calculate loyalty penalty if already stimulated (severe abuse penalty) or normal risk check
+      let loyaltyChange = 5; // default perk bump
+      let descriptionKicker = "Fatigue reduced by 50%. ERRATIC SPEED ACTIVE.";
+      
+      if (driver.isStimulated) {
+        loyaltyChange = -20; // severe abuse penalty
+        descriptionKicker = "ABUSED STIMULANTS. Driver suffered severe neurological crash (-20 Loyalty).";
+      } else {
+        // 30% chance of fatigue override loyalty penalty of -10
+        const randRoll = Math.random() < 0.30;
+        if (randRoll && driver.trait !== 'LOYAL') {
+          loyaltyChange = -10;
+          descriptionKicker = "Fatigue reduced. Driver resented the forced substance injection (-10 Loyalty).";
+        }
+      }
+
       // Reduce fatigue by 50% and set stimulated state
       const driverUpdate = await tx.driver.update({
         where: { id: driverId },
         data: {
           fatigue: Math.max(driver.fatigue - 50, 0),
           isStimulated: true,
-          loyalty: Math.min(driver.loyalty + 5, 100), // minor loyalty spike from "perks"
+          loyalty: Math.max(0, Math.min(driver.loyalty + loyaltyChange, 100)),
         },
       });
 
@@ -228,7 +244,7 @@ router.post('/:driverId/stimulate', async (req: AuthRequest, res: Response) => {
           data: {
             truckId: driver.assignedTruckId,
             eventType: 'SUBSTANCE_ADMINISTERED',
-            description: `Ordered driver to administer chemical stimulants to suppress fatigue. Fatigue reduced by 50%. ERRATIC SPEED ACTIVE. Cost: $${chemicalCost} (Black Market Cash).`,
+            description: `Ordered driver to administer chemical stimulants. ${descriptionKicker} Cost: $${chemicalCost} (Black Market Cash).`,
           },
         });
       }
@@ -379,6 +395,65 @@ router.post('/:driverId/unassign', async (req: AuthRequest, res: Response) => {
     res.json({ message: `Driver ${driver.name} unassigned.`, driver: updated });
   } catch (error) {
     res.status(500).json({ error: 'SERVER_ERROR', message: 'Failed to unassign driver.' });
+  }
+});
+
+/**
+ * POST /api/driver/:driverId/allocate-skill
+ * Upgrade driver charisma (+1) or loyalty (+5) using available skill points
+ */
+router.post('/:driverId/allocate-skill', async (req: AuthRequest, res: Response) => {
+  const companyId = req.user!.companyId;
+  const { driverId } = req.params;
+  const { skill } = req.body;
+
+  if (skill !== 'CHARISMA' && skill !== 'LOYALTY') {
+    return res.status(400).json({ error: 'INVALID_INPUT', message: 'Specify a valid skill: CHARISMA or LOYALTY.' });
+  }
+
+  try {
+    const driver = await prisma.driver.findUnique({
+      where: { id: driverId },
+    });
+
+    if (!driver || driver.companyId !== companyId) {
+      return res.status(404).json({ error: 'DRIVER_NOT_FOUND', message: 'Driver not found.' });
+    }
+
+    if (driver.skillPoints <= 0) {
+      return res.status(400).json({ error: 'INSUFFICIENT_SKILL_POINTS', message: 'This driver has 0 skill points available.' });
+    }
+
+    let upCharisma = driver.charisma;
+    let upLoyalty = driver.loyalty;
+
+    if (skill === 'CHARISMA') {
+      if (driver.charisma >= 20) {
+        return res.status(400).json({ error: 'MAX_SKILL_REACHED', message: 'Charisma is already at maximum level (20).' });
+      }
+      upCharisma = Math.min(20, driver.charisma + 1);
+    } else if (skill === 'LOYALTY') {
+      if (driver.loyalty >= 100) {
+        return res.status(400).json({ error: 'MAX_SKILL_REACHED', message: 'Loyalty is already at maximum level (100).' });
+      }
+      upLoyalty = Math.min(100, driver.loyalty + 5);
+    }
+
+    const updated = await prisma.driver.update({
+      where: { id: driverId },
+      data: {
+        charisma: upCharisma,
+        loyalty: upLoyalty,
+        skillPoints: { decrement: 1 },
+      },
+    });
+
+    res.json({
+      message: `Successfully upgraded driver ${driver.name}'s ${skill}!`,
+      driver: updated,
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: 'SERVER_ERROR', message: error.message });
   }
 });
 

@@ -50,6 +50,7 @@ export class FinanceService {
         trucks: true,
         garages: true,
         fronts: true,
+        drivers: true,
       },
     });
 
@@ -84,7 +85,7 @@ export class FinanceService {
       await LockService.withLock(lockKey, async () => {
         const updatedCompany = await prisma.company.findUnique({
           where: { id: company.id },
-          include: { trucks: true, garages: true, fronts: true },
+          include: { trucks: true, garages: true, fronts: true, drivers: true },
         });
 
         if (!updatedCompany) return;
@@ -231,6 +232,43 @@ export class FinanceService {
                 frontName: targetFront.name,
                 seizedAmount: parseFloat(dirtyCashToWipe.toFixed(2)),
                 message: `🚨 PERIODIC POLICE RAID! High police heat of ${activeHeat} triggered a raid on "${targetFront.name}". 50% of dirty cash ($${dirtyCashToWipe.toFixed(2)}) was seized. Business locked for 24h.`,
+              });
+            }
+          }
+        }
+
+        // E. PERIODIC DRIVER TACHO COMPLIANCE AUDITS (v0.7.0)
+        for (const driver of updatedCompany.drivers) {
+          if (driver.tachoHours > 10.0) {
+            const auditRoll = Math.random() < 0.05; // 5% chance per tick
+            if (auditRoll) {
+              const fine = 1500;
+              const heat = 5;
+
+              await prisma.$transaction(async (tx) => {
+                await tx.company.update({
+                  where: { id: company.id },
+                  data: {
+                    legalBalance: { decrement: fine },
+                    policeHeat: { increment: heat },
+                  },
+                });
+
+                if (driver.assignedTruckId) {
+                  await tx.truckHistory.create({
+                    data: {
+                      truckId: driver.assignedTruckId,
+                      eventType: 'TACHO_AUDIT_FINE',
+                      description: `Schengen Tacho Audit: Driver ${driver.name} flagged for exceeding 10h tacho limits without rest. Fined $${fine} Clean Cash. Police Heat +${heat}.`,
+                    },
+                  });
+                }
+              });
+
+              GameWebSocketServer.sendToCompany(company.id, 'alert:weigh_station_fine', {
+                driverName: driver.name,
+                fine,
+                message: `AUDIT PENALTY: Driver ${driver.name} failed Schengen tacho audit! Fined $${fine} Clean Cash.`,
               });
             }
           }

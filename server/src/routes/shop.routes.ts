@@ -82,6 +82,38 @@ const PARTS_CATALOG: Record<string, PartsCatalogItem> = {
     cost: 35000,
     currency: 'BLACK_MARKET',
     description: 'Composite Kevlar-titanium plates lining the engine bay and cabin. Reduces physical sabotage success chance by 50% and limits damage by 50%.',
+  },
+  neon_cyan: {
+    id: 'neon_cyan',
+    name: 'Cosmetic Neon Underglow (Cyan)',
+    category: 'RIGGING',
+    cost: 5000,
+    currency: 'BLACK_MARKET',
+    description: 'Styling chassis modification. Displays Cyan neon glow under vehicle.',
+  },
+  neon_pink: {
+    id: 'neon_pink',
+    name: 'Cosmetic Neon Underglow (Pink)',
+    category: 'RIGGING',
+    cost: 5000,
+    currency: 'BLACK_MARKET',
+    description: 'Styling chassis modification. Displays Pink neon glow under vehicle.',
+  },
+  neon_green: {
+    id: 'neon_green',
+    name: 'Cosmetic Neon Underglow (Green)',
+    category: 'RIGGING',
+    cost: 5000,
+    currency: 'BLACK_MARKET',
+    description: 'Styling chassis modification. Displays Green neon glow under vehicle.',
+  },
+  neon_gold: {
+    id: 'neon_gold',
+    name: 'Cosmetic Neon Underglow (Syndicate Gold)',
+    category: 'RIGGING',
+    cost: 15000,
+    currency: 'BLACK_MARKET',
+    description: 'Executive gold chassis styling. Displays Gold neon underglow (Requires 100 Rep).',
   }
 };
 
@@ -193,6 +225,7 @@ router.post('/buy', async (req: AuthRequest, res: Response) => {
       let shielding = truck.scannerShielding;
       let chaffFlares = truck.hasChaffFlares;
       let reinforcedArmor = truck.hasReinforcedArmor;
+      let neonColor = (truck as any).neonColor || 'NONE';
 
       if (part.id === 'engine_kit') {
         upEngine = Math.min(truck.engineHealth + 25, 100);
@@ -224,6 +257,22 @@ router.post('/buy', async (req: AuthRequest, res: Response) => {
         }
         reinforcedArmor = true;
         logDesc += ` Reinforced Kevlar armor plating installed.`;
+      } else if (part.id === 'neon_cyan') {
+        neonColor = 'CYAN';
+        logDesc += ` Custom Cyan cosmetic neon underglow installed.`;
+      } else if (part.id === 'neon_pink') {
+        neonColor = 'PINK';
+        logDesc += ` Custom Pink cosmetic neon underglow installed.`;
+      } else if (part.id === 'neon_green') {
+        neonColor = 'GREEN';
+        logDesc += ` Custom Green cosmetic neon underglow installed.`;
+      } else if (part.id === 'neon_gold') {
+        const buyerCompany = await tx.company.findUnique({ where: { id: companyId } });
+        if (!buyerCompany || buyerCompany.reputationScore < 100) {
+          throw new Error('REPUTATION_TOO_LOW');
+        }
+        neonColor = 'GOLD';
+        logDesc += ` Exclusive executive Syndicate Gold cosmetic neon underglow installed.`;
       }
 
       // Update truck parameters
@@ -236,6 +285,7 @@ router.post('/buy', async (req: AuthRequest, res: Response) => {
           scannerShielding: shielding,
           hasChaffFlares: chaffFlares,
           hasReinforcedArmor: reinforcedArmor,
+          neonColor: neonColor,
         },
       });
 

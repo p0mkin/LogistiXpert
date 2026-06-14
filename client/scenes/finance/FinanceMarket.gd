@@ -10,7 +10,7 @@ var BASE_URL: String:
 	get: return NetworkManager.HTTP_URL + "/finance"
 
 # UI Navigation Tabs
-enum Tab { OVERVIEW, STOCKS, CREDIT, SPECS }
+enum Tab { OVERVIEW, STOCKS, CREDIT, SPECS, HAVENS }
 var active_tab: Tab = Tab.OVERVIEW
 
 # Core State Variables
@@ -243,6 +243,10 @@ func _build_ui() -> void:
 	btn_specs.pressed.connect(func(): _switch_tab(Tab.SPECS))
 	tabs.add_child(btn_specs)
 
+	var btn_havens = _btn("🏝 TAX HAVENS", Vector2(810, 6), Vector2(180, 36))
+	btn_havens.pressed.connect(func(): _switch_tab(Tab.HAVENS))
+	tabs.add_child(btn_havens)
+
 	# MAIN VIEW CONTAINER
 	var view = _panel(Vector2(12, 190), Vector2(1256, 474), Color(0.04, 0.03, 0.06, 0.85), Color(0.9, 0.75, 0.2, 0.35))
 	view.name = "MainView"
@@ -295,6 +299,8 @@ func _switch_tab(tab: Tab) -> void:
 			_render_credit_tab()
 		Tab.SPECS:
 			_render_specs_tab()
+		Tab.HAVENS:
+			_render_havens_tab()
 
 func _update_balances_on_strip() -> void:
 	var label = _find(scene_root, "BalancesStripLabel")
@@ -598,6 +604,22 @@ func _make_stock_row(listing: Dictionary) -> Control:
 	price_lbl.custom_minimum_size = Vector2(120, 0)
 	hbox.add_child(price_lbl)
 
+	# Position
+	var row_pos_lbl = Label.new()
+	var owned = listing.get("sharesOwned", 0)
+	if owned > 0:
+		row_pos_lbl.text = "Long: %s" % _fmt(owned)
+		row_pos_lbl.add_theme_color_override("font_color", Color(0.2, 0.85, 0.45, 1.0))
+	elif owned < 0:
+		row_pos_lbl.text = "Short: %s" % _fmt(abs(owned))
+		row_pos_lbl.add_theme_color_override("font_color", Color(1.0, 0.3, 0.3, 1.0))
+	else:
+		row_pos_lbl.text = "-"
+		row_pos_lbl.add_theme_color_override("font_color", Color(0.5, 0.5, 0.6, 0.6))
+	row_pos_lbl.add_theme_font_size_override("font_size", 11)
+	row_pos_lbl.custom_minimum_size = Vector2(120, 0)
+	hbox.add_child(row_pos_lbl)
+
 	# Select button
 	var btn = Button.new()
 	btn.text = "SELECT"
@@ -702,12 +724,29 @@ func _render_trading_details(panel: PanelContainer, target: Dictionary) -> void:
 		panel.add_child(pay_div_btn)
 
 	else:
+		# Position details
+		var pos = target.get("sharesOwned", 0)
+		var avg_p = target.get("avgPurchasePrice", 0.0)
+		var pos_lbl = Label.new()
+		if pos > 0:
+			pos_lbl.text = "Your Position: Long %s Shares @ $%.4f (Avg)" % [_fmt(pos), avg_p]
+			pos_lbl.add_theme_color_override("font_color", Color(0.2, 0.85, 0.45, 1.0))
+		elif pos < 0:
+			pos_lbl.text = "Your Position: Short %s Shares @ $%.4f (Avg)" % [_fmt(abs(pos)), avg_p]
+			pos_lbl.add_theme_color_override("font_color", Color(1.0, 0.3, 0.3, 1.0))
+		else:
+			pos_lbl.text = "Your Position: No Position"
+			pos_lbl.add_theme_color_override("font_color", Color(0.5, 0.5, 0.6, 1.0))
+		pos_lbl.add_theme_font_size_override("font_size", 12)
+		pos_lbl.position = Vector2(16, 102)
+		panel.add_child(pos_lbl)
+
 		# Quantity inputs
 		var qty_lbl = Label.new()
 		qty_lbl.text = "Share Quantity to Trade:"
 		qty_lbl.add_theme_font_size_override("font_size", 11)
 		qty_lbl.add_theme_color_override("font_color", Color(0.5, 0.5, 0.6, 1.0))
-		qty_lbl.position = Vector2(16, 114)
+		qty_lbl.position = Vector2(16, 134)
 		panel.add_child(qty_lbl)
 
 		# Adjust Qty Buttons
@@ -716,7 +755,7 @@ func _render_trading_details(panel: PanelContainer, target: Dictionary) -> void:
 		for q in qtys:
 			var q_btn = Button.new()
 			q_btn.text = "+" + _fmt(q)
-			q_btn.position = Vector2(q_x, 134)
+			q_btn.position = Vector2(q_x, 154)
 			q_btn.size = Vector2(90, 28)
 			_style_customizer_btn(q_btn, trade_qty == q, Color(0.9, 0.75, 0.2))
 			q_btn.pressed.connect(func():
@@ -730,7 +769,7 @@ func _render_trading_details(panel: PanelContainer, target: Dictionary) -> void:
 		q_lbl.text = "Trade Volume: %s Shares" % _fmt(trade_qty)
 		q_lbl.add_theme_font_size_override("font_size", 13)
 		q_lbl.add_theme_color_override("font_color", Color(0.85, 0.85, 0.9, 1.0))
-		q_lbl.position = Vector2(16, 178)
+		q_lbl.position = Vector2(16, 198)
 		q_lbl.name = "TradeQtyLabel"
 		panel.add_child(q_lbl)
 
@@ -739,7 +778,7 @@ func _render_trading_details(panel: PanelContainer, target: Dictionary) -> void:
 		est_lbl.text = "Total Cost estimate: $%.2f" % est
 		est_lbl.add_theme_font_size_override("font_size", 12)
 		est_lbl.add_theme_color_override("font_color", Color(0.2, 0.85, 0.45, 1.0))
-		est_lbl.position = Vector2(16, 204)
+		est_lbl.position = Vector2(16, 224)
 		est_lbl.name = "TotalEstLabel"
 		panel.add_child(est_lbl)
 
@@ -748,7 +787,7 @@ func _render_trading_details(panel: PanelContainer, target: Dictionary) -> void:
 		warn.text = "🚨 Takeover Shield Limit: You cannot own more than 49% of outstanding shares. Day-trading holding period < 10 mins triggers short-term Capital Gains surcharges."
 		warn.add_theme_font_size_override("font_size", 10)
 		warn.add_theme_color_override("font_color", Color(1.0, 0.45, 0.2, 0.8))
-		warn.position = Vector2(16, 238)
+		warn.position = Vector2(16, 258)
 		warn.size = Vector2(424, 48)
 		warn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		panel.add_child(warn)
@@ -756,15 +795,15 @@ func _render_trading_details(panel: PanelContainer, target: Dictionary) -> void:
 		# Transact buttons
 		var buy_btn = Button.new()
 		buy_btn.text = "✔  BUY SHARES"
-		buy_btn.position = Vector2(16, 310)
+		buy_btn.position = Vector2(16, 330)
 		buy_btn.size = Vector2(200, 44)
 		buy_btn.add_theme_color_override("font_color", Color(0.2, 0.85, 0.45, 1.0))
 		buy_btn.pressed.connect(func(): _execute_trade("BUY", target.companyId))
 		panel.add_child(buy_btn)
 
 		var sell_btn = Button.new()
-		sell_btn.text = "✕  SELL SHARES"
-		sell_btn.position = Vector2(240, 310)
+		sell_btn.text = "✕  SELL/SHORT SHARES"
+		sell_btn.position = Vector2(240, 330)
 		sell_btn.size = Vector2(200, 44)
 		sell_btn.add_theme_color_override("font_color", Color(1.0, 0.3, 0.3, 1.0))
 		sell_btn.pressed.connect(func(): _execute_trade("SELL", target.companyId))
@@ -985,9 +1024,11 @@ func _on_action_response(_r, code, _h, body) -> void:
 	else:
 		var err = parsed.get("error", "UNKNOWN") if parsed else "SERVER_ERROR"
 		var msg_map = {
-			"INSUFFICIENT_FUNDS": "Insufficient clean cash to repay outstanding principal.",
+			"INSUFFICIENT_FUNDS": "Insufficient clean cash to execute relocation or repayment.",
 			"CREDIT_LIMIT_EXCEEDED": "Financing Rejected: Asset credit limit exceeded.",
-			"NO_DEBT": "Your company does not hold any outstanding debts."
+			"NO_DEBT": "Your company does not hold any outstanding debts.",
+			"INVALID_JURISDICTION": "Invalid relocation jurisdiction.",
+			"ALREADY_RELOCATED": "Already registered in this jurisdiction."
 		}
 		_show_toast("✕ Banking Refused: " + msg_map.get(err, err), Color(1.0, 0.25, 0.25, 1.0))
 
@@ -1298,3 +1339,144 @@ func _find(root: Node, name: String) -> Node:
 		var r = _find(c, name)
 		if r: return r
 	return null
+
+func _render_havens_tab() -> void:
+	var view = _find(scene_root, "MainView")
+	if not view or active_tab != Tab.HAVENS:
+		return
+
+	# Title
+	var title = Label.new()
+	title.text = "🏝  OFF-SHORE CORPORATE TAX HAVENS & HQ RELOCATION"
+	title.add_theme_font_size_override("font_size", 14)
+	title.add_theme_color_override("font_color", Color(0.8, 0.75, 1.0, 1.0))
+	title.position = Vector2(20, 16)
+	view.add_child(title)
+
+	# Left Panel: Current Status
+	var left = _panel(Vector2(20, 48), Vector2(500, 400), Color(0.06, 0.05, 0.09, 0.95), Color(0.9, 0.75, 0.2, 0.25))
+	view.add_child(left)
+
+	var cur_lbl = Label.new()
+	cur_lbl.text = "🏛  CURRENT HQ REGISTRATION"
+	cur_lbl.add_theme_font_size_override("font_size", 13)
+	cur_lbl.add_theme_color_override("font_color", Color(0.9, 0.8, 0.2, 1.0))
+	cur_lbl.position = Vector2(16, 16)
+	left.add_child(cur_lbl)
+
+	var cur_jur = company_val.get("jurisdiction", "BALTICS")
+	
+	var jur_names = {
+		"BALTICS": "Baltics HQ Front",
+		"GERMANY": "Germany HQ Front",
+		"SCANDINAVIA": "Scandinavia HQ Front",
+		"BELARUS": "Belarus HQ Front",
+		"SWITZERLAND": "Swiss Shell Trust",
+		"CAYMAN_ISLANDS": "Cayman Shell Trust"
+	}
+	
+	var jur_taxes = {
+		"BALTICS": ["15% flat", "25% / 19%"],
+		"GERMANY": ["30% flat", "40% / 25%"],
+		"SCANDINAVIA": ["35% flat", "45% / 30%"],
+		"BELARUS": ["20% flat", "15% / 10%"],
+		"SWITZERLAND": ["8% flat", "8% / 5%"],
+		"CAYMAN_ISLANDS": ["0% flat", "0% / 0%"]
+	}
+
+	var name_lbl = Label.new()
+	name_lbl.text = "Active Jurisdiction:  %s" % jur_names.get(cur_jur, cur_jur)
+	name_lbl.add_theme_font_size_override("font_size", 14)
+	name_lbl.add_theme_color_override("font_color", Color.WHITE)
+	name_lbl.position = Vector2(16, 50)
+	left.add_child(name_lbl)
+
+	var tax_lbl = Label.new()
+	var tax_info = jur_taxes.get(cur_jur, ["Unknown", "Unknown"])
+	tax_lbl.text = "Corporate Tax on legal payouts:  %s\nCapital Gains Tax (Short/Long term):  %s" % [tax_info[0], tax_info[1]]
+	tax_lbl.add_theme_font_size_override("font_size", 12)
+	tax_lbl.add_theme_color_override("font_color", Color(0.7, 0.7, 0.8, 1.0))
+	tax_lbl.position = Vector2(16, 90)
+	left.add_child(tax_lbl)
+
+	var info_box = Label.new()
+	info_box.text = "Tax mitigation strategies allow routing legal payouts through off-shore jurisdictions. Swiss Shell trusts charge 8% tax. Cayman Shell trusts charge 0% tax, completely shielding payouts. Tax relocation requires Clean Cash fees."
+	info_box.add_theme_font_size_override("font_size", 11)
+	info_box.add_theme_color_override("font_color", Color(0.5, 0.5, 0.6, 1.0))
+	info_box.position = Vector2(16, 180)
+	info_box.size = Vector2(468, 180)
+	info_box.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	left.add_child(info_box)
+
+	# Right Panel: Relocation Grid
+	var right = _panel(Vector2(540, 48), Vector2(696, 400), Color(0.06, 0.05, 0.09, 0.95), Color(0.85, 0.6, 1.0, 0.25))
+	view.add_child(right)
+
+	var rel_lbl = Label.new()
+	rel_lbl.text = "✈  RELOCATION BOARD"
+	rel_lbl.add_theme_font_size_override("font_size", 13)
+	rel_lbl.add_theme_color_override("font_color", Color(0.85, 0.6, 1.0, 1.0))
+	rel_lbl.position = Vector2(16, 16)
+	right.add_child(rel_lbl)
+
+	var scroll = ScrollContainer.new()
+	scroll.position = Vector2(16, 48)
+	scroll.size = Vector2(664, 336)
+	right.add_child(scroll)
+
+	var list = VBoxContainer.new()
+	scroll.add_child(list)
+
+	var options = [
+		["BALTICS", 25000],
+		["GERMANY", 50000],
+		["SCANDINAVIA", 75000],
+		["BELARUS", 10000],
+		["SWITZERLAND", 250000],
+		["CAYMAN_ISLANDS", 500000]
+	]
+
+	for opt in options:
+		var opt_jur = opt[0]
+		var fee = opt[1]
+		if opt_jur == cur_jur: continue
+
+		var row = HBoxContainer.new()
+		row.custom_minimum_size = Vector2(640, 44)
+		list.add_child(row)
+
+		var name_col = Label.new()
+		name_col.text = jur_names.get(opt_jur, opt_jur)
+		name_col.add_theme_font_size_override("font_size", 12)
+		name_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(name_col)
+
+		var taxes_col = Label.new()
+		var opt_tax = jur_taxes.get(opt_jur, ["", ""])
+		taxes_col.text = "Payout Tax: %s" % opt_tax[0]
+		taxes_col.add_theme_font_size_override("font_size", 11)
+		taxes_col.add_theme_color_override("font_color", Color(0.6, 0.6, 0.7))
+		taxes_col.custom_minimum_size = Vector2(150, 0)
+		row.add_child(taxes_col)
+
+		var fee_col = Label.new()
+		fee_col.text = "Fee: $%s Clean" % _fmt(fee)
+		fee_col.add_theme_font_size_override("font_size", 11)
+		fee_col.add_theme_color_override("font_color", Color(0.2, 0.85, 0.45))
+		fee_col.custom_minimum_size = Vector2(140, 0)
+		row.add_child(fee_col)
+
+		var rel_btn = Button.new()
+		rel_btn.text = "RELOCATE"
+		rel_btn.custom_minimum_size = Vector2(100, 28)
+		GlobalThemeManager.apply_btn_style(rel_btn, Color(0.85, 0.6, 1.0))
+		rel_btn.pressed.connect(func(): _execute_relocation(opt_jur, fee))
+		row.add_child(rel_btn)
+
+func _execute_relocation(jurisdiction: String, fee: float) -> void:
+	var token = GameState.auth_token
+	var headers = ["Content-Type: application/json", "Authorization: Bearer " + token]
+	var body = JSON.stringify({ "jurisdiction": jurisdiction })
+	
+	action_http.request(BASE_URL + "/relocate", headers, HTTPClient.METHOD_POST, body)
+	_show_toast("Relocating corporate HQ...", Color(0.85, 0.6, 1.0, 1.0))

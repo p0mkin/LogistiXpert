@@ -450,12 +450,12 @@ func _render_clan_dashboard(parent: Control) -> void:
 	roster_title.text = "MEMBER ROSTER:"
 	roster_title.add_theme_font_size_override("font_size", 14)
 	roster_title.add_theme_color_override("font_color", Color(0.3, 0.85, 1.0))
-	roster_title.position = Vector2(20, 180)
+	roster_title.position = Vector2(20, 160)
 	left_panel.add_child(roster_title)
 
 	var scroll = ScrollContainer.new()
-	scroll.position = Vector2(20, 205)
-	scroll.size = Vector2(360, 140)
+	scroll.position = Vector2(20, 185)
+	scroll.size = Vector2(360, 90)
 	left_panel.add_child(scroll)
 
 	var roster_list = VBoxContainer.new()
@@ -556,12 +556,12 @@ func _render_clan_dashboard(parent: Control) -> void:
 	trophy_title.text = "CARTEL TROPHY ROOM:"
 	trophy_title.add_theme_font_size_override("font_size", 14)
 	trophy_title.add_theme_color_override("font_color", Color(1.0, 0.8, 0.2))
-	trophy_title.position = Vector2(20, 355)
+	trophy_title.position = Vector2(20, 280)
 	left_panel.add_child(trophy_title)
 
 	var trophy_panel = PanelContainer.new()
-	trophy_panel.position = Vector2(20, 380)
-	trophy_panel.size = Vector2(360, 60)
+	trophy_panel.position = Vector2(20, 300)
+	trophy_panel.size = Vector2(360, 50)
 	var strophy = StyleBoxFlat.new()
 	strophy.bg_color = Color(0.04, 0.04, 0.06, 0.8)
 	strophy.border_color = Color(1.0, 0.8, 0.2, 0.2)
@@ -608,7 +608,40 @@ func _render_clan_dashboard(parent: Control) -> void:
 		no_t.add_theme_font_size_override("font_size", 11)
 		trophy_hbox.add_child(no_t)
 
-	var leave_btn = _make_button("✕  LEAVE CARTEL", Vector2(20, 450), Vector2(360, 34))
+	# 1.6. Clan Treasury Distributions
+	if my_role == "OWNER" or my_role == "OFFICER":
+		var dist_title = Label.new()
+		dist_title.text = "DISTRIBUTE TREASURY:"
+		dist_title.add_theme_font_size_override("font_size", 11)
+		dist_title.add_theme_color_override("font_color", Color(0.2, 0.9, 0.5))
+		dist_title.position = Vector2(20, 360)
+		left_panel.add_child(dist_title)
+
+		var dist_hbox = HBoxContainer.new()
+		dist_hbox.position = Vector2(20, 380)
+		dist_hbox.size = Vector2(360, 34)
+		dist_hbox.add_theme_constant_override("separation", 10)
+		left_panel.add_child(dist_hbox)
+
+		var dist_input = LineEdit.new()
+		dist_input.placeholder_text = "Amount..."
+		dist_input.text = "5000"
+		dist_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		GlobalThemeManager.apply_input_style(dist_input)
+		dist_hbox.add_child(dist_input)
+
+		var dist_btn = Button.new()
+		dist_btn.text = "PAY MEMBERS"
+		dist_btn.custom_minimum_size = Vector2(120, 0)
+		GlobalThemeManager.apply_btn_style(dist_btn, Color(0.2, 0.9, 0.5))
+		dist_btn.pressed.connect(func():
+			var val = float(dist_input.text)
+			if val > 0:
+				_distribute_treasury(val)
+		)
+		dist_hbox.add_child(dist_btn)
+
+	var leave_btn = _make_button("✕  LEAVE CARTEL", Vector2(20, 445), Vector2(360, 34))
 	_style_btn(leave_btn, Color(1.0, 0.3, 0.3))
 	leave_btn.pressed.connect(_leave_clan)
 	left_panel.add_child(leave_btn)
@@ -976,4 +1009,14 @@ func _format_money(amount: float) -> String:
 
 func _go_back() -> void:
 	SceneTransition.change_scene_to_file("res://scenes/game_map/GameMap.tscn")
+
+func _distribute_treasury(amount: float) -> void:
+	var headers = ["Content-Type: application/json", "Authorization: Bearer " + NetworkManager.jwt_token]
+	var body = JSON.stringify({"amount": amount})
+	action_http.request(
+		NetworkManager.HTTP_URL + "/clan/treasury/distribute",
+		headers,
+		HTTPClient.METHOD_POST,
+		body
+	)
 
