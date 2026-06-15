@@ -134,16 +134,59 @@ router.get('/mileage', authenticateJWT, async (_req: AuthRequest, res: Response)
       },
     });
 
-    const ranked = companies.map((c) => ({
-      companyId: c.id,
-      companyName: c.name,
-      totalMileageKm: c.trucks.reduce((sum, t) => sum + t.mileage, 0),
-      truckCount: c.trucks.length,
-      reputationScore: c.reputationScore,
-    }));
+    const top20Buf: Array<{ c: typeof companies[0], totalMileageKm: number }> = [];
 
-    ranked.sort((a, b) => b.totalMileageKm - a.totalMileageKm);
-    const top20 = ranked.slice(0, 20).map((e, i) => ({ rank: i + 1, ...e }));
+    for (let i = 0; i < companies.length; i++) {
+      const c = companies[i];
+      let totalMileageKm = 0;
+      for (let j = 0; j < c.trucks.length; j++) {
+        totalMileageKm += c.trucks[j].mileage;
+      }
+
+      if (top20Buf.length < 20) {
+        top20Buf.push({ c, totalMileageKm });
+        // Sort explicitly when building up the initial 20.
+        // Use ID as a deterministic tie-breaker for companies with identical mileage.
+        top20Buf.sort((a, b) => {
+          if (b.totalMileageKm !== a.totalMileageKm) {
+            return b.totalMileageKm - a.totalMileageKm;
+          }
+          return a.c.id < b.c.id ? -1 : (a.c.id > b.c.id ? 1 : 0);
+        });
+      } else {
+        const last = top20Buf[19];
+        const isBetter = totalMileageKm > last.totalMileageKm ||
+                         (totalMileageKm === last.totalMileageKm && c.id < last.c.id);
+
+        if (isBetter) {
+          let insertIdx = 19;
+          while (insertIdx > 0) {
+            const prev = top20Buf[insertIdx - 1];
+            if (totalMileageKm > prev.totalMileageKm ||
+               (totalMileageKm === prev.totalMileageKm && c.id < prev.c.id)) {
+              insertIdx--;
+            } else {
+              break;
+            }
+          }
+
+          // Shift down to make room
+          for (let j = 19; j > insertIdx; j--) {
+            top20Buf[j] = top20Buf[j - 1];
+          }
+          top20Buf[insertIdx] = { c, totalMileageKm };
+        }
+      }
+    }
+
+    const top20 = top20Buf.map((e, i) => ({
+      rank: i + 1,
+      companyId: e.c.id,
+      companyName: e.c.name,
+      totalMileageKm: e.totalMileageKm,
+      truckCount: e.c.trucks.length,
+      reputationScore: e.c.reputationScore,
+    }));
 
     return res.json({ leaderboard: top20, updatedAt: new Date() });
   } catch (err) {
