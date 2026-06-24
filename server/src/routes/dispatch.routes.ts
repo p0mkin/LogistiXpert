@@ -100,11 +100,14 @@ router.get('/contracts/legal', async (req: AuthRequest, res: Response) => {
     const companyGarages = await prisma.garage.findMany({
       where: { companyId },
     });
-    const garageMap = new Map(companyGarages.map((g) => [g.city.toLowerCase(), g]));
+    const garageMap = companyGarages.reduce((acc, g) => {
+      acc[g.city.toLowerCase()] = g;
+      return acc;
+    }, {} as Record<string, typeof companyGarages[0]>);
 
     // Filter contracts based on terminalLevel requirements
     contracts = contracts.filter((c) => {
-      const garage = garageMap.get(c.origin.toLowerCase());
+      const garage = garageMap[c.origin.toLowerCase()];
       const level = garage?.terminalLevel || 1;
 
       if (targetTruck) {
@@ -166,11 +169,14 @@ router.get('/contracts/contraband', async (req: AuthRequest, res: Response) => {
     const companyGarages = await prisma.garage.findMany({
       where: { companyId },
     });
-    const garageMap = new Map(companyGarages.map((g) => [g.city.toLowerCase(), g]));
+    const garageMap = companyGarages.reduce((acc, g) => {
+      acc[g.city.toLowerCase()] = g;
+      return acc;
+    }, {} as Record<string, typeof companyGarages[0]>);
 
     // Filter contraband jobs based on terminalLevel requirements (contraband standard distance = 350km)
     jobs = jobs.filter((j) => {
-      const garage = garageMap.get(j.origin.toLowerCase());
+      const garage = garageMap[j.origin.toLowerCase()];
       const level = garage?.terminalLevel || 1;
       const distanceKm = 350; // standard distance
 
