@@ -2,8 +2,8 @@ import { PrismaClient } from '@prisma/client';
 
 const mockPrismaClient = {
   company: { findUnique: jest.fn() },
-  garage: { findFirst: jest.fn() },
-  cityDailyFreight: { findUnique: jest.fn(), upsert: jest.fn() },
+  garage: { findFirst: jest.fn(), findMany: jest.fn() },
+  cityDailyFreight: { findUnique: jest.fn(), findMany: jest.fn(), upsert: jest.fn() },
   dailyPerformanceReport: { upsert: jest.fn() },
   terminalDailyReport: { upsert: jest.fn() },
 };
@@ -77,8 +77,8 @@ describe('AnalyticsService', () => {
 
     it('calculates remaining capacity accurately based on rep, terminal level, and usage', async () => {
       mockPrismaClient.company.findUnique.mockResolvedValue({ reputationScore: 500 }); // +0.5 multiplier -> 1.5 total
-      mockPrismaClient.garage.findFirst.mockResolvedValue({ terminalLevel: 2 }); // +0.25 multiplier -> 1.25 total
-      mockPrismaClient.cityDailyFreight.findUnique.mockResolvedValue({ shippedKg: 500000 });
+      mockPrismaClient.garage.findMany.mockResolvedValue([{ city: defaultCity, terminalLevel: 2 }]); // +0.25 multiplier -> 1.25 total
+      mockPrismaClient.cityDailyFreight.findMany.mockResolvedValue([{ city: defaultCity, shippedKg: 500000 }]);
 
       const capacity = await AnalyticsService.getRemainingFreightCapacity(defaultCity, defaultCompanyId);
 
@@ -91,8 +91,8 @@ describe('AnalyticsService', () => {
 
     it('handles negative reputation score properly', async () => {
       mockPrismaClient.company.findUnique.mockResolvedValue({ reputationScore: -500 }); // -0.5 multiplier -> 0.5 total
-      mockPrismaClient.garage.findFirst.mockResolvedValue({ terminalLevel: 1 }); // 1.0 multiplier
-      mockPrismaClient.cityDailyFreight.findUnique.mockResolvedValue(null); // Nothing shipped
+      mockPrismaClient.garage.findMany.mockResolvedValue([{ city: defaultCity, terminalLevel: 1 }]); // 1.0 multiplier
+      mockPrismaClient.cityDailyFreight.findMany.mockResolvedValue([]); // Nothing shipped
 
       const capacity = await AnalyticsService.getRemainingFreightCapacity(defaultCity, defaultCompanyId);
 
@@ -104,8 +104,8 @@ describe('AnalyticsService', () => {
 
     it('caps reputation bonus accurately', async () => {
       mockPrismaClient.company.findUnique.mockResolvedValue({ reputationScore: 5000 }); // Caps at +1.0 -> 2.0 total
-      mockPrismaClient.garage.findFirst.mockResolvedValue(null); // Defaults to level 1 multiplier
-      mockPrismaClient.cityDailyFreight.findUnique.mockResolvedValue(null);
+      mockPrismaClient.garage.findMany.mockResolvedValue([]); // Defaults to level 1 multiplier
+      mockPrismaClient.cityDailyFreight.findMany.mockResolvedValue([]);
 
       const capacity = await AnalyticsService.getRemainingFreightCapacity(defaultCity, defaultCompanyId);
 
@@ -115,8 +115,8 @@ describe('AnalyticsService', () => {
 
     it('floors reputation penalty to prevent negative total capacity', async () => {
       mockPrismaClient.company.findUnique.mockResolvedValue({ reputationScore: -1500 }); // Caps at -0.9 -> 0.1 total
-      mockPrismaClient.garage.findFirst.mockResolvedValue(null);
-      mockPrismaClient.cityDailyFreight.findUnique.mockResolvedValue(null);
+      mockPrismaClient.garage.findMany.mockResolvedValue([]);
+      mockPrismaClient.cityDailyFreight.findMany.mockResolvedValue([]);
 
       const capacity = await AnalyticsService.getRemainingFreightCapacity(defaultCity, defaultCompanyId);
 
@@ -126,8 +126,8 @@ describe('AnalyticsService', () => {
 
     it('handles missing/null company, garage, and freight securely', async () => {
       mockPrismaClient.company.findUnique.mockResolvedValue(null);
-      mockPrismaClient.garage.findFirst.mockResolvedValue(null);
-      mockPrismaClient.cityDailyFreight.findUnique.mockResolvedValue(null);
+      mockPrismaClient.garage.findMany.mockResolvedValue([]);
+      mockPrismaClient.cityDailyFreight.findMany.mockResolvedValue([]);
 
       const capacity = await AnalyticsService.getRemainingFreightCapacity('SomeSmallTown', defaultCompanyId);
 
@@ -137,8 +137,8 @@ describe('AnalyticsService', () => {
 
     it('returns 0 if shipped exceeds total capacity', async () => {
       mockPrismaClient.company.findUnique.mockResolvedValue(null);
-      mockPrismaClient.garage.findFirst.mockResolvedValue(null);
-      mockPrismaClient.cityDailyFreight.findUnique.mockResolvedValue({ shippedKg: 100000 }); // More than base 80k
+      mockPrismaClient.garage.findMany.mockResolvedValue([]);
+      mockPrismaClient.cityDailyFreight.findMany.mockResolvedValue([{ city: 'SomeSmallTown', shippedKg: 100000 }]); // More than base 80k
 
       const capacity = await AnalyticsService.getRemainingFreightCapacity('SomeSmallTown', defaultCompanyId);
 
