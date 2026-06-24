@@ -71,12 +71,14 @@ router.get('/', async (req: AuthRequest, res: Response) => {
     }
 
     // Compile active status and available options
-    const researchNodes = Object.entries(RESEARCH_SPECS).map(([key, spec]) => {
+    const researchNodes = [];
+    for (const key in RESEARCH_SPECS) {
+      const spec = RESEARCH_SPECS[key];
       const currentLevel = (company as any)[key] as number;
       const isMax = currentLevel >= spec.maxLevel;
       const nextCost = isMax ? null : spec.costs[currentLevel];
 
-      return {
+      researchNodes.push({
         nodeKey: key,
         label: spec.label,
         description: spec.description,
@@ -84,8 +86,8 @@ router.get('/', async (req: AuthRequest, res: Response) => {
         maxLevel: spec.maxLevel,
         isMaxLevel: isMax,
         nextUpgradeCost: nextCost,
-      };
-    });
+      });
+    }
 
     res.json({
       companyId: company.id,
