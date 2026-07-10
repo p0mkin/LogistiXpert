@@ -51,6 +51,8 @@ signal insolvency_warning(data)
 signal insolvency_resolved(data)
 signal foreclosure_alert(data)
 signal foreclosure_settled(data)
+signal theft_event(data)
+signal truck_seized(data)
 
 
 func _ready() -> void:
@@ -374,6 +376,9 @@ func _parse_and_route_message(json_str: String) -> void:
 					g["electricityStorage"] = float(payload.get("electricityStorage", g.get("electricityStorage", 0.0)))
 					g["adblueStorage"] = float(payload.get("adblueStorage", g.get("adblueStorage", 0.0)))
 					g["co2Allowances"] = float(payload.get("co2Allowances", g.get("co2Allowances", 0.0)))
+					g["contrabandStorageA"] = float(payload.get("contrabandStorageA", g.get("contrabandStorageA", 0.0)))
+					g["contrabandStorageB"] = float(payload.get("contrabandStorageB", g.get("contrabandStorageB", 0.0)))
+					g["contrabandStorageC"] = float(payload.get("contrabandStorageC", g.get("contrabandStorageC", 0.0)))
 					break
 			garage_stock_updated.emit(payload)
 			GameState.fleet_updated.emit()
@@ -439,6 +444,22 @@ func _parse_and_route_message(json_str: String) -> void:
 			
 		"pong":
 			pass
+		
+		"alert:theft_event":
+			theft_event.emit(payload)
+			_show_emergency_alert(
+				"\U0001f6a8 INSIDER THEFT DETECTED",
+				payload.get("message", "A low-loyalty driver stole from your depot."),
+				Color(1.0, 0.55, 0.1, 1.0)
+			)
+		
+		"alert:truck_seized":
+			truck_seized.emit(payload)
+			_show_emergency_alert(
+				"\u2622\ufe0f PERMANENT VEHICLE SEIZURE",
+				payload.get("message", "Your truck has been permanently confiscated by federal authorities."),
+				Color(1.0, 0.05, 0.05, 1.0)
+			)
 			
 		_:
 			print("[Network] Unrouted event type: ", type)

@@ -143,6 +143,28 @@ const CATALOG = [
 		"stat_effect": "Neon underglow styling (Req 100 Rep)",
 		"description": "Displays Gold neon underglow. Requires 100 Reputation.",
 	},
+	{
+		"id": "radar_detector",
+		"name": "Radar Detector & Police Scanner",
+		"category": "RIGGING",
+		"cost": 15000,
+		"currency": "BLACK_MARKET",
+		"icon": "📡",
+		"color": Color(0.75, 0.3, 1.0, 1.0),
+		"stat_effect": "-15% Border Detection Risk",
+		"description": "Scans police/customs radio frequencies. Reduces border check detection probability by 15%.",
+	},
+	{
+		"id": "gps_jammer",
+		"name": "Military-Grade GPS Jammer",
+		"category": "RIGGING",
+		"cost": 20000,
+		"currency": "BLACK_MARKET",
+		"icon": "🛰",
+		"color": Color(0.75, 0.3, 1.0, 1.0),
+		"stat_effect": "Immune to Sabotage on active routes",
+		"description": "Jams cellular and satellite positioning systems. Dispatched trucks on active routes are immune to rival sabotage attacks.",
+	},
 ]
 
 var selected_item: Dictionary = {}

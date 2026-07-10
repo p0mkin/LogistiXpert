@@ -608,17 +608,51 @@ func _render_clan_dashboard(parent: Control) -> void:
 		no_t.add_theme_font_size_override("font_size", 11)
 		trophy_hbox.add_child(no_t)
 
-	# 1.6. Clan Treasury Distributions
+	# 1.6. Clan Mutual Protection Fund Contribution (v0.7.1)
+	var prot_title = Label.new()
+	prot_title.text = "MUTUAL PROTECTION FUND:"
+	prot_title.add_theme_font_size_override("font_size", 11)
+	prot_title.add_theme_color_override("font_color", Color(0.7, 0.4, 1.0))
+	prot_title.position = Vector2(20, 356)
+	left_panel.add_child(prot_title)
+
+	var prot_hbox = HBoxContainer.new()
+	prot_hbox.position = Vector2(20, 374)
+	prot_hbox.size = Vector2(360, 34)
+	prot_hbox.add_theme_constant_override("separation", 10)
+	left_panel.add_child(prot_hbox)
+
+	var prot_input = LineEdit.new()
+	prot_input.placeholder_text = "Contribute BM cash..."
+	prot_input.text = "10000"
+	prot_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	GlobalThemeManager.apply_input_style(prot_input)
+	prot_hbox.add_child(prot_input)
+
+	var prot_btn = Button.new()
+	prot_btn.text = "CONTRIBUTE"
+	prot_btn.custom_minimum_size = Vector2(120, 0)
+	GlobalThemeManager.apply_btn_style(prot_btn, Color(0.7, 0.4, 1.0))
+	prot_btn.pressed.connect(func():
+		var val = float(prot_input.text)
+		if val > 0:
+			_contribute_protection_fund(val)
+	)
+	prot_hbox.add_child(prot_btn)
+
+	var leave_y = 420
+
+	# 1.7. Clan Treasury Distributions
 	if my_role == "OWNER" or my_role == "OFFICER":
 		var dist_title = Label.new()
 		dist_title.text = "DISTRIBUTE TREASURY:"
 		dist_title.add_theme_font_size_override("font_size", 11)
 		dist_title.add_theme_color_override("font_color", Color(0.2, 0.9, 0.5))
-		dist_title.position = Vector2(20, 360)
+		dist_title.position = Vector2(20, 414)
 		left_panel.add_child(dist_title)
 
 		var dist_hbox = HBoxContainer.new()
-		dist_hbox.position = Vector2(20, 380)
+		dist_hbox.position = Vector2(20, 432)
 		dist_hbox.size = Vector2(360, 34)
 		dist_hbox.add_theme_constant_override("separation", 10)
 		left_panel.add_child(dist_hbox)
@@ -640,8 +674,9 @@ func _render_clan_dashboard(parent: Control) -> void:
 				_distribute_treasury(val)
 		)
 		dist_hbox.add_child(dist_btn)
+		leave_y = 472
 
-	var leave_btn = _make_button("✕  LEAVE CARTEL", Vector2(20, 445), Vector2(360, 34))
+	var leave_btn = _make_button("✕  LEAVE CARTEL", Vector2(20, leave_y), Vector2(360, 26))
 	_style_btn(leave_btn, Color(1.0, 0.3, 0.3))
 	leave_btn.pressed.connect(_leave_clan)
 	left_panel.add_child(leave_btn)
@@ -1015,6 +1050,16 @@ func _distribute_treasury(amount: float) -> void:
 	var body = JSON.stringify({"amount": amount})
 	action_http.request(
 		NetworkManager.HTTP_URL + "/clan/treasury/distribute",
+		headers,
+		HTTPClient.METHOD_POST,
+		body
+	)
+
+func _contribute_protection_fund(amount: float) -> void:
+	var headers = ["Content-Type: application/json", "Authorization: Bearer " + NetworkManager.jwt_token]
+	var body = JSON.stringify({"amount": amount})
+	action_http.request(
+		NetworkManager.HTTP_URL + "/clan/protection-fund/contribute",
 		headers,
 		HTTPClient.METHOD_POST,
 		body

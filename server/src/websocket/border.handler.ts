@@ -67,13 +67,20 @@ export class BorderSocketHandler {
           const penalties = result.penalties!;
           await BorderService.applyBustPenalties(truckId, penalties);
 
-          const bustPayload = {
+          const bustPayload: any = {
             truckId,
             roll: result.roll,
             probability: result.detectionProbability,
             penalties,
             message: 'CONTRABAND DETECTED! Cargo seized and vehicle impounded.',
           };
+
+          // Check if truck was seized (Class C permanent seizure)
+          const truckAfterBust = await prisma.truck.findUnique({ where: { id: truckId } });
+          if (!truckAfterBust) {
+            bustPayload.isSeized = true;
+            bustPayload.message = '\u2622\ufe0f PERMANENT SEIZURE: Class C contraband detected. Federal authorities have PERMANENTLY CONFISCATED and DESTROYED the vehicle.';
+          }
 
           // Send receipt back to the sender
           ws.send(JSON.stringify({
@@ -108,7 +115,7 @@ export class BorderSocketHandler {
           GameWebSocketServer.sendToCompany(companyId, 'border:bribe_success', bribeSuccessPayload);
         } else {
           const penalties = result.penalties!;
-          const bribeFailPayload = {
+          const bribeFailPayload: any = {
             truckId,
             bribeAmount: amount,
             roll: result.roll,
@@ -116,6 +123,13 @@ export class BorderSocketHandler {
             penalties,
             message: `Bribe rejected! The officer pocketed the $${amount} and called backup. Vehicle impounded!`,
           };
+
+          // Check if truck was seized (Class C permanent seizure)
+          const truckAfterBribe = await prisma.truck.findUnique({ where: { id: truckId } });
+          if (!truckAfterBribe) {
+            bribeFailPayload.isSeized = true;
+            bribeFailPayload.message = '\u2622\ufe0f PERMANENT SEIZURE: Class C contraband detected. Federal authorities have PERMANENTLY CONFISCATED and DESTROYED the vehicle.';
+          }
 
           ws.send(JSON.stringify({
             type: 'border:bribe_fail',
@@ -146,7 +160,7 @@ export class BorderSocketHandler {
           GameWebSocketServer.sendToCompany(companyId, 'border:run_success', runSuccessPayload);
         } else {
           const penalties = result.penalties!;
-          const runFailPayload = {
+          const runFailPayload: any = {
             truckId,
             roll: result.roll,
             chance: result.chance,
@@ -154,6 +168,13 @@ export class BorderSocketHandler {
             penalties,
             message: `Gate run failed! Crashed into steel barricades taking ${result.damagePercent}% structural damage. Vehicle impounded!`,
           };
+
+          // Check if truck was seized (Class C permanent seizure)
+          const truckAfterRun = await prisma.truck.findUnique({ where: { id: truckId } });
+          if (!truckAfterRun) {
+            runFailPayload.isSeized = true;
+            runFailPayload.message = '\u2622\ufe0f PERMANENT SEIZURE: Class C contraband detected. Federal authorities have PERMANENTLY CONFISCATED and DESTROYED the vehicle.';
+          }
 
           ws.send(JSON.stringify({
             type: 'border:run_fail',

@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import { authenticateJWT, AuthRequest } from '../middleware/auth';
 import fs from 'fs';
 import path from 'path';
+import { GameWebSocketServer } from '../websocket';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -488,4 +489,161 @@ router.patch('/trucks/:truckId/rename', async (req: AuthRequest, res: Response) 
   }
 });
 
+// 7. COMMODITY COMPRESSION (Convert commodities into contraband stashes)
+router.post('/:id/compress', async (req: AuthRequest, res: Response) => {
+  const companyId = req.user!.companyId;
+  const { id } = req.params;
+  const { commodityType, amount } = req.body;
+
+  const validTypes = ['DIESEL', 'ELECTRICITY', 'ADBLUE'];
+  if (!commodityType || !validTypes.includes(commodityType.toUpperCase())) {
+    return res.status(400).json({ error: 'INVALID_COMMODITY_TYPE', message: 'Must compress DIESEL, ELECTRICITY, or ADBLUE.' });
+  }
+  if (!amount || amount <= 0) {
+    return res.status(400).json({ error: 'INVALID_AMOUNT', message: 'Amount must be a positive number of commodity units to compress.' });
+  }
+
+  const type = commodityType.toUpperCase();
+
+  // Conversion ratios: how many commodity units produce 1 contraband unit
+  const RATIOS: Record<string, { field: string, stashField: string, ratio: number }> = {
+    DIESEL:      { field: 'dieselStorage',       stashField: 'contrabandStorageA', ratio: 50  },
+    ELECTRICITY: { field: 'electricityStorage',   stashField: 'contrabandStorageB', ratio: 10  },
+    ADBLUE:      { field: 'adblueStorage',        stashField: 'contrabandStorageC', ratio: 5   },
+  };
+
+  const config = RATIOS[type];
+
+  try {
+    const garage = await prisma.garage.findUnique({ where: { id } });
+    if (!garage || garage.companyId !== companyId) {
+      return res.status(404).json({ error: 'GARAGE_NOT_FOUND', message: 'Garage not found or not owned.' });
+    }
+
+    // Calculate how many commodity units are consumed and contraband units produced
+    const commodityConsumed = amount * config.ratio; // e.g. 5 contraband units * 50 = 250 diesel consumed
+    const contrabandProduced = amount;
+
+    // Validate commodity stock
+    const currentCommodity = (garage as any)[config.field] as number;
+    if (currentCommodity < commodityConsumed) {
+      return res.status(400).json({
+        error: 'INSUFFICIENT_STOCK',
+        message: `Need ${commodityConsumed} ${type} to produce ${contrabandProduced} contraband units. You have ${currentCommodity}.`,
+      });
+    }
+
+    // Validate contraband capacity
+    const totalStash = garage.contrabandStorageA + garage.contrabandStorageB + garage.contrabandStorageC;
+    if (totalStash + contrabandProduced > garage.maxContrabandStash) {
+      return res.status(400).json({
+        error: 'STASH_CAPACITY_EXCEEDED',
+        message: `Cannot store ${contrabandProduced} more units. Current stash: ${totalStash}/${garage.maxContrabandStash}.`,
+      });
+    }
+
+    // Execute compression in transaction
+    const updated = await prisma.$transaction(async (tx) => {
+      const updatedGarage = await tx.garage.update({
+        where: { id },
+        data: {
+          [config.field]: { decrement: commodityConsumed },
+          [config.stashField]: { increment: contrabandProduced },
+        },
+      });
+      return updatedGarage;
+    });
+
+    // Broadcast stock update via WebSocket
+    GameWebSocketServer.sendToCompany(companyId, 'garage:stock_update', {
+      garageId: id,
+      dieselStorage: updated.dieselStorage,
+      electricityStorage: updated.electricityStorage,
+      adblueStorage: updated.adblueStorage,
+      co2Allowances: updated.co2Allowances,
+      contrabandStorageA: updated.contrabandStorageA,
+      contrabandStorageB: updated.contrabandStorageB,
+      contrabandStorageC: updated.contrabandStorageC,
+    });
+
+    res.json({
+      success: true,
+      message: `Compressed ${commodityConsumed} ${type} into ${contrabandProduced} contraband units.`,
+      garage: updated,
+    });
+  } catch (error) {
+    console.error('Compress commodity error:', error);
+    res.status(500).json({ error: 'SERVER_ERROR', message: 'Failed to compress commodities.' });
+  }
+});
+
+// Feature 43 — License Plate Forgery
+// POST /api/garage/trucks/:truckId/forge-plate
+router.post('/trucks/:truckId/forge-plate', async (req: AuthRequest, res: Response) => {
+  const companyId = req.user!.companyId;
+  const { truckId } = req.params;
+
+  const FORGE_COST = 8000; // $8,000 BM cash
+  const DURATION_MINUTES = 60;
+
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      const company = await tx.company.findUnique({ where: { id: companyId } });
+      if (!company) throw new Error('COMPANY_NOT_FOUND');
+
+      const truck = await tx.truck.findUnique({ where: { id: truckId } });
+      if (!truck || truck.companyId !== companyId) throw new Error('TRUCK_NOT_FOUND');
+
+      // Check if plates are still active
+      if (truck.forgedPlateUntil && truck.forgedPlateUntil > new Date()) {
+        const remainingMs = truck.forgedPlateUntil.getTime() - Date.now();
+        const remainingMin = Math.ceil(remainingMs / 60000);
+        throw new Error(`ALREADY_FORGED:${remainingMin}`);
+      }
+
+      if (company.blackMarketBalance.toNumber() < FORGE_COST) throw new Error('INSUFFICIENT_FUNDS');
+
+      const forgedUntil = new Date(Date.now() + DURATION_MINUTES * 60 * 1000);
+
+      await tx.company.update({
+        where: { id: companyId },
+        data: { blackMarketBalance: { decrement: FORGE_COST } }
+      });
+
+      const updatedTruck = await tx.truck.update({
+        where: { id: truckId },
+        data: { forgedPlateUntil: forgedUntil },
+      });
+
+      return { updatedTruck, forgedUntil };
+    });
+
+    GameWebSocketServer.sendToCompany(companyId, 'truck:update', {
+      truckId,
+      forgedPlateUntil: result.forgedUntil,
+      message: `🪪 PLATE FORGED: ${result.updatedTruck.model} running forged plates for ${DURATION_MINUTES} minutes. Detection probability -20%.`,
+    });
+
+    res.json({
+      success: true,
+      message: `Plates forged for ${DURATION_MINUTES} minutes. Detection probability reduced by 20%.`,
+      forgedPlateUntil: result.forgedUntil,
+      cost: FORGE_COST,
+    });
+  } catch (error: any) {
+    const msg = error.message || '';
+    if (msg.startsWith('ALREADY_FORGED:')) {
+      const min = msg.split(':')[1];
+      return res.status(400).json({ error: 'ALREADY_FORGED', message: `Forged plates already active for ${min} more minutes.` });
+    }
+    const friendly: Record<string, string> = {
+      TRUCK_NOT_FOUND: 'Truck not found or not owned.',
+      INSUFFICIENT_FUNDS: `Plate forgery costs $${FORGE_COST.toLocaleString()} Black Market Cash.`,
+    };
+    res.status(400).json({ error: msg, message: friendly[msg] || 'Failed to forge plates.' });
+  }
+});
+
 export default router;
+
+

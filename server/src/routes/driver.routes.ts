@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticateJWT, AuthRequest } from '../middleware/auth';
+import { GameWebSocketServer } from '../websocket';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -457,4 +458,116 @@ router.post('/:driverId/allocate-skill', async (req: AuthRequest, res: Response)
   }
 });
 
+// Feature 45 — Driver Loyalty Bonus
+// POST /api/driver/:id/loyalty-bonus
+router.post('/:id/loyalty-bonus', authenticateJWT, async (req: AuthRequest, res) => {
+  const companyId = req.user?.companyId;
+  const { id: driverId } = req.params;
+  if (!companyId) return res.status(401).json({ error: 'Unauthorized' });
+
+  try {
+    const driver = await prisma.driver.findUnique({ where: { id: driverId } });
+    if (!driver || driver.companyId !== companyId) {
+      return res.status(404).json({ error: 'DRIVER_NOT_FOUND', message: 'Driver not found.' });
+    }
+
+    const loyaltyDeficit = Math.max(0, 100 - driver.loyalty);
+    if (loyaltyDeficit === 0) {
+      return res.status(400).json({ error: 'MAX_LOYALTY', message: 'Driver already has maximum loyalty.' });
+    }
+
+    const BOOST_AMOUNT = 10;
+    const cost = 2000 * Math.ceil(loyaltyDeficit / 10); // Scales with how disloyal
+
+    const company = await prisma.company.findUnique({ where: { id: companyId } });
+    if (!company) return res.status(404).json({ error: 'COMPANY_NOT_FOUND' });
+    if (company.legalBalance.toNumber() < cost) {
+      return res.status(400).json({ error: 'INSUFFICIENT_FUNDS', message: `Loyalty bonus costs $${cost.toLocaleString()} legal cash.` });
+    }
+
+    const updated = await prisma.$transaction(async (tx) => {
+      await tx.company.update({ where: { id: companyId }, data: { legalBalance: { decrement: cost } } });
+      return tx.driver.update({
+        where: { id: driverId },
+        data: { loyalty: Math.min(100, driver.loyalty + BOOST_AMOUNT) }
+      });
+    });
+
+    GameWebSocketServer.sendToCompany(companyId, 'driver:update', {
+      driverId,
+      loyalty: updated.loyalty,
+      message: `💚 LOYALTY BONUS: ${driver.name}'s loyalty boosted by ${BOOST_AMOUNT} points (now ${updated.loyalty}/100). Cost: $${cost.toLocaleString()}.`,
+    });
+
+    res.json({
+      success: true,
+      driver: updated,
+      cost,
+      newLoyalty: updated.loyalty,
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'LOYALTY_BONUS_FAILED' });
+  }
+});
+
+// Feature 49 — Driver Retirement
+// POST /api/driver/:id/retire
+router.post('/:id/retire', authenticateJWT, async (req: AuthRequest, res) => {
+  const companyId = req.user?.companyId;
+  const { id: driverId } = req.params;
+  if (!companyId) return res.status(401).json({ error: 'Unauthorized' });
+
+  try {
+    const driver = await prisma.driver.findUnique({
+      where: { id: driverId },
+      include: { activeRoutes: true }
+    });
+    if (!driver || driver.companyId !== companyId) {
+      return res.status(404).json({ error: 'DRIVER_NOT_FOUND', message: 'Driver not found.' });
+    }
+    if (driver.activeRoutes.length > 0) {
+      return res.status(400).json({ error: 'DRIVER_ON_ROUTE', message: 'Cannot retire a driver currently on an active route.' });
+    }
+
+    // Severance calculation: $1,000 per level + $500 per 100 XP
+    const severancePay = driver.level * 1000 + Math.floor(driver.xp / 100) * 500;
+    // XP → Reputation conversion: 1 rep per 100 XP
+    const repBonus = Math.floor(driver.xp / 100);
+
+    const company = await prisma.company.findUnique({ where: { id: companyId } });
+    if (!company) return res.status(404).json({ error: 'COMPANY_NOT_FOUND' });
+    if (company.legalBalance.toNumber() < severancePay) {
+      return res.status(400).json({ error: 'INSUFFICIENT_FUNDS', message: `Severance pay is $${severancePay.toLocaleString()} legal cash.` });
+    }
+
+    await prisma.$transaction(async (tx) => {
+      // Unassign from truck first
+      if (driver.assignedTruckId) {
+        await tx.truck.update({ where: { id: driver.assignedTruckId }, data: {} }); // Trigger SetNull via driver delete
+      }
+      // Delete driver
+      await tx.driver.delete({ where: { id: driverId } });
+      // Deduct severance and add rep bonus
+      await tx.company.update({
+        where: { id: companyId },
+        data: {
+          legalBalance: { decrement: severancePay },
+          reputationScore: { increment: repBonus },
+        },
+      });
+    });
+
+    res.json({
+      success: true,
+      message: `${driver.name} retired. Severance: $${severancePay.toLocaleString()}. Company reputation +${repBonus}.`,
+      driverName: driver.name,
+      severancePay,
+      repBonus,
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'RETIRE_FAILED' });
+  }
+});
+
 export default router;
+

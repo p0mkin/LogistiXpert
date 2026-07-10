@@ -114,6 +114,22 @@ const PARTS_CATALOG: Record<string, PartsCatalogItem> = {
     cost: 15000,
     currency: 'BLACK_MARKET',
     description: 'Executive gold chassis styling. Displays Gold neon underglow (Requires 100 Rep).',
+  },
+  radar_detector: {
+    id: 'radar_detector',
+    name: 'Radar Detector & Police Scanner',
+    category: 'RIGGING',
+    cost: 15000,
+    currency: 'BLACK_MARKET',
+    description: 'Scans police/customs radio frequencies. Reduces border check detection probability by 15%.',
+  },
+  gps_jammer: {
+    id: 'gps_jammer',
+    name: 'Military-Grade GPS Jammer',
+    category: 'RIGGING',
+    cost: 20000,
+    currency: 'BLACK_MARKET',
+    description: 'Jams cellular and satellite positioning systems. Dispatched trucks on active routes are immune to rival sabotage attacks.',
   }
 };
 
@@ -226,6 +242,8 @@ router.post('/buy', async (req: AuthRequest, res: Response) => {
       let chaffFlares = truck.hasChaffFlares;
       let reinforcedArmor = truck.hasReinforcedArmor;
       let neonColor = (truck as any).neonColor || 'NONE';
+      let radarDetector = (truck as any).hasRadarDetector || false;
+      let gpsJammer = (truck as any).hasGpsJammer || false;
 
       if (part.id === 'engine_kit') {
         upEngine = Math.min(truck.engineHealth + 25, 100);
@@ -273,6 +291,18 @@ router.post('/buy', async (req: AuthRequest, res: Response) => {
         }
         neonColor = 'GOLD';
         logDesc += ` Exclusive executive Syndicate Gold cosmetic neon underglow installed.`;
+      } else if (part.id === 'radar_detector') {
+        if ((truck as any).hasRadarDetector) {
+          throw new Error('ALREADY_OWNED');
+        }
+        radarDetector = true;
+        logDesc += ` Radar Detector & Police Scanner installed.`;
+      } else if (part.id === 'gps_jammer') {
+        if ((truck as any).hasGpsJammer) {
+          throw new Error('ALREADY_OWNED');
+        }
+        gpsJammer = true;
+        logDesc += ` GPS Jammer system installed.`;
       }
 
       // Update truck parameters
@@ -286,6 +316,8 @@ router.post('/buy', async (req: AuthRequest, res: Response) => {
           hasChaffFlares: chaffFlares,
           hasReinforcedArmor: reinforcedArmor,
           neonColor: neonColor,
+          hasRadarDetector: radarDetector,
+          hasGpsJammer: gpsJammer,
         },
       });
 

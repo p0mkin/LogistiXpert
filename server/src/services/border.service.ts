@@ -165,6 +165,23 @@ export class BorderService {
 
     // Combine probabilities, clamped between 5% and 95%
     let detectionProbability = baseRisk - modReduction + contrabandRisk + scannerPenalty;
+
+    // v0.7.1: Interpol immunity window reduces detection by 40%
+    const company = truck.company as any;
+    if (company?.interpolImmunityUntil && new Date(company.interpolImmunityUntil) > new Date()) {
+      detectionProbability *= 0.60; // -40% detection
+    }
+
+    // v0.7.1: Forged license plates reduce detection by 20%
+    if ((truck as any).forgedPlateUntil && new Date((truck as any).forgedPlateUntil) > new Date()) {
+      detectionProbability *= 0.80; // -20% detection
+    }
+
+    // v0.7.1: Radar detector reduces detection by 15%
+    if ((truck as any).hasRadarDetector) {
+      detectionProbability *= 0.85; // -15% detection
+    }
+
     detectionProbability = Math.min(Math.max(detectionProbability, 5), 95);
 
     // 4. Roll the dice
@@ -225,14 +242,14 @@ export class BorderService {
       impoundDays: number;
     },
     tx?: any
-  ): Promise<void> {
+  ): Promise<{ seized?: boolean }> {
     const runLogic = async (transactionalClient: any) => {
       const truck = await transactionalClient.truck.findUnique({
         where: { id: truckId },
-        include: { activeRoute: true, garage: true },
+        include: { activeRoute: { include: { contrabandJob: true } }, garage: true },
       });
 
-      if (!truck || !truck.activeRoute) return;
+      if (!truck || !truck.activeRoute) return { seized: false };
 
       const companyId = truck.companyId;
       const releaseDate = new Date();
@@ -281,13 +298,32 @@ export class BorderService {
           description: `Busted smuggling at border crossing. Vehicle impounded for ${penalties.impoundDays} days. Fine of $${penalties.fineAmount} charged. Heat increased by ${penalties.policeHeatIncrease}.`,
         },
       });
+
+      // Class C permanent seizure check
+      const contrabandJob = truck.activeRoute.contrabandJob;
+      if (contrabandJob && contrabandJob.cargoClass === 'CLASS_C' && Math.random() < 0.25) {
+        await transactionalClient.activeRoute.deleteMany({ where: { truckId } });
+        await transactionalClient.driver.updateMany({ where: { assignedTruckId: truckId }, data: { assignedTruckId: null } });
+        await transactionalClient.auctionListing.deleteMany({ where: { truckId } });
+        await transactionalClient.truckHistory.deleteMany({ where: { truckId } });
+        await transactionalClient.truck.delete({ where: { id: truckId } });
+
+        GameWebSocketServer.sendToCompany(companyId, 'alert:truck_seized', {
+          truckId,
+          message: '☢️ PERMANENT SEIZURE: Your truck carrying Class C contraband (weapons/radioactive materials) has been PERMANENTLY CONFISCATED by federal authorities. The vehicle is destroyed.',
+        });
+
+        return { seized: true };
+      }
+
+      return { seized: false };
     };
 
     if (tx) {
-      await runLogic(tx);
+      return await runLogic(tx);
     } else {
-      await prisma.$transaction(async (newTx) => {
-        await runLogic(newTx);
+      return await prisma.$transaction(async (newTx) => {
+        return await runLogic(newTx);
       });
     }
   }
@@ -544,6 +580,7 @@ export class BorderService {
     chance: number;
     payout?: number;
     penalties?: any;
+    seized?: boolean;
   }> {
     const runLogic = async (transactionalClient: any) => {
       const truck = await transactionalClient.truck.findUnique({
@@ -737,7 +774,23 @@ export class BorderService {
           },
         });
 
-        return { success: false, roll, chance, penalties };
+        // Class C permanent seizure check
+        if (job.cargoClass === 'CLASS_C' && Math.random() < 0.25) {
+          await transactionalClient.activeRoute.deleteMany({ where: { truckId } });
+          await transactionalClient.driver.updateMany({ where: { assignedTruckId: truckId }, data: { assignedTruckId: null } });
+          await transactionalClient.auctionListing.deleteMany({ where: { truckId } });
+          await transactionalClient.truckHistory.deleteMany({ where: { truckId } });
+          await transactionalClient.truck.delete({ where: { id: truckId } });
+
+          GameWebSocketServer.sendToCompany(company.id, 'alert:truck_seized', {
+            truckId,
+            message: '☢️ PERMANENT SEIZURE: Your truck carrying Class C contraband (weapons/radioactive materials) has been PERMANENTLY CONFISCATED by federal authorities. The vehicle is destroyed.',
+          });
+
+          return { success: false, roll, chance, penalties, seized: true };
+        }
+
+        return { success: false, roll, chance, penalties, seized: false };
       }
     };
 
@@ -763,6 +816,7 @@ export class BorderService {
     damagePercent?: number;
     payout?: number;
     penalties?: any;
+    seized?: boolean;
   }> {
     const runLogic = async (transactionalClient: any) => {
       const truck = await transactionalClient.truck.findUnique({
@@ -939,7 +993,23 @@ export class BorderService {
           },
         });
 
-        return { success: false, roll, chance, damagePercent, penalties };
+        // Class C permanent seizure check
+        if (job.cargoClass === 'CLASS_C' && Math.random() < 0.25) {
+          await transactionalClient.activeRoute.deleteMany({ where: { truckId } });
+          await transactionalClient.driver.updateMany({ where: { assignedTruckId: truckId }, data: { assignedTruckId: null } });
+          await transactionalClient.auctionListing.deleteMany({ where: { truckId } });
+          await transactionalClient.truckHistory.deleteMany({ where: { truckId } });
+          await transactionalClient.truck.delete({ where: { id: truckId } });
+
+          GameWebSocketServer.sendToCompany(company.id, 'alert:truck_seized', {
+            truckId,
+            message: '☢️ PERMANENT SEIZURE: Your truck carrying Class C contraband (weapons/radioactive materials) has been PERMANENTLY CONFISCATED by federal authorities. The vehicle is destroyed.',
+          });
+
+          return { success: false, roll, chance, damagePercent, penalties, seized: true };
+        }
+
+        return { success: false, roll, chance, damagePercent, penalties, seized: false };
       }
     };
 

@@ -709,4 +709,106 @@ router.post('/treasury/distribute', async (req: AuthRequest, res: Response) => {
   }
 });
 
+/**
+ * POST /api/clan/protection-fund/contribute
+ * Feature 50 — Clan Mutual Protection Fund
+ * Contribute dirty cash to the clan protection fund (treasury)
+ */
+router.post('/protection-fund/contribute', async (req: AuthRequest, res: Response) => {
+  const companyId = req.user!.companyId;
+  const { amount } = req.body;
+
+  if (!amount || amount <= 0) {
+    return res.status(400).json({ error: 'INVALID_AMOUNT', message: 'Amount must be greater than 0.' });
+  }
+
+  try {
+    const company = await prisma.company.findUnique({
+      where: { id: companyId },
+      include: { clan: true }
+    });
+
+    if (!company || !company.clan) {
+      return res.status(400).json({ error: 'NO_CLAN', message: 'You must be in a clan to contribute to the protection fund.' });
+    }
+
+    if (company.blackMarketBalance.toNumber() < amount) {
+      return res.status(400).json({ error: 'INSUFFICIENT_BLACK_MARKET_CASH', message: 'Insufficient Black Market balance.' });
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      // Deduct from company
+      const updatedCompany = await tx.company.update({
+        where: { id: companyId },
+        data: { blackMarketBalance: { decrement: amount } }
+      });
+
+      // Increment clan treasury
+      const updatedClan = await tx.clan.update({
+        where: { id: company.clanId! },
+        data: { treasury: { increment: amount } }
+      });
+
+      return { updatedCompany, updatedClan };
+    });
+
+    // Notify company of balance change
+    GameWebSocketServer.sendToCompany(companyId, 'company:balance_update', {
+      legalBalance: parseFloat(result.updatedCompany.legalBalance.toFixed(2)),
+      blackMarketBalance: parseFloat(result.updatedCompany.blackMarketBalance.toFixed(2)),
+      message: `💸 FUND CONTRIBUTION: Contributed $${amount.toLocaleString()} BM Cash to the Clan Mutual Protection Fund.`,
+    });
+
+    // Notify clan members of treasury update
+    GameWebSocketServer.broadcastToClan(company.clanId!, 'clan:treasury_update', {
+      treasury: parseFloat(result.updatedClan.treasury.toFixed(2)),
+      message: `💰 FUND UPDATE: ${company.name} contributed $${amount.toLocaleString()} to the Mutual Protection Fund.`,
+    });
+
+    // System message in chat
+    const chatMsg = `💰 FUND CONTRIBUTION: ${company.name} contributed $${amount.toLocaleString()} to the Mutual Protection Fund.`;
+    await ClanService.addChatMessage(company.clanId!, {
+      senderId: 'SYSTEM',
+      senderName: 'SYSTEM',
+      text: chatMsg,
+      timestamp: new Date().toISOString()
+    });
+
+    res.json({
+      success: true,
+      message: `Contributed $${amount.toLocaleString()} successfully to the Protection Fund.`,
+      treasury: parseFloat(result.updatedClan.treasury.toFixed(2)),
+    });
+
+  } catch (error: any) {
+    res.status(500).json({ error: 'SERVER_ERROR', message: error.message });
+  }
+});
+
+/**
+ * GET /api/clan/protection-fund
+ * Feature 50 — Clan Mutual Protection Fund Status
+ */
+router.get('/protection-fund', async (req: AuthRequest, res: Response) => {
+  const companyId = req.user!.companyId;
+
+  try {
+    const company = await prisma.company.findUnique({
+      where: { id: companyId },
+      include: { clan: true }
+    });
+
+    if (!company || !company.clan) {
+      return res.status(400).json({ error: 'NO_CLAN', message: 'You are not in a clan.' });
+    }
+
+    res.json({
+      treasury: parseFloat(company.clan.treasury.toFixed(2)),
+      clanName: company.clan.name,
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: 'SERVER_ERROR', message: error.message });
+  }
+});
+
 export default router;

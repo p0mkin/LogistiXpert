@@ -829,6 +829,7 @@ func _load_map_data() -> void:
 var active_map_events = []
 var active_ai_trucks = []
 var active_weather_fronts = []
+var active_weather_cities: Dictionary = {}
 var active_explosions = []
 var market_ticker_text = " |  🌐 AWAITING MARKET DATA...  | "
 var market_ticker_offset = 0.0
@@ -854,6 +855,8 @@ func _setup_world_events():
 				"timer": p.duration / 1000.0,
 				"duration": p.duration / 1000.0
 			})
+			for affected_city in p.affectedCities:
+				active_weather_cities[affected_city] = p.type
 			_log_console("Massive " + p.type + " front detected over " + str(p.affectedCities.size()) + " cities!", Color(1.0, 0.4, 0.2))
 			
 		elif json.type == "market:price_update":
@@ -1623,6 +1626,14 @@ func _draw_vector_map() -> void:
 			node_label_font = get_theme_font("font")
 		if node_label_font:
 			var label_text = node_city.name.to_upper()
+			if active_weather_cities.has(node_city_id):
+				var _wt = active_weather_cities[node_city_id]
+				if _wt == "BLIZZARD":
+					label_text = "❄️ " + label_text
+				elif _wt == "THICK_FOG":
+					label_text = "🌫️ " + label_text
+				elif _wt == "SEVERE_STORM":
+					label_text = "⛈️ " + label_text
 			var label_col = Color(0.709, 0.768, 0.843, 0.85)
 			var label_bg_col = Color(0.04, 0.04, 0.06, 0.65)
 			

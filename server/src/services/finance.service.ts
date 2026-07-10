@@ -2,6 +2,7 @@ import { PrismaClient, Jurisdiction, RouteStage } from '@prisma/client';
 import { GameWebSocketServer } from '../websocket';
 import { LockService } from './lock.service';
 import { AnalyticsService } from './analytics.service';
+import { ClanService } from './clan.service';
 
 const prisma = new PrismaClient();
 
@@ -270,6 +271,239 @@ export class FinanceService {
                 fine,
                 message: `AUDIT PENALTY: Driver ${driver.name} failed Schengen tacho audit! Fined $${fine} Clean Cash.`,
               });
+            }
+          }
+        }
+
+        // F. IDLE DRIVER THEFT EVENTS (v0.7.0)
+        // Low-loyalty idle drivers may steal fuel or contraband from their home garage
+        for (const driver of updatedCompany.drivers) {
+          // Only idle drivers (not on route), with loyalty < 30
+          if (driver.assignedTruckId && driver.loyalty < 30) {
+            // Check if driver's truck is NOT on an active route
+            const driverTruck = updatedCompany.trucks.find((t: any) => t.id === driver.assignedTruckId);
+            if (!driverTruck) continue;
+
+            // Check no active route for this truck
+            const hasRoute = await prisma.activeRoute.findFirst({ where: { truckId: driverTruck.id } });
+            if (hasRoute) continue;
+
+            // 3% chance per tick
+            if (Math.random() >= 0.03) continue;
+
+            const driverGarage = updatedCompany.garages.find((g: any) => g.id === driverTruck.garageId);
+            if (!driverGarage) continue;
+
+            const stealType = Math.random() < 0.5 ? 'FUEL' : 'CONTRABAND';
+
+            if (stealType === 'FUEL') {
+              const stolenAmount = Math.min(driverGarage.dieselStorage, Math.floor(Math.random() * 200) + 100);
+              if (stolenAmount <= 0) continue;
+
+              await prisma.garage.update({
+                where: { id: driverGarage.id },
+                data: { dieselStorage: { decrement: stolenAmount } },
+              });
+
+              GameWebSocketServer.sendToCompany(company.id, 'alert:theft_event', {
+                driverName: driver.name,
+                garageCity: driverGarage.city,
+                stolenType: 'FUEL',
+                stolenAmount,
+                message: `🚨 INSIDER THEFT: Driver ${driver.name} (Loyalty: ${driver.loyalty}) stole ${stolenAmount}L of Diesel from your ${driverGarage.city} depot!`,
+              });
+
+              GameWebSocketServer.sendToCompany(company.id, 'garage:stock_update', {
+                garageId: driverGarage.id,
+                dieselStorage: driverGarage.dieselStorage - stolenAmount,
+                electricityStorage: driverGarage.electricityStorage,
+                adblueStorage: driverGarage.adblueStorage,
+                co2Allowances: driverGarage.co2Allowances,
+              });
+            } else {
+              // Steal contraband
+              let targetField = '';
+              let targetClass = '';
+              let currentStock = 0;
+
+              if (driverGarage.contrabandStorageA > 0) {
+                targetField = 'contrabandStorageA'; targetClass = 'Class A'; currentStock = driverGarage.contrabandStorageA;
+              } else if (driverGarage.contrabandStorageB > 0) {
+                targetField = 'contrabandStorageB'; targetClass = 'Class B'; currentStock = driverGarage.contrabandStorageB;
+              } else if (driverGarage.contrabandStorageC > 0) {
+                targetField = 'contrabandStorageC'; targetClass = 'Class C'; currentStock = driverGarage.contrabandStorageC;
+              } else {
+                continue; // Nothing to steal
+              }
+
+              const stolenAmount = Math.min(currentStock, Math.floor(Math.random() * 4) + 1);
+
+              await prisma.garage.update({
+                where: { id: driverGarage.id },
+                data: { [targetField]: { decrement: stolenAmount } },
+              });
+
+              GameWebSocketServer.sendToCompany(company.id, 'alert:theft_event', {
+                driverName: driver.name,
+                garageCity: driverGarage.city,
+                stolenType: 'CONTRABAND',
+                contrabandClass: targetClass,
+                stolenAmount,
+                message: `🚨 INSIDER THEFT: Driver ${driver.name} (Loyalty: ${driver.loyalty}) stole ${stolenAmount} units of ${targetClass} contraband from your ${driverGarage.city} stash!`,
+              });
+
+              GameWebSocketServer.sendToCompany(company.id, 'garage:stock_update', {
+                garageId: driverGarage.id,
+                dieselStorage: driverGarage.dieselStorage,
+                electricityStorage: driverGarage.electricityStorage,
+                adblueStorage: driverGarage.adblueStorage,
+                co2Allowances: driverGarage.co2Allowances,
+              });
+            }
+          }
+        }
+
+        // G. LOAN SHARK INTEREST & OVERDUE PENALTIES (v0.7.1)
+        if (updatedCompany.loanSharkPrincipal && Number(updatedCompany.loanSharkPrincipal) > 0) {
+          const principal = Number(updatedCompany.loanSharkPrincipal);
+          const rate = updatedCompany.loanSharkInterestRate || 0.20;
+          const dueAt = updatedCompany.loanSharkDueAt;
+
+          // Accrue interest every tick (tick = 10s, simulated day = ~24*360 ticks = 8640 ticks)
+          // So per-tick interest = daily_rate / 8640
+          const interestPerTick = principal * rate / 8640;
+          const newPrincipal = principal + interestPerTick;
+
+          // Check if overdue
+          const isOverdue = dueAt && new Date() > dueAt;
+
+          if (isOverdue) {
+            // Overdue penalty: seize 25% of black market balance and add 10 heat
+            const bmBalance = Number(updatedCompany.blackMarketBalance);
+            const penalty = Math.min(bmBalance * 0.25, newPrincipal);
+
+            await prisma.company.update({
+              where: { id: company.id },
+              data: {
+                loanSharkPrincipal: Math.max(0, newPrincipal - penalty),
+                blackMarketBalance: { decrement: penalty },
+                policeHeat: { increment: Math.min(10, 100 - updatedCompany.policeHeat) },
+              },
+            });
+
+            GameWebSocketServer.sendToCompany(company.id, 'alert:loan_shark_overdue', {
+              penalty,
+              remainingDebt: Math.max(0, newPrincipal - penalty),
+              message: `🦈 LOAN SHARK OVERDUE! Enforcer collected $${Math.round(penalty).toLocaleString()} from your dirty cash reserves. Repay NOW or lose more.`,
+            });
+          } else {
+            // Just accrue interest silently
+            await prisma.company.update({
+              where: { id: company.id },
+              data: { loanSharkPrincipal: newPrincipal },
+            });
+          }
+        }
+
+        // H. DAILY DRIVER LOYALTY DRIFT (v0.7.1)
+        // Drivers gain +2 loyalty/day if company reputation > 50, and lose -3/day if heat > 70
+        for (const driver of updatedCompany.drivers) {
+          let updatedLoyalty = driver.loyalty;
+          if (updatedCompany.reputationScore > 50 && Math.random() < 2 / 8640) {
+            updatedLoyalty = Math.min(100, updatedLoyalty + 1);
+          }
+          if (updatedCompany.policeHeat > 70 && Math.random() < 3 / 8640) {
+            updatedLoyalty = Math.max(0, updatedLoyalty - 1);
+          }
+          if (updatedLoyalty !== driver.loyalty) {
+            await prisma.driver.update({
+              where: { id: driver.id },
+              data: { loyalty: updatedLoyalty }
+            });
+            GameWebSocketServer.sendToCompany(company.id, 'driver:update', {
+              driverId: driver.id,
+              loyalty: updatedLoyalty,
+              message: `morale shifted. ${driver.name}'s loyalty is now ${updatedLoyalty}/100.`,
+            });
+          }
+        }
+
+        // I. CLAN MUTUAL PROTECTION FUND (v0.7.1)
+        // If company is in a clan and has impounded trucks, the fund auto-covers 50% of the fine from Clan.treasury
+        if (updatedCompany.clanId) {
+          const clan = await prisma.clan.findUnique({
+            where: { id: updatedCompany.clanId },
+            include: { companies: true }
+          });
+          if (clan && Number(clan.treasury) > 0) {
+            for (const truck of updatedCompany.trucks) {
+              if (truck.isImpounded) {
+                // Fetch recent history for this truck to find the impound event fine
+                const history = await prisma.truckHistory.findMany({
+                  where: { truckId: truck.id },
+                  orderBy: { recordedAt: 'desc' },
+                  take: 10,
+                });
+
+                const lastBust = history.find(h => ['BORDER_BUST', 'BRIBE_FAIL', 'RUN_FAIL'].includes(h.eventType));
+                const alreadyCovered = history.some(h => h.eventType === 'CLAN_MUTUAL_PROTECTION');
+
+                if (lastBust && !alreadyCovered) {
+                  const match = lastBust.description.match(/Fine of \$([0-9.]+) charged/);
+                  if (match) {
+                    const fineAmount = parseFloat(match[1]);
+                    const coverAmount = Math.min(Number(clan.treasury), fineAmount * 0.5);
+
+                    if (coverAmount > 0) {
+                      await prisma.$transaction(async (tx) => {
+                        // Refund company
+                        await tx.company.update({
+                          where: { id: company.id },
+                          data: { legalBalance: { increment: coverAmount } },
+                        });
+
+                        // Deduct from clan treasury
+                        await tx.clan.update({
+                          where: { id: updatedCompany.clanId! },
+                          data: { treasury: { decrement: coverAmount } },
+                        });
+
+                        // Log history to prevent duplicate claims
+                        await tx.truckHistory.create({
+                          data: {
+                            truckId: truck.id,
+                            eventType: 'CLAN_MUTUAL_PROTECTION',
+                            description: `Clan Mutual Protection Fund auto-covered 50% of impound fine. Refunded $${coverAmount.toFixed(2)} Clean Cash from Clan Treasury.`,
+                          },
+                        });
+                      });
+
+                      // Post alert in clan chat
+                      const chatMsg = `🛡️ MUTUAL PROTECTION: Clan Treasury covered $${coverAmount.toLocaleString()} (50%) of impound fine for ${updatedCompany.name}'s truck (${truck.model}).`;
+                      await ClanService.addChatMessage(updatedCompany.clanId!, {
+                        senderId: 'SYSTEM',
+                        senderName: 'SYN-NETWORK',
+                        text: chatMsg,
+                        timestamp: new Date().toISOString()
+                      });
+
+                      GameWebSocketServer.broadcastToClan(updatedCompany.clanId!, 'clan:chat_message', {
+                        senderId: 'SYSTEM',
+                        senderName: 'SYN-NETWORK',
+                        message: chatMsg,
+                        timestamp: new Date().toISOString()
+                      });
+
+                      // Notify company of balance update
+                      GameWebSocketServer.sendToCompany(company.id, 'company:balance_update', {
+                        legalBalance: parseFloat((Number(updatedCompany.legalBalance) + coverAmount).toFixed(2)),
+                        blackMarketBalance: parseFloat(Number(updatedCompany.blackMarketBalance).toFixed(2)),
+                        message: `🛡️ MUTUAL PROTECTION: Received $${coverAmount.toFixed(2)} Clean Cash from Clan Treasury.`,
+                      });
+                    }
+                  }
+                }
+              }
             }
           }
         }

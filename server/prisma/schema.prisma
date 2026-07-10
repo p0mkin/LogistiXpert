@@ -53,6 +53,12 @@ model Company {
   activeDebtInterest  Float    @default(0.0) // Current active interest rate (A.P.R.)
   warningInsolventAt DateTime? // Timestamp when dynamic insolvency limit was breached
 
+  // Underworld Extended Finance (v0.7.1)
+  interpolImmunityUntil DateTime?                                           // Interpol bribe immunity window
+  loanSharkPrincipal    Decimal   @default(0.00) @db.Decimal(18, 2)          // Outstanding loan shark debt
+  loanSharkInterestRate Float     @default(0.0)                               // Daily interest rate (e.g. 0.20 = 20%/day)
+  loanSharkDueAt        DateTime?                                             // Repayment deadline
+
   // Research & Development Tech Tree
   resTerminalLogistics Int      @default(0) // +10% loading speed per level (Max 3)
   resAerodynamics     Int      @default(0) // -4% fuel/elec drag per level (Max 3)
@@ -72,6 +78,8 @@ model Company {
   // Underworld Sabotage Relations
   attackerSabotages SabotageEvent[] @relation("AttackerSabotages")
   victimSabotages   SabotageEvent[] @relation("VictimSabotages")
+  attackerContracts SabotageContract[] @relation("AttackerContracts")
+  victimContracts   SabotageContract[] @relation("VictimContracts")
   staffRouterRank              Int     @default(1)
   staffRouterLevel             Int     @default(1)
   staffRouterUnlocked          Boolean @default(false)
@@ -187,6 +195,11 @@ model Truck {
   hasChaffFlares            Boolean     @default(false)
   hasReinforcedArmor        Boolean     @default(false)
   neonColor                 String      @default("NONE")
+
+  // v0.7.1 Upgrades
+  hasRadarDetector  Boolean   @default(false)  // -15% border detection probability
+  hasGpsJammer      Boolean   @default(false)  // Immune to rival sabotage while on-route
+  forgedPlateUntil  DateTime?                  // Forged plates active window (-20% detection)
 
   createdAt        DateTime    @default(now())
 
@@ -589,6 +602,19 @@ model SabotageEvent {
 
   attackerCompany Company      @relation("AttackerSabotages", fields: [attackerId], references: [id])
   victimCompany   Company      @relation("VictimSabotages", fields: [victimId], references: [id])
+}
+
+model SabotageContract {
+  id              String       @id @default(cuid())
+  attackerId      String
+  victimId        String
+  type            SabotageType
+  status          String       @default("PENDING") // PENDING, SUCCESS, FAIL
+  costToRepair    Decimal      @default(0.00) @db.Decimal(18, 2)
+  createdAt       DateTime     @default(now())
+
+  attackerCompany Company      @relation("AttackerContracts", fields: [attackerId], references: [id])
+  victimCompany   Company      @relation("VictimContracts", fields: [victimId], references: [id])
 }
 
 

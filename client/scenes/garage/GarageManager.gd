@@ -52,6 +52,8 @@ var price_histories: Dictionary = {
 	"ADBLUE": [],
 	"CO2_ALLOWANCE": []
 }
+var cached_fuel_stations: Array = []
+var fetching_fuel_stations: bool = false
 
 const TRAIT_TOOLTIPS = {
 	"BALANCED": "BALANCED: Standard driver. No special buffs or penalties.",
@@ -987,6 +989,14 @@ func _select_truck(truck: Dictionary) -> void:
 		if action_btn_3: action_btn_3.hide()
 		return
 
+	# Forge plate button
+	var forge_btn = Button.new()
+	forge_btn.text = "🪪 FORGE PLATES ($8K BM)"
+	forge_btn.add_theme_font_size_override("font_size", 12)
+	_style_btn(forge_btn, Color(0.7, 0.4, 1.0))
+	forge_btn.pressed.connect(func(): _forge_plate(truck.get("id", "")))
+	detail_body.add_child(forge_btn)
+
 	action_btn_1.text = "🔧 REPAIR ENGINE ($1800)"
 	action_btn_1.show()
 	_style_btn(action_btn_1, Color(0.2, 0.9, 0.7)) # Cyan repair action
@@ -1157,6 +1167,24 @@ func _select_driver(driver: Dictionary) -> void:
 					_assign_driver(driver.get("id", ""), avail_trucks[idx].get("id", ""))
 			)
 			detail_body.add_child(do_assign_btn)
+
+	# Driver management buttons (loyalty + retire)
+	var driver_mgmt_sep = HSeparator.new()
+	detail_body.add_child(driver_mgmt_sep)
+
+	var loyalty_btn = Button.new()
+	loyalty_btn.text = "💚 LOYALTY BONUS"
+	loyalty_btn.add_theme_font_size_override("font_size", 12)
+	_style_btn(loyalty_btn, Color(0.2, 0.8, 0.4))
+	loyalty_btn.pressed.connect(func(): _pay_loyalty_bonus(driver.get("id", "")))
+	detail_body.add_child(loyalty_btn)
+
+	var retire_btn = Button.new()
+	retire_btn.text = "⏸️ RETIRE DRIVER"
+	retire_btn.add_theme_font_size_override("font_size", 12)
+	_style_btn(retire_btn, Color(0.7, 0.7, 0.3))
+	retire_btn.pressed.connect(func(): _retire_driver(driver.get("id", "")))
+	detail_body.add_child(retire_btn)
 
 # ==========================================
 # BUTTON ACTIONS
@@ -1402,6 +1430,12 @@ func _render_commodity_panel() -> void:
 	
 	for comm in commodities:
 		_render_commodity_item(comm, garage_id)
+	
+	# Compression Lab Section (below commodity items)
+	_render_compression_section(active_garage, garage_id)
+	
+	# Fuel Stations Section (below compression lab)
+	_render_fuel_stations_section(active_garage, garage_id)
 
 func _render_commodity_item(comm: Dictionary, garage_id: String) -> void:
 	var item_vbox = VBoxContainer.new()
@@ -2237,3 +2271,306 @@ func _allocate_skill(driver_id: String, skill_type: String) -> void:
 		body
 	)
 
+func _render_compression_section(garage: Dictionary, garage_id: String) -> void:
+	var spacer = Control.new()
+	spacer.custom_minimum_size = Vector2(0, 10)
+	commodity_vbox.add_child(spacer)
+	
+	var header = Label.new()
+	header.text = "⚗ COMMODITY COMPRESSION LAB"
+	header.add_theme_font_size_override("font_size", 14)
+	header.add_theme_color_override("font_color", Color(0.55, 0.15, 0.95, 1.0))
+	commodity_vbox.add_child(header)
+	
+	var desc = Label.new()
+	desc.text = "Convert legal resources into untraceable contraband stashes."
+	desc.add_theme_font_size_override("font_size", 10)
+	desc.add_theme_color_override("font_color", Color(0.6, 0.6, 0.7, 1.0))
+	commodity_vbox.add_child(desc)
+	
+	var conversions = [
+		{"type": "DIESEL", "in": "50L", "out": "1 Class A", "color": Color(0.9, 0.7, 0.2)},
+		{"type": "ELECTRICITY", "in": "10 kWh", "out": "1 Class B", "color": Color(0.2, 0.7, 0.9)},
+		{"type": "ADBLUE", "in": "5L", "out": "1 Class C", "color": Color(0.2, 0.9, 0.4)}
+	]
+	
+	for conv in conversions:
+		var row = HBoxContainer.new()
+		row.add_theme_constant_override("separation", 15)
+		
+		var lbl = Label.new()
+		lbl.text = "%s: %s → %s" % [conv.type, conv.in, conv.out]
+		lbl.custom_minimum_size.x = 240
+		lbl.add_theme_font_size_override("font_size", 12)
+		lbl.add_theme_color_override("font_color", conv.color)
+		row.add_child(lbl)
+		
+		var spin = SpinBox.new()
+		spin.min_value = 1
+		spin.max_value = 50
+		spin.value = 1
+		row.add_child(spin)
+		
+		var btn = Button.new()
+		btn.text = "COMPRESS"
+		btn.add_theme_font_size_override("font_size", 12)
+		_style_btn(btn, Color(0.55, 0.15, 0.95, 1.0))
+		btn.pressed.connect(func(): _compress_commodity(garage_id, conv.type, spin.value))
+		row.add_child(btn)
+		
+		commodity_vbox.add_child(row)
+
+func _render_fuel_stations_section(garage: Dictionary, garage_id: String) -> void:
+	var spacer = Control.new()
+	spacer.custom_minimum_size = Vector2(0, 15)
+	commodity_vbox.add_child(spacer)
+	
+	var header = Label.new()
+	header.text = "⛽ MID-ROUTE REFUELING"
+	header.add_theme_font_size_override("font_size", 14)
+	header.add_theme_color_override("font_color", Color(0.2, 0.9, 0.7, 1.0))
+	commodity_vbox.add_child(header)
+	
+	var desc = Label.new()
+	desc.text = "Refuel trucks currently passing through or paused in this city."
+	desc.add_theme_font_size_override("font_size", 10)
+	desc.add_theme_color_override("font_color", Color(0.6, 0.6, 0.7, 1.0))
+	commodity_vbox.add_child(desc)
+	
+	if cached_fuel_stations.is_empty():
+		if not fetching_fuel_stations:
+			_fetch_fuel_stations_list()
+		var loading_lbl = Label.new()
+		loading_lbl.text = "Loading local stations..."
+		loading_lbl.add_theme_font_size_override("font_size", 11)
+		loading_lbl.add_theme_color_override("font_color", Color(0.7, 0.7, 0.8, 0.6))
+		commodity_vbox.add_child(loading_lbl)
+		return
+
+	var city_name = garage.get("city", "")
+	var local_stations = cached_fuel_stations.filter(func(s): return s.get("city", "").to_lower() == city_name.to_lower())
+	
+	# OptionButton for active trucks in this city
+	var matching_trucks = trucks_data.filter(func(t):
+		if not t.has("activeRoute") or t.activeRoute == null:
+			return false
+		var route_city = t.activeRoute.get("currentCity", "")
+		return route_city.to_lower() == city_name.to_lower()
+	)
+	
+	var select_row = HBoxContainer.new()
+	select_row.add_theme_constant_override("separation", 10)
+	
+	var sel_lbl = Label.new()
+	sel_lbl.text = "Select Truck:"
+	sel_lbl.add_theme_font_size_override("font_size", 11)
+	select_row.add_child(sel_lbl)
+	
+	var opt_btn = OptionButton.new()
+	opt_btn.name = "TruckSelect"
+	opt_btn.custom_minimum_size.x = 200
+	
+	if matching_trucks.is_empty():
+		opt_btn.add_item("No trucks in city", 0)
+		opt_btn.disabled = true
+	else:
+		for i in range(matching_trucks.size()):
+			var t = matching_trucks[i]
+			var nick = t.get("nickname", "")
+			var label_text = t.get("model", "Truck")
+			if nick != "":
+				label_text += " (\"%s\")" % nick
+			var fuel = float(t.get("activeRoute", {}).get("fuel", 0.0))
+			label_text += " (Fuel: %.0f)" % fuel
+			opt_btn.add_item(label_text, i)
+			opt_btn.set_item_metadata(i, t.get("id", ""))
+			
+	select_row.add_child(opt_btn)
+	commodity_vbox.add_child(select_row)
+	
+	# List stations
+	for s in local_stations:
+		var s_row = HBoxContainer.new()
+		s_row.add_theme_constant_override("separation", 15)
+		
+		var s_info = VBoxContainer.new()
+		s_info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		
+		var s_name = Label.new()
+		s_name.text = s.get("name", "Station")
+		s_name.add_theme_font_size_override("font_size", 12)
+		s_name.add_theme_color_override("font_color", Color(1, 1, 1, 0.95))
+		s_info.add_child(s_name)
+		
+		var prices = s.get("prices", {})
+		var p_lbl = Label.new()
+		p_lbl.text = "Diesel: $%.2f/L  |  Electricity: $%.2f/kWh" % [float(prices.get("DIESEL", 1.50)), float(prices.get("ELECTRICITY", 0.22))]
+		p_lbl.add_theme_font_size_override("font_size", 10)
+		p_lbl.add_theme_color_override("font_color", Color(0.6, 0.6, 0.7, 0.8))
+		s_info.add_child(p_lbl)
+		
+		s_row.add_child(s_info)
+		
+		var btn = Button.new()
+		btn.text = "REFUEL"
+		btn.add_theme_font_size_override("font_size", 12)
+		_style_btn(btn, Color(0.2, 0.9, 0.7, 1.0))
+		
+		if matching_trucks.is_empty():
+			btn.disabled = true
+			
+		btn.pressed.connect(func():
+			var selected_idx = opt_btn.selected
+			if selected_idx >= 0 and not opt_btn.disabled:
+				var t_id = opt_btn.get_item_metadata(selected_idx)
+				if t_id:
+					_refuel_truck(s.get("id", ""), t_id)
+		)
+		s_row.add_child(btn)
+		
+		commodity_vbox.add_child(s_row)
+
+func _fetch_fuel_stations_list() -> void:
+	fetching_fuel_stations = true
+	var http = HTTPRequest.new()
+	add_child(http)
+	http.request_completed.connect(func(result, response_code, headers, body):
+		fetching_fuel_stations = false
+		if response_code == 200:
+			var data = JSON.parse_string(body.get_string_from_utf8())
+			if data and data is Array:
+				cached_fuel_stations = data
+				_render_commodity_panel()
+		http.queue_free()
+	)
+	http.request(
+		api_base + "/fuel-stations",
+		["Authorization: Bearer " + NetworkManager.jwt_token],
+		HTTPClient.METHOD_GET
+	)
+
+func _refuel_truck(station_id: String, truck_id: String) -> void:
+	_log("Initiating mid-route refuel protocol...", Color(0.2, 0.9, 0.7))
+	var http = HTTPRequest.new()
+	add_child(http)
+	http.request_completed.connect(func(result, response_code, headers, body):
+		http.queue_free()
+		var data = JSON.parse_string(body.get_string_from_utf8())
+		if response_code == 200:
+			_log("✓ Refuel successful!", Color(0.18, 0.8, 0.44))
+			UIEffects.play_success()
+			_fetch_fleet()
+		else:
+			var err_msg = "Refuel failed."
+			if data and data is Dictionary and data.has("message"):
+				err_msg = data.message
+			_log("⛔ " + err_msg, Color(0.901, 0.298, 0.235))
+			UIEffects.play_error()
+	)
+	var body = JSON.stringify({
+		"truckId": truck_id
+	})
+	http.request(
+		api_base + "/fuel-stations/" + station_id + "/refuel",
+		["Authorization: Bearer " + NetworkManager.jwt_token, "Content-Type: application/json"],
+		HTTPClient.METHOD_POST,
+		body
+	)
+
+func _compress_commodity(garage_id: String, commodity_type: String, amount: int) -> void:
+	_log("Starting compression protocol for %d units of %s..." % [amount, commodity_type], Color(0.55, 0.15, 0.95))
+	var http = HTTPRequest.new()
+	add_child(http)
+	http.request_completed.connect(func(result, response_code, headers, body):
+		http.queue_free()
+		var data = JSON.parse_string(body.get_string_from_utf8())
+		if response_code == 200:
+			_log("✓ Compression successful!", Color(0.55, 0.15, 0.95))
+			UIEffects.play_success()
+			_fetch_fleet()
+		else:
+			var err_msg = "Compression failed."
+			if data and data is Dictionary and data.has("message"):
+				err_msg = data.message
+			_log("⛔ " + err_msg, Color(0.901, 0.298, 0.235))
+			UIEffects.play_error()
+	)
+	var body = JSON.stringify({
+		"commodityType": commodity_type,
+		"amount": amount
+	})
+	http.request(
+		api_base + "/garage/" + garage_id + "/compress",
+		["Authorization: Bearer " + NetworkManager.jwt_token, "Content-Type: application/json"],
+		HTTPClient.METHOD_POST,
+		body
+	)
+
+func _forge_plate(truck_id: String) -> void:
+	_log("Contacting plate forger...", Color(0.7, 0.4, 1.0))
+	var http = HTTPRequest.new()
+	add_child(http)
+	http.request_completed.connect(func(_r, code, _h, body):
+		http.queue_free()
+		var data = JSON.parse_string(body.get_string_from_utf8())
+		if code == 200:
+			_log("🪪 Plates forged! Detection -20% for 60 min.", Color(0.7, 0.4, 1.0))
+			UIEffects.play_success()
+		else:
+			var err = data.get("message", "Failed.") if data else "Error."
+			_log("⛔ " + err, Color(0.901, 0.298, 0.235))
+			UIEffects.play_error()
+	)
+	http.request(
+		api_base + "/garage/trucks/" + truck_id + "/forge-plate",
+		["Authorization: Bearer " + NetworkManager.jwt_token, "Content-Type: application/json"],
+		HTTPClient.METHOD_POST,
+		"{}"
+	)
+
+func _pay_loyalty_bonus(driver_id: String) -> void:
+	_log("Processing loyalty bonus payment...", Color(0.2, 0.8, 0.4))
+	var http = HTTPRequest.new()
+	add_child(http)
+	http.request_completed.connect(func(_r, code, _h, body):
+		http.queue_free()
+		var data = JSON.parse_string(body.get_string_from_utf8())
+		if code == 200:
+			_log("💚 Loyalty bonus paid! Driver morale improved.", Color(0.2, 0.8, 0.4))
+			UIEffects.play_success()
+			_fetch_drivers()
+		else:
+			var err = data.get("message", "Failed.") if data else "Error."
+			_log("⛔ " + err, Color(0.901, 0.298, 0.235))
+			UIEffects.play_error()
+	)
+	http.request(
+		api_base + "/driver/" + driver_id + "/loyalty-bonus",
+		["Authorization: Bearer " + NetworkManager.jwt_token, "Content-Type: application/json"],
+		HTTPClient.METHOD_POST,
+		"{}"
+	)
+
+func _retire_driver(driver_id: String) -> void:
+	_log("Processing driver retirement...", Color(0.7, 0.7, 0.3))
+	var http = HTTPRequest.new()
+	add_child(http)
+	http.request_completed.connect(func(_r, code, _h, body):
+		http.queue_free()
+		var data = JSON.parse_string(body.get_string_from_utf8())
+		if code == 200:
+			var msg = data.get("message", "Driver retired.") if data else "Done."
+			_log("⏸️ " + msg, Color(0.7, 0.7, 0.3))
+			UIEffects.play_success()
+			_fetch_drivers()
+		else:
+			var err = data.get("message", "Failed.") if data else "Error."
+			_log("⛔ " + err, Color(0.901, 0.298, 0.235))
+			UIEffects.play_error()
+	)
+	http.request(
+		api_base + "/driver/" + driver_id + "/retire",
+		["Authorization: Bearer " + NetworkManager.jwt_token, "Content-Type: application/json"],
+		HTTPClient.METHOD_POST,
+		"{}"
+	)

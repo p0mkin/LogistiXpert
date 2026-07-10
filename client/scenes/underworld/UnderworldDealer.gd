@@ -41,6 +41,7 @@ var active_dealer: Dictionary = {}
 var player_truck_id: String = ""
 var player_trucks: Array = []
 var clock_lbl: Label = null
+var pending_tunnel_run: bool = false
 
 # UI node references
 @onready var scene_root = $CanvasLayer
@@ -193,9 +194,20 @@ func _build_ui() -> void:
 # DEALER PERSONA CARD (LEFT PANEL)
 # ====================================================
 func _build_dealer_card(parent: Control) -> void:
+	var scroll = ScrollContainer.new()
+	scroll.position = Vector2(8, 8)
+	scroll.size = Vector2(304, 544)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	parent.add_child(scroll)
+	
+	var container = Control.new()
+	container.custom_minimum_size = Vector2(290, 690)
+	scroll.add_child(container)
+
 	# Avatar box with rounded corners and border
 	var avatar = PanelContainer.new()
-	avatar.position = Vector2(110, 15)
+	avatar.position = Vector2(95, 15)
 	avatar.size = Vector2(100, 100)
 	var savatar = StyleBoxFlat.new()
 	savatar.bg_color = active_dealer.avatar_color
@@ -204,94 +216,124 @@ func _build_dealer_card(parent: Control) -> void:
 
 	savatar.set_corner_radius_all(50) # Circle!
 	avatar.add_theme_stylebox_override("panel", savatar)
-	parent.add_child(avatar)
+	container.add_child(avatar)
 
 	# Skull overlay on avatar (simple label)
 	var skull = Label.new()
 	skull.text = "💀"
 	skull.add_theme_font_size_override("font_size", 48)
-	skull.position = Vector2(126, 23)
-	parent.add_child(skull)
+	skull.position = Vector2(111, 23)
+	container.add_child(skull)
 
 	# Name
 	var name_lbl = Label.new()
 	name_lbl.text = active_dealer.name
 	name_lbl.add_theme_font_size_override("font_size", 18)
 	name_lbl.add_theme_color_override("font_color", Color(0.9, 0.7, 1.0, 1.0))
-	name_lbl.position = Vector2(15, 125)
+	name_lbl.position = Vector2(0, 125)
 	name_lbl.size = Vector2(290, 40)
 	name_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	parent.add_child(name_lbl)
+	container.add_child(name_lbl)
 
 	var city_lbl = Label.new()
 	city_lbl.text = "📍 " + active_dealer.city
 	city_lbl.add_theme_font_size_override("font_size", 14)
 	city_lbl.add_theme_color_override("font_color", Color(0.5, 0.4, 0.6, 1.0))
-	city_lbl.position = Vector2(15, 170)
-	parent.add_child(city_lbl)
+	city_lbl.position = Vector2(0, 170)
+	container.add_child(city_lbl)
 
 	var specialty_lbl = Label.new()
 	specialty_lbl.text = "Specialty: " + active_dealer.specialty.replace("CLASS_", "Class ")
 	specialty_lbl.add_theme_font_size_override("font_size", 14)
 	specialty_lbl.add_theme_color_override("font_color", _class_color(active_dealer.specialty))
-	specialty_lbl.position = Vector2(15, 195)
-	parent.add_child(specialty_lbl)
+	specialty_lbl.position = Vector2(0, 195)
+	container.add_child(specialty_lbl)
 
 	# Divider
 	var div = ColorRect.new()
 	div.color = Color(0.3, 0.0, 0.5, 0.5)
-	div.position = Vector2(15, 222)
+	div.position = Vector2(0, 222)
 	div.size = Vector2(290, 1)
-	parent.add_child(div)
+	container.add_child(div)
 
 	# Greeting text
 	var greeting = Label.new()
 	greeting.text = "\"" + active_dealer.greeting + "\""
 	greeting.add_theme_font_size_override("font_size", 13)
 	greeting.add_theme_color_override("font_color", Color(0.65, 0.55, 0.7, 1.0))
-	greeting.position = Vector2(15, 234)
+	greeting.position = Vector2(0, 234)
 	greeting.size = Vector2(290, 110)
 	greeting.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	parent.add_child(greeting)
+	container.add_child(greeting)
 
 	# Risk warning (moved slightly up and shortened height)
 	var warning = Label.new()
 	warning.text = "⚠ ALL TRANSACTIONS ARE FINAL\n⚠ DO NOT SPEAK TO POLICE\n⚠ DRIVER LOYALTY MATTERS"
 	warning.add_theme_font_size_override("font_size", 11)
 	warning.add_theme_color_override("font_color", Color(0.8, 0.3, 0.3, 0.8))
-	warning.position = Vector2(15, 425)
+	warning.position = Vector2(0, 425)
 	warning.size = Vector2(290, 50)
 	warning.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	parent.add_child(warning)
+	container.add_child(warning)
 
 	# Bribe Commissioner Button
 	var bribe_btn = Button.new()
 	bribe_btn.name = "BribeBtn"
 	var cost = GameState.police_heat * 800
 	bribe_btn.text = "👮 BRIBE COMMISSIONER ($%d BM)" % cost if GameState.police_heat > 0 else "👮 COMMISSIONER BRIBE (0 HEAT)"
-	bribe_btn.position = Vector2(15, 485)
+	bribe_btn.position = Vector2(0, 485)
 	bribe_btn.size = Vector2(290, 44)
 	bribe_btn.add_theme_font_size_override("font_size", 12)
 	bribe_btn.disabled = GameState.police_heat <= 0
 	_style_btn(bribe_btn, Color(0.65, 0.45, 1.0))
 	bribe_btn.pressed.connect(_bribe_commissioner)
-	parent.add_child(bribe_btn)
+	container.add_child(bribe_btn)
+	
+	var history_btn = Button.new()
+	history_btn.name = "HistoryBtn"
+	history_btn.text = "📜 SABOTAGE HISTORY"
+	history_btn.position = Vector2(0, 535)
+	history_btn.size = Vector2(290, 44)
+	history_btn.add_theme_font_size_override("font_size", 12)
+	_style_btn(history_btn, Color(0.55, 0.15, 0.95))
+	history_btn.pressed.connect(_render_sabotage_history)
+	container.add_child(history_btn)
+
+	var interpol_btn = Button.new()
+	interpol_btn.name = "InterpolBtn"
+	interpol_btn.text = "🕵️ BRIBE INTERPOL ($75K BM)"
+	interpol_btn.position = Vector2(0, 585)
+	interpol_btn.size = Vector2(290, 44)
+	interpol_btn.add_theme_font_size_override("font_size", 12)
+	_style_btn(interpol_btn, Color(0.0, 0.55, 0.95))
+	interpol_btn.pressed.connect(_bribe_interpol)
+	container.add_child(interpol_btn)
+
+	var loan_btn = Button.new()
+	loan_btn.name = "LoanSharkBtn"
+	loan_btn.text = "🦈 LOAN SHARK"
+	loan_btn.position = Vector2(0, 635)
+	loan_btn.size = Vector2(290, 44)
+	loan_btn.add_theme_font_size_override("font_size", 12)
+	_style_btn(loan_btn, Color(1.0, 0.3, 0.0))
+	loan_btn.pressed.connect(_open_loan_shark)
+	container.add_child(loan_btn)
 
 	# Truck selector
 	var truck_label = Label.new()
 	truck_label.text = "🚛 SELECT TRUCK FOR CONTRACT:"
 	truck_label.add_theme_font_size_override("font_size", 13)
 	truck_label.add_theme_color_override("font_color", Color(0.7, 0.6, 0.8, 1.0))
-	truck_label.position = Vector2(15, 355)
-	parent.add_child(truck_label)
+	truck_label.position = Vector2(0, 355)
+	container.add_child(truck_label)
 
 	var truck_select = OptionButton.new()
-	truck_select.position = Vector2(15, 380)
+	truck_select.position = Vector2(0, 380)
 	truck_select.size = Vector2(290, 36)
 	truck_select.name = "TruckSelect"
 	_style_btn(truck_select, Color(0.65, 0.45, 1.0))
 	truck_select.item_selected.connect(_on_truck_selected)
-	parent.add_child(truck_select)
+	container.add_child(truck_select)
 
 # ====================================================
 # CONTRACTS PANEL HEADER
@@ -722,8 +764,27 @@ func _render_job_detail(job: Dictionary) -> void:
 	accept_btn.size = Vector2(276, 44)
 	accept_btn.add_theme_font_size_override("font_size", 14)
 	_style_btn(accept_btn, Color(0.18, 0.803, 0.443))
-	accept_btn.pressed.connect(_accept_job)
+	accept_btn.pressed.connect(func(): _accept_job(false))
 	panel.add_child(accept_btn)
+
+	y_offset += 52
+
+	# TUNNEL DISPATCH BUTTON
+	var tunnel_fee = 15000
+	if job.has("cargoClass"):
+		var cc = job.cargoClass
+		if cc == "CLASS_A": tunnel_fee = 10000
+		elif cc == "CLASS_B": tunnel_fee = 20000
+		elif cc == "CLASS_C": tunnel_fee = 40000
+		
+	var tunnel_btn = Button.new()
+	tunnel_btn.text = "🚇 TUNNEL DISPATCH ($%d BM)" % tunnel_fee
+	tunnel_btn.position = Vector2(12, y_offset)
+	tunnel_btn.size = Vector2(276, 44)
+	tunnel_btn.add_theme_font_size_override("font_size", 12)
+	_style_btn(tunnel_btn, Color(0.95, 0.75, 0.15))
+	tunnel_btn.pressed.connect(func(): _accept_job(true))
+	panel.add_child(tunnel_btn)
 
 	y_offset += 52
 
@@ -740,7 +801,8 @@ func _render_job_detail(job: Dictionary) -> void:
 # ====================================================
 # JOB ACCEPTANCE
 # ====================================================
-func _accept_job() -> void:
+func _accept_job(use_tunnel: bool = false) -> void:
+	pending_tunnel_run = use_tunnel
 	if selected_job.is_empty():
 		_show_toast("No contract selected!")
 		return
@@ -775,6 +837,7 @@ func _accept_job() -> void:
 		"riskMultiplier": selected_job.riskMultiplier,
 	})
 
+	# Use authorization token from GameState or NetworkManager
 	hire_http.request(
 		BASE_URL + "/api/dispatch/launch",
 		["Content-Type: application/json", "Authorization: Bearer " + NetworkManager.jwt_token],
@@ -786,12 +849,39 @@ func _accept_job() -> void:
 func _on_accept_response(_result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
 	if response_code == 200 or response_code == 201:
 		_show_toast("✔ CONTRACT ACCEPTED — Truck dispatched!", Color(0.2, 1.0, 0.4, 1.0))
+		if pending_tunnel_run:
+			_trigger_tunnel_run(player_truck_id)
 		selected_job = {}
+		pending_tunnel_run = false
 		_fetch_garage_data() # Refresh from real API
 	else:
+		pending_tunnel_run = false
 		var parsed = JSON.parse_string(body.get_string_from_utf8())
 		var err_msg = parsed.get("message", parsed.get("error", "UNKNOWN")) if parsed else "PARSE_ERROR"
 		_show_toast("✕ Failed: " + err_msg, Color(1.0, 0.3, 0.3, 1.0))
+
+func _trigger_tunnel_run(truck_id: String) -> void:
+	_show_toast("🚇 Initiating Cartel tunnel run...")
+	var http_tunnel = HTTPRequest.new()
+	add_child(http_tunnel)
+	http_tunnel.request_completed.connect(func(result, code, headers, body_bytes):
+		http_tunnel.queue_free()
+		var parsed = JSON.parse_string(body_bytes.get_string_from_utf8())
+		if code == 200:
+			_show_toast("✔ Tunnel run activated! Border checks bypassed.", Color(0.2, 1.0, 0.4))
+		else:
+			var err = parsed.get("message", "Cartel refuse passage.") if parsed else "Tunnel request error."
+			_show_toast("⛔ " + err, Color(1.0, 0.25, 0.25))
+	)
+	var body_data = JSON.stringify({
+		"truckId": truck_id
+	})
+	http_tunnel.request(
+		BASE_URL + "/api/underworld/tunnel-run",
+		["Content-Type: application/json", "Authorization: Bearer " + NetworkManager.jwt_token],
+		HTTPClient.METHOD_POST,
+		body_data
+	)
 
 # ====================================================
 # FILTERING
@@ -935,3 +1025,217 @@ func _update_heat_ui() -> void:
 		var cost = GameState.police_heat * 800
 		bribe_btn.text = "👮 BRIBE COMMISSIONER ($%d BM)" % cost if GameState.police_heat > 0 else "👮 COMMISSIONER BRIBE (0 HEAT)"
 		bribe_btn.disabled = GameState.police_heat <= 0
+
+func _render_sabotage_history() -> void:
+	_show_toast("Fetching sabotage history...")
+	var http = HTTPRequest.new()
+	add_child(http)
+	http.request_completed.connect(func(_r, code, _h, body):
+		http.queue_free()
+		if code == 200:
+			var events = JSON.parse_string(body.get_string_from_utf8())
+			_build_history_modal(events)
+		else:
+			_show_toast("Failed to fetch history.", Color(1.0, 0.25, 0.25))
+	)
+	var token = GameState.auth_token
+	http.request(BASE_URL + "/api/underworld/sabotage-events", ["Authorization: Bearer " + token], HTTPClient.METHOD_GET)
+
+func _build_history_modal(events: Array) -> void:
+	var overlay = ColorRect.new()
+	overlay.color = Color(0, 0, 0, 0.85)
+	overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	scene_root.add_child(overlay)
+	
+	var panel = _make_panel(Vector2(240, 80), Vector2(800, 560), Color(0.08, 0.04, 0.12, 0.95))
+	overlay.add_child(panel)
+	
+	var header = Label.new()
+	header.text = "📜 SYNDICATE SABOTAGE LOG"
+	header.add_theme_font_size_override("font_size", 20)
+	header.add_theme_color_override("font_color", Color(0.65, 0.45, 1.0))
+	header.position = Vector2(24, 24)
+	panel.add_child(header)
+	
+	var close_btn = _make_button("✕", Vector2(740, 20), Vector2(40, 40))
+	_style_btn(close_btn, Color(1.0, 0.25, 0.25))
+	close_btn.pressed.connect(overlay.queue_free)
+	panel.add_child(close_btn)
+	
+	var scroll = ScrollContainer.new()
+	scroll.position = Vector2(24, 80)
+	scroll.size = Vector2(750, 450)
+	panel.add_child(scroll)
+	
+	var list = VBoxContainer.new()
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	list.add_theme_constant_override("separation", 10)
+	scroll.add_child(list)
+	
+	if events.is_empty():
+		var empty = Label.new()
+		empty.text = "No sabotage events found."
+		list.add_child(empty)
+		return
+		
+	for ev in events:
+		var item = PanelContainer.new()
+		item.custom_minimum_size.y = 50
+		var style = StyleBoxFlat.new()
+		style.bg_color = Color(0.1, 0.05, 0.1, 0.8)
+		style.set_corner_radius_all(4)
+		item.add_theme_stylebox_override("panel", style)
+		
+		var hbox = HBoxContainer.new()
+		item.add_child(hbox)
+		
+		var icon = "💥"
+		if ev.type == "ENGINE_FIRE": icon = "🔥"
+		elif ev.type == "CARGO_THEFT": icon = "📦"
+		elif ev.type == "DRIVER_ASSAULT": icon = "🥊"
+		
+		var type_lbl = Label.new()
+		type_lbl.text = icon
+		type_lbl.custom_minimum_size = Vector2(40, 0)
+		type_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		hbox.add_child(type_lbl)
+		
+		var target_lbl = Label.new()
+		if ev.attackerId == GameState.company_id:
+			var v = ev.victimCompany
+			target_lbl.text = "ATTACKED: " + (v.name if v else "Unknown")
+		else:
+			var a = ev.attackerCompany
+			target_lbl.text = "ATTACKED BY: " + (a.name if a else "Unknown")
+		target_lbl.custom_minimum_size = Vector2(300, 0)
+		hbox.add_child(target_lbl)
+		
+		var status_lbl = Label.new()
+		status_lbl.text = "SUCCESS" if ev.success else "FAILED"
+		status_lbl.add_theme_color_override("font_color", Color.GREEN if ev.success else Color.RED)
+		status_lbl.custom_minimum_size = Vector2(100, 0)
+		hbox.add_child(status_lbl)
+		
+		var cost_lbl = Label.new()
+		cost_lbl.text = "-$%s" % ev.costToRepair if typeof(ev.costToRepair) != TYPE_NIL else ""
+		cost_lbl.custom_minimum_size = Vector2(100, 0)
+		hbox.add_child(cost_lbl)
+		
+		list.add_child(item)
+
+func _bribe_interpol() -> void:
+	var bribe_http = HTTPRequest.new()
+	add_child(bribe_http)
+	bribe_http.request_completed.connect(func(_r, code, _h, body):
+		var parsed = JSON.parse_string(body.get_string_from_utf8())
+		if code == 200:
+			_show_toast("🕵️ Interpol agents bribed! 30 min border immunity active.", Color(0.0, 0.7, 1.0))
+		else:
+			var err = parsed.get("message", "Bribe failed.") if parsed else "Server error."
+			_show_toast(err, Color(1.0, 0.3, 0.3))
+		bribe_http.queue_free()
+	)
+	var token = GameState.auth_token
+	bribe_http.request(BASE_URL + "/api/underworld/bribe-interpol", ["Content-Type: application/json", "Authorization: Bearer " + token], HTTPClient.METHOD_POST, "{}")
+
+func _open_loan_shark() -> void:
+	var overlay = ColorRect.new()
+	overlay.color = Color(0, 0, 0, 0.85)
+	overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	scene_root.add_child(overlay)
+	
+	var panel = _make_panel(Vector2(290, 100), Vector2(700, 500), Color(0.1, 0.04, 0.04, 0.97))
+	overlay.add_child(panel)
+	
+	var title = Label.new()
+	title.text = "🦈 LOAN SHARK — KONSTANTIN THE ENFORCER"
+	title.add_theme_font_size_override("font_size", 18)
+	title.add_theme_color_override("font_color", Color(1.0, 0.4, 0.0))
+	title.position = Vector2(20, 20)
+	panel.add_child(title)
+	
+	var warning = Label.new()
+	warning.text = "High risk, no questions asked. 20%/day interest. Overdue loans = enforcer visits."
+	warning.add_theme_font_size_override("font_size", 12)
+	warning.add_theme_color_override("font_color", Color(0.8, 0.5, 0.3))
+	warning.position = Vector2(20, 55)
+	warning.size = Vector2(660, 30)
+	panel.add_child(warning)
+	
+	# Amount slider
+	var slider_lbl = Label.new()
+	slider_lbl.text = "LOAN AMOUNT:"
+	slider_lbl.position = Vector2(20, 100)
+	slider_lbl.add_theme_color_override("font_color", Color.WHITE)
+	panel.add_child(slider_lbl)
+	
+	var amt_slider = HSlider.new()
+	amt_slider.min_value = 10000
+	amt_slider.max_value = 500000
+	amt_slider.step = 5000
+	amt_slider.value = 50000
+	amt_slider.position = Vector2(20, 125)
+	amt_slider.size = Vector2(500, 30)
+	panel.add_child(amt_slider)
+	
+	var amt_val_lbl = Label.new()
+	amt_val_lbl.text = "$50,000"
+	amt_val_lbl.position = Vector2(535, 125)
+	amt_val_lbl.add_theme_color_override("font_color", Color(1.0, 0.4, 0.0))
+	panel.add_child(amt_val_lbl)
+	amt_slider.value_changed.connect(func(v): amt_val_lbl.text = "$%d" % int(v))
+	
+	# Borrow button
+	var borrow_btn = Button.new()
+	borrow_btn.text = "🤝 BORROW FUNDS"
+	borrow_btn.position = Vector2(20, 180)
+	borrow_btn.size = Vector2(200, 44)
+	_style_btn(borrow_btn, Color(1.0, 0.4, 0.0))
+	borrow_btn.pressed.connect(func():
+		var http = HTTPRequest.new()
+		add_child(http)
+		http.request_completed.connect(func(_r, code, _h, body):
+			var parsed = JSON.parse_string(body.get_string_from_utf8())
+			if code == 200:
+				_show_toast("🦈 Loan received! Repay within 3 days.", Color(1.0, 0.6, 0.1))
+				overlay.queue_free()
+			else:
+				var err = parsed.get("message", "Loan denied.") if parsed else "Error."
+				_show_toast(err, Color(1.0, 0.2, 0.2))
+			http.queue_free()
+		)
+		var body = JSON.stringify({"amount": int(amt_slider.value)})
+		var token = GameState.auth_token
+		http.request(BASE_URL + "/api/underworld/loan-shark", ["Content-Type: application/json", "Authorization: Bearer " + token], HTTPClient.METHOD_POST, body)
+	)
+	panel.add_child(borrow_btn)
+	
+	# Repay button
+	var repay_btn = Button.new()
+	repay_btn.text = "💸 REPAY DEBT"
+	repay_btn.position = Vector2(240, 180)
+	repay_btn.size = Vector2(200, 44)
+	_style_btn(repay_btn, Color(0.2, 0.7, 0.3))
+	repay_btn.pressed.connect(func():
+		var http = HTTPRequest.new()
+		add_child(http)
+		http.request_completed.connect(func(_r, code, _h, body):
+			var parsed = JSON.parse_string(body.get_string_from_utf8())
+			if code == 200:
+				var msg = parsed.get("message", "Debt cleared!") if parsed else "Done."
+				_show_toast(msg, Color(0.2, 0.9, 0.5))
+				overlay.queue_free()
+			else:
+				var err = parsed.get("message", "Repay failed.") if parsed else "Error."
+				_show_toast(err, Color(1.0, 0.2, 0.2))
+			http.queue_free()
+		)
+		var token = GameState.auth_token
+		http.request(BASE_URL + "/api/underworld/loan-shark/repay", ["Content-Type: application/json", "Authorization: Bearer " + token], HTTPClient.METHOD_POST, "{}")
+	)
+	panel.add_child(repay_btn)
+	
+	var close_btn = _make_button("✕ CLOSE", Vector2(20, 430), Vector2(120, 44))
+	_style_btn(close_btn, Color(1.0, 0.25, 0.25))
+	close_btn.pressed.connect(overlay.queue_free)
+	panel.add_child(close_btn)
